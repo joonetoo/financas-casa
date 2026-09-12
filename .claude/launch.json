@@ -1,0 +1,14 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "financas-casa",
+      "runtimeExecutable": "/bin/bash",
+      "runtimeArgs": [
+        "-c",
+        "export PATH=\"/Users/joelneto/.nvm/versions/node/v24.21.0/bin:$PATH\" && exec npm run dev"
+      ],
+      "port": 5173
+    }
+  ]
+}
