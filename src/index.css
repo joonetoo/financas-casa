@@ -4,6 +4,12 @@
 
 body {
   margin: 0;
-  background: #f1ece2;
+  background: #f4f1de;
   min-height: 100vh;
+}
+
+@media (prefers-color-scheme: dark) {
+  body {
+    background: #141b22;
+  }
 }

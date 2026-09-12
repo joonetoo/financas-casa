@@ -69,19 +69,84 @@ const sumBy = (arr, key) =>
 /* ------------------------------------------------------------------ */
 
 const CATS = [
-  { key: "contasCasa", label: "Contas da casa", color: "#3B6E64", fixed: false, catalog: "contasCasaItems" },
-  { key: "servicos", label: "Serviços & assinaturas", color: "#8A6F9E", fixed: false, catalog: "servicosItems" },
-  { key: "mercado", label: "Mercado", color: "#B4652F", fixed: false },
-  { key: "feira", label: "Feira da semana", color: "#7A8B4C", fixed: false },
-  { key: "combustivel", label: "Combustível / estacionamento", color: "#5B7C99", fixed: false },
-  { key: "meusGastos", label: "Meus gastos", color: "#B5484B", fixed: false },
-  { key: "comprasCasa", label: "Compras da casa", color: "#C79A56", fixed: false },
-  { key: "investimentos", label: "Investimentos", color: "#4C6B8A", fixed: false },
+  { key: "contasCasa", label: "Contas da casa", color: "#1B263B", icon: "contas", fixed: false, catalog: "contasCasaItems" },
+  { key: "servicos", label: "Serviços & assinaturas", color: "#415A77", icon: "servicos", fixed: false, catalog: "servicosItems" },
+  { key: "mercado", label: "Mercado", color: "#B98A4A", icon: "mercado", fixed: false },
+  { key: "feira", label: "Feira da semana", color: "#778D7A", icon: "feira", fixed: false },
+  { key: "combustivel", label: "Combustível / estacionamento", color: "#5C7C82", icon: "combustivel", fixed: false },
+  { key: "meusGastos", label: "Meus gastos", color: "#A9727C", icon: "meusgastos", fixed: false },
+  { key: "comprasCasa", label: "Compras da casa", color: "#A08A64", icon: "compras", fixed: false },
+  { key: "investimentos", label: "Investimentos", color: "#6B5B73", icon: "investimentos", fixed: false },
 ];
 
 const VAR_CATS = CATS.filter((c) => !c.fixed);
 
-const PERSON_COLORS = { joel: "#3B6E64", antonio: "#A8763E" };
+const PERSON_COLORS = { joel: "#1B263B", antonio: "#B98A4A" };
+
+/* ------------------------------------------------------------------ */
+/* Ícones das categorias (SVG inline, sem dependência externa)         */
+/* ------------------------------------------------------------------ */
+
+const CAT_ICON_PATHS = {
+  contas: (
+    <>
+      <path d="M3 10.5 12 3l9 7.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+      <path d="M5 9.5V20a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1V9.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+    </>
+  ),
+  servicos: (
+    <>
+      <path d="M4 12a8 8 0 0 1 13.66-5.66M20 12a8 8 0 0 1-13.66 5.66" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" fill="none" />
+      <path d="M17 3v4h-4M7 21v-4h4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+    </>
+  ),
+  mercado: (
+    <>
+      <path d="M5 8h14l-1.4 9.1a2 2 0 0 1-2 1.9H8.4a2 2 0 0 1-2-1.9L5 8Z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" fill="none" />
+      <path d="M8.5 8V6a3.5 3.5 0 0 1 7 0v2" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" fill="none" />
+    </>
+  ),
+  feira: (
+    <>
+      <path d="M12 21c-4-2-7-6-7-10a7 7 0 0 1 14 0c0 4-3 8-7 10Z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" fill="none" />
+      <path d="M12 21V9" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" fill="none" />
+    </>
+  ),
+  combustivel: (
+    <>
+      <path d="M6 20V6a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v14" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" fill="none" />
+      <path d="M4 20h11M14 9h2.5a1.5 1.5 0 0 1 1.5 1.5V17a1.5 1.5 0 0 0 3 0v-5l-2.5-3" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+      <path d="M7.5 5.5h4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" fill="none" />
+    </>
+  ),
+  meusgastos: (
+    <>
+      <circle cx="12" cy="12" r="8" stroke="currentColor" strokeWidth="1.8" fill="none" />
+      <circle cx="12" cy="12" r="4" stroke="currentColor" strokeWidth="1.8" fill="none" />
+      <circle cx="12" cy="12" r="0.8" fill="currentColor" />
+    </>
+  ),
+  compras: (
+    <>
+      <path d="M5 9h14l-1.2 9.4a2 2 0 0 1-2 1.6H8.2a2 2 0 0 1-2-1.6L5 9Z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" fill="none" />
+      <path d="M9 9V7a3 3 0 0 1 6 0v2" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" fill="none" />
+    </>
+  ),
+  investimentos: (
+    <>
+      <path d="M4 19V5M4 19h16" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" fill="none" />
+      <path d="m7 15 3.5-4 3 2.5L18 8" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+    </>
+  ),
+};
+
+function CatIcon({ name, size = 15 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24">
+      {CAT_ICON_PATHS[name]}
+    </svg>
+  );
+}
 
 /* ------------------------------------------------------------------ */
 /* Dados semente — extraídos da planilha "Contas do mês - Casa"        */
@@ -816,10 +881,14 @@ export default function FinancasCasa() {
 
       <header className="fc-header">
         <div className="fc-brand">
-          <HomeIcon size={20} strokeWidth={1.6} />
-          <span className="fc-serif fc-brand-name">Contas da Casa</span>
+          <span className="fc-brand-badge">
+            <HomeIcon size={17} strokeWidth={2} />
+          </span>
+          <div>
+            <div className="fc-brand-name">Contas da Casa</div>
+            <div className="fc-subtitle">Joel &amp; Antonio</div>
+          </div>
         </div>
-        <p className="fc-subtitle">Joel &amp; Antonio · registro mensal das contas</p>
       </header>
 
       <AnoSwitcher
@@ -904,39 +973,57 @@ export default function FinancasCasa() {
         )}
       </nav>
 
-      <section className="fc-hero">
-        <div className="fc-hero-main">
-          <span className="fc-hero-label">Total previsto para {month.label}</span>
-          <span className="fc-serif fc-hero-number fc-tabular">{fmt(totalPrevisto)}</span>
-          <span className="fc-hero-spent fc-tabular">já gasto: {fmt(totalGasto)}</span>
-        </div>
-        <div className="fc-hero-side">
-          <div className="fc-hero-person">
-            <span className="fc-dot" style={{ background: PERSON_COLORS.antonio }} />
-            <span>Antonio contribui</span>
-            <EditableAmount
-              value={month.antonio}
-              onCommit={(v) => setPerson("antonio", v)}
-              className="fc-hero-value"
-            />
-          </div>
-          <div className="fc-hero-person">
-            <span className="fc-dot" style={{ background: PERSON_COLORS.joel }} />
-            <span>Joel contribui (calculado)</span>
-            <span className="fc-amount-computed fc-hero-value fc-tabular">{fmt(joelCalculado)}</span>
-          </div>
-          <div className="fc-hero-diff">
-            <span>Ainda não gasto (previsto − gasto)</span>
-            <span
-              className="fc-tabular"
-              style={{ color: diferenca < 0 ? "var(--neg)" : "var(--pos)", fontWeight: 600 }}
-            >
-              {diferenca >= 0 ? "+" : ""}
-              {fmt(diferenca)}
-            </span>
-          </div>
-        </div>
-      </section>
+      {(() => {
+        const pctUsado = totalPrevisto > 0 ? Math.min(100, (totalGasto / totalPrevisto) * 100) : 0;
+        const r = 42;
+        const circumference = 2 * Math.PI * r;
+        const dashoffset = circumference * (1 - pctUsado / 100);
+        return (
+          <section className="fc-hero">
+            <div className="fc-hero-main">
+              <span className="fc-hero-eyebrow">Ainda dá pra gastar em {month.label}</span>
+              <span className="fc-hero-number fc-tabular">{fmt(diferenca)}</span>
+              <span className="fc-hero-sub fc-tabular">
+                Previsto {fmt(totalPrevisto)} · Já gasto {fmt(totalGasto)}
+              </span>
+              <div className="fc-hero-chips">
+                <span className="fc-hero-chip">
+                  <span className="fc-hero-avatar">A</span>
+                  <span className="fc-hero-role">Antonio</span>
+                  <EditableAmount
+                    value={month.antonio}
+                    onCommit={(v) => setPerson("antonio", v)}
+                    className="fc-hero-chip-value"
+                  />
+                </span>
+                <span className="fc-hero-chip">
+                  <span className="fc-hero-avatar">J</span>
+                  <span className="fc-hero-role">Joel (calc.)</span>
+                  <span className="fc-hero-chip-value fc-tabular">{fmt(joelCalculado)}</span>
+                </span>
+              </div>
+            </div>
+            <div className="fc-ring-wrap">
+              <svg viewBox="0 0 96 96">
+                <circle className="fc-ring-track" cx="48" cy="48" r={r} />
+                <circle
+                  className="fc-ring-fill"
+                  cx="48"
+                  cy="48"
+                  r={r}
+                  strokeDasharray={circumference}
+                  strokeDashoffset={dashoffset}
+                  transform="rotate(-90 48 48)"
+                />
+              </svg>
+              <div className="fc-ring-label">
+                <span className="fc-ring-pct">{Math.round(pctUsado)}%</span>
+                <span className="fc-ring-cap">usado</span>
+              </div>
+            </div>
+          </section>
+        );
+      })()}
 
       <nav className="fc-tabs">
         <TabButton active={activeTab === "resumo"} onClick={() => setActiveTab("resumo")}>
@@ -955,30 +1042,47 @@ export default function FinancasCasa() {
 
       <main className="fc-main">
         {activeTab === "resumo" && (
-          <div className="fc-ledger">
-            {CATS.map((c) => {
-              const gasto = categoryTotal(month, c.key);
-              const resta = !c.fixed ? getResta(month, c.key) : 0;
-              return (
-                <div className="fc-row fc-ledger-row" key={c.key}>
-                  <span className="fc-cat-name-wrap">
-                    <span className="fc-cat-name">
-                      <span className="fc-dot" style={{ background: c.color }} />
-                      {c.label}
-                    </span>
-                    {!c.fixed && (
-                      <span className="fc-cat-sub fc-tabular">
-                        gasto {fmt(gasto)} · resta{" "}
-                        <span style={{ color: resta < 0 ? "var(--neg)" : "var(--pos)" }}>
-                          {fmt(resta)}
-                        </span>
+          <div>
+            <div className="fc-env-grid">
+              {CATS.map((c) => {
+                const gasto = categoryTotal(month, c.key);
+                const orcamento = plannedTotal(month, c.key);
+                const resta = orcamento - gasto;
+                const pct = orcamento > 0 ? Math.min(100, (gasto / orcamento) * 100) : 0;
+                return (
+                  <div className="fc-env-card" key={c.key}>
+                    <div className="fc-env-top">
+                      <span
+                        className="fc-env-icon"
+                        style={{ background: `color-mix(in srgb, ${c.color} 16%, white)`, color: c.color }}
+                      >
+                        <CatIcon name={c.icon} />
                       </span>
-                    )}
-                  </span>
-                  <span className="fc-tabular">{fmt(plannedTotal(month, c.key))}</span>
-                </div>
-              );
-            })}
+                      <span className="fc-env-name">{c.label}</span>
+                    </div>
+                    <div className="fc-env-gauge">
+                      <div
+                        className="fc-env-gauge-fill"
+                        style={{ background: c.color, width: pct + "%" }}
+                      />
+                    </div>
+                    <div className="fc-env-nums">
+                      <span>
+                        <span className="fc-env-spent fc-tabular">{fmt(gasto)}</span>
+                        <span className="fc-env-budget fc-tabular">de {fmt(orcamento)}</span>
+                      </span>
+                      <span
+                        className="fc-env-left fc-tabular"
+                        style={{ color: resta < 0 ? "var(--neg)" : "var(--pos)" }}
+                      >
+                        {resta < 0 ? "" : "+"}
+                        {fmt(resta)}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
             <div className="fc-ledger-row fc-ledger-total">
               <span>Total previsto do mês</span>
               <span className="fc-tabular">{fmt(totalPrevisto)}</span>
@@ -993,9 +1097,10 @@ export default function FinancasCasa() {
                 <button
                   key={c.key}
                   className={"fc-chip" + (activeCat === c.key ? " fc-chip-active" : "")}
-                  style={activeCat === c.key ? { borderColor: c.color, color: c.color } : {}}
+                  style={activeCat === c.key ? { borderColor: c.color, color: "var(--ink)" } : {}}
                   onClick={() => setActiveCat(c.key)}
                 >
+                  <span className="fc-dot" style={{ background: c.color }} />
                   {c.label}
                 </button>
               ))}
@@ -1006,7 +1111,7 @@ export default function FinancasCasa() {
               const gasto = categoryTotal(month, activeCat);
               const resta = orcamento - gasto;
               const pct = orcamento > 0 ? Math.min(100, (gasto / orcamento) * 100) : 0;
-              const barColor = pct >= 100 ? "var(--neg)" : pct >= 80 ? "#C79A56" : "var(--pos)";
+              const barColor = pct >= 100 ? "var(--neg)" : pct >= 80 ? "#B98A4A" : "var(--accent)";
               return (
                 <div className="fc-budget-panel">
                   <div className="fc-budget-row">
@@ -1125,9 +1230,14 @@ export default function FinancasCasa() {
         {activeTab === "fixas" && (
           <>
           <div className="fc-fixas-grid">
-            <div>
+            <div className="fc-fixas-card">
               <div className="fc-section-title">
-                <span>Contas da casa</span>
+                <span className="fc-section-title-with-icon">
+                  <span className="fc-env-icon fc-env-icon-sm" style={{ background: "color-mix(in srgb, #1B263B 16%, white)", color: "#1B263B" }}>
+                    <CatIcon name="contas" size={13} />
+                  </span>
+                  Contas da casa
+                </span>
                 <button className="fc-icon-btn" onClick={addContasCasaItem}>
                   <Plus size={14} />
                 </button>
@@ -1165,9 +1275,14 @@ export default function FinancasCasa() {
               </div>
             </div>
 
-            <div>
+            <div className="fc-fixas-card">
               <div className="fc-section-title">
-                <span>Serviços &amp; assinaturas</span>
+                <span className="fc-section-title-with-icon">
+                  <span className="fc-env-icon fc-env-icon-sm" style={{ background: "color-mix(in srgb, #415A77 16%, white)", color: "#415A77" }}>
+                    <CatIcon name="servicos" size={13} />
+                  </span>
+                  Serviços &amp; assinaturas
+                </span>
                 <button className="fc-icon-btn" onClick={addServicoItem}>
                   <Plus size={14} />
                 </button>
@@ -1210,25 +1325,27 @@ export default function FinancasCasa() {
             <div className="fc-section-title">
               <span>Orçamentos do mês (Mercado, Feira, Combustível...)</span>
             </div>
-            <p className="fc-hint">
-              Reserve aqui quanto pretende gastar em cada categoria variável. Esse valor aparece
-              automaticamente em Lançamentos, junto com o que já foi gasto.
-            </p>
-            <div className="fc-ledger">
-              {VAR_CATS.filter((c) => !c.catalog).map((c) => (
-                <div className="fc-row fc-ledger-row" key={c.key}>
-                  <span className="fc-cat-name">
-                    <span className="fc-dot" style={{ background: c.color }} />
-                    {c.label}
-                  </span>
-                  <span className="fc-row-right">
-                    <EditableAmount
-                      value={getOrcamento(month, c.key)}
-                      onCommit={(v) => setOrcamento(c.key, v)}
-                    />
-                  </span>
-                </div>
-              ))}
+            <div className="fc-fixas-card">
+              <p className="fc-hint" style={{ marginBottom: 12 }}>
+                Reserve aqui quanto pretende gastar em cada categoria variável. Esse valor aparece
+                automaticamente em Lançamentos, junto com o que já foi gasto.
+              </p>
+              <div className="fc-ledger">
+                {VAR_CATS.filter((c) => !c.catalog).map((c) => (
+                  <div className="fc-row fc-ledger-row" key={c.key}>
+                    <span className="fc-cat-name">
+                      <span className="fc-dot" style={{ background: c.color }} />
+                      {c.label}
+                    </span>
+                    <span className="fc-row-right">
+                      <EditableAmount
+                        value={getOrcamento(month, c.key)}
+                        onCommit={(v) => setOrcamento(c.key, v)}
+                      />
+                    </span>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
           </>
@@ -1396,92 +1513,174 @@ export default function FinancasCasa() {
 function FcStyles() {
   return (
     <style>{`
-      @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=IBM+Plex+Sans:wght@400;500;600&display=swap');
+      @import url('https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap');
 
       .fc-wrap {
-        --paper: #F1ECE2;
-        --paper-dim: #E8E1D2;
-        --ink: #2B2620;
-        --ink-soft: #766c5c;
-        --line: #D9CFBD;
-        --joel: #3B6E64;
-        --antonio: #A8763E;
-        --neg: #B5484B;
-        --pos: #3B6E64;
-        background: var(--paper);
+        --bg: #F4F1DE;
+        --surface: #FFFFFF;
+        --surface-2: #ECE5D0;
+        --ink: #0D1B2A;
+        --ink-soft: #415A77;
+        --ink-faint: #8B96A0;
+        --line: #E3DAC2;
+        --accent: #6C8570;
+        --accent-deep: #546957;
+        --pos: #5C7A63;
+        --neg: #A85D45;
+        --hero-bg: #0D1B2A;
+        --hero-bg-2: #1B263B;
+        --hero-ink: #F4F1DE;
+        --hero-sub: #8FA0AC;
+        --shadow-sm: 0 1px 2px rgba(13,27,42,0.07), 0 1px 1px rgba(13,27,42,0.04);
+        --shadow-lg: 0 16px 40px -14px rgba(13,27,42,0.30);
+
+        background: var(--bg);
         color: var(--ink);
-        font-family: 'IBM Plex Sans', sans-serif;
+        font-family: 'Manrope', sans-serif;
         border-radius: 18px;
-        padding: 28px;
+        padding: 24px;
         max-width: 900px;
         margin: 0 auto;
       }
-      .fc-serif { font-family: 'Fraunces', serif; }
+
+      @media (prefers-color-scheme: dark) {
+        .fc-wrap {
+          --bg: #141B22;
+          --surface: #1D2731;
+          --surface-2: #26313C;
+          --ink: #F0EDE2;
+          --ink-soft: #AEBAC4;
+          --ink-faint: #71808B;
+          --line: #324150;
+          --accent: #8AA48D;
+          --accent-deep: #9DB79F;
+          --pos: #8AA48D;
+          --neg: #C7876F;
+          --hero-bg: #0A1017;
+          --hero-bg-2: #12202C;
+          --shadow-sm: 0 1px 2px rgba(0,0,0,0.4);
+          --shadow-lg: 0 20px 48px -16px rgba(0,0,0,0.65);
+        }
+      }
+
+      .fc-wrap h1, .fc-wrap h2, .fc-wrap h3, .fc-serif { font-family: 'Sora', sans-serif; }
       .fc-loading { text-align: center; padding: 60px 0; color: var(--ink-soft); }
 
-      .fc-header { margin-bottom: 18px; }
-      .fc-brand { display: flex; align-items: center; gap: 8px; }
-      .fc-brand-name { font-size: 24px; font-weight: 600; }
-      .fc-subtitle { color: var(--ink-soft); font-size: 13px; margin: 4px 0 0 28px; }
+      .fc-header { margin-bottom: 16px; }
+      .fc-brand { display: flex; align-items: center; gap: 10px; }
+      .fc-brand-badge {
+        width: 34px; height: 34px; border-radius: 10px; flex-shrink: 0;
+        background: var(--ink); color: var(--bg);
+        display: inline-flex; align-items: center; justify-content: center;
+      }
+      .fc-brand-name { font-family: 'Sora', sans-serif; font-size: 18px; font-weight: 600; }
+      .fc-subtitle { color: var(--ink-soft); font-size: 12px; margin-top: 1px; }
 
       .fc-months {
         display: flex; flex-wrap: wrap; gap: 6px; align-items: center;
-        padding-bottom: 14px; margin-bottom: 18px;
-        border-bottom: 1px solid var(--line);
+        padding-bottom: 12px; margin-bottom: 16px;
       }
       .fc-month-pill {
-        border: 1px solid transparent; background: transparent; color: var(--ink-soft);
-        padding: 5px 12px; border-radius: 999px; font-size: 13px; cursor: pointer;
+        border: 1px solid var(--line); background: var(--surface); color: var(--ink-soft);
+        padding: 6px 12px; border-radius: 999px; font-size: 12.5px; font-weight: 600; cursor: pointer;
         font-family: inherit;
       }
-      .fc-month-pill:hover { background: var(--paper-dim); }
-      .fc-month-pill-active { background: var(--ink); color: var(--paper); font-weight: 500; }
+      .fc-month-pill:hover { color: var(--ink); }
+      .fc-month-pill-active { background: var(--ink); color: var(--bg); border-color: var(--ink); }
       .fc-month-pill-ghost {
-        display: inline-flex; align-items: center; gap: 4px; border: 1px dashed var(--line);
+        display: inline-flex; align-items: center; gap: 4px; border: 1px dashed var(--line); background: transparent;
       }
       .fc-add-month-form { display: inline-flex; align-items: center; gap: 4px; }
 
       .fc-hero {
-        display: flex; justify-content: space-between; align-items: flex-start;
-        gap: 24px; padding: 22px 0; border-bottom: 1px solid var(--line);
-        margin-bottom: 18px; flex-wrap: wrap;
+        background: linear-gradient(155deg, var(--hero-bg), var(--hero-bg-2));
+        color: var(--hero-ink);
+        border-radius: 16px; padding: 20px;
+        display: flex; justify-content: space-between; align-items: center;
+        gap: 18px; box-shadow: var(--shadow-lg);
+        margin-bottom: 16px; flex-wrap: wrap;
       }
-      .fc-hero-main { display: flex; flex-direction: column; gap: 4px; }
-      .fc-hero-label { font-size: 13px; color: var(--ink-soft); }
-      .fc-hero-number { font-size: 44px; font-weight: 500; line-height: 1; }
-      .fc-hero-spent { font-size: 12px; color: var(--ink-soft); margin-top: 2px; }
-      .fc-amount-computed { color: var(--ink-soft); font-style: italic; }
-      .fc-hero-side { display: flex; flex-direction: column; gap: 8px; min-width: 260px; }
-      .fc-hero-person, .fc-hero-diff {
-        display: flex; align-items: center; gap: 8px; font-size: 13px; justify-content: space-between;
+      .fc-hero-main { display: flex; flex-direction: column; gap: 4px; min-width: 220px; }
+      .fc-hero-eyebrow {
+        font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase;
+        color: var(--accent-deep); filter: brightness(1.6);
       }
-      .fc-hero-person span:nth-child(2), .fc-hero-diff span:first-child { color: var(--ink-soft); margin-right: auto; }
-      .fc-hero-value { font-weight: 700 !important; font-size: 15px !important; }
+      .fc-hero-number { font-family: 'Sora', sans-serif; font-size: 32px; font-weight: 600; line-height: 1.05; }
+      .fc-hero-sub { font-size: 12.5px; color: var(--hero-sub); margin-top: 4px; }
+      .fc-hero-chips { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+      .fc-hero-chip {
+        display: flex; align-items: center; gap: 6px;
+        background: rgba(244,241,222,0.07); border: 1px solid rgba(244,241,222,0.14);
+        padding: 5px 10px 5px 5px; border-radius: 999px; font-size: 12px; font-weight: 600;
+      }
+      .fc-hero-avatar {
+        width: 18px; height: 18px; border-radius: 50%; flex-shrink: 0;
+        background: rgba(244,241,222,0.14); display: inline-flex; align-items: center; justify-content: center;
+        font-size: 9px; font-weight: 700;
+      }
+      .fc-hero-role { color: var(--hero-sub); font-weight: 500; }
+      .fc-hero-chip-value { font-weight: 700 !important; color: var(--hero-ink) !important; font-size: 12px !important; padding: 0 !important; }
+      .fc-amount-computed { color: inherit; }
 
-      .fc-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 6px; flex-shrink: 0; }
+      .fc-ring-wrap { position: relative; width: 84px; height: 84px; flex-shrink: 0; }
+      .fc-ring-wrap svg { width: 100%; height: 100%; }
+      .fc-ring-track { fill: none; stroke: rgba(244,241,222,0.10); stroke-width: 7; }
+      .fc-ring-fill { fill: none; stroke: var(--accent); stroke-width: 7; stroke-linecap: round; transition: stroke-dashoffset 0.6s ease; }
+      .fc-ring-label {
+        position: absolute; inset: 0; display: flex; flex-direction: column;
+        align-items: center; justify-content: center; text-align: center;
+      }
+      .fc-ring-pct { font-family: 'Sora', sans-serif; font-weight: 600; font-size: 16px; }
+      .fc-ring-cap { font-size: 8px; color: var(--hero-sub); letter-spacing: .04em; text-transform: uppercase; }
 
-      .fc-tabs { display: flex; gap: 4px; margin-bottom: 18px; flex-wrap: wrap; }
+      .fc-dot { width: 7px; height: 7px; border-radius: 50%; display: inline-block; margin-right: 6px; flex-shrink: 0; }
+
+      .fc-tabs {
+        display: flex; gap: 3px; margin-bottom: 16px; flex-wrap: wrap;
+        background: var(--surface-2); padding: 4px; border-radius: 12px;
+      }
       .fc-tab {
-        border: none; background: transparent; color: var(--ink-soft); font-size: 14px;
-        padding: 7px 4px; cursor: pointer; font-family: inherit; position: relative;
-        margin-right: 14px;
+        border: none; background: transparent; color: var(--ink-soft); font-size: 12.5px; font-weight: 600;
+        padding: 8px 6px; cursor: pointer; font-family: inherit; border-radius: 9px; flex: 1;
+        transition: background .15s ease, color .15s ease;
       }
-      .fc-tab-active { color: var(--ink); font-weight: 600; }
-      .fc-tab-active::after {
-        content: ''; position: absolute; left: 0; right: 0; bottom: -1px; height: 2px; background: var(--ink);
+      .fc-tab:hover { color: var(--ink); }
+      .fc-tab-active { background: var(--surface); color: var(--ink); box-shadow: var(--shadow-sm); }
+
+      .fc-env-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+      @media (min-width: 620px) { .fc-env-grid { grid-template-columns: repeat(3, 1fr); } }
+      .fc-env-card {
+        background: var(--surface); border-radius: 14px; padding: 14px;
+        box-shadow: var(--shadow-sm); border: 1px solid var(--line);
+        display: flex; flex-direction: column; gap: 9px; min-height: 128px;
       }
+      .fc-env-top { display: flex; align-items: center; gap: 8px; }
+      .fc-env-icon {
+        width: 28px; height: 28px; border-radius: 9px; flex-shrink: 0;
+        display: inline-flex; align-items: center; justify-content: center;
+      }
+      .fc-env-icon-sm { width: 22px; height: 22px; border-radius: 7px; }
+      .fc-env-name { font-weight: 600; font-size: 12.5px; line-height: 1.2; }
+      .fc-env-gauge { height: 6px; border-radius: 999px; background: var(--surface-2); overflow: hidden; }
+      .fc-env-gauge-fill { height: 100%; border-radius: 999px; transition: width 0.4s ease; }
+      .fc-env-nums { display: flex; justify-content: space-between; align-items: baseline; margin-top: auto; }
+      .fc-env-spent { font-size: 14px; font-weight: 700; font-family: 'Sora', sans-serif; display: block; }
+      .fc-env-budget { font-size: 10.5px; color: var(--ink-faint); font-weight: 500; display: block; }
+      .fc-env-left { font-size: 11px; font-weight: 600; }
+
+      .fc-section-title-with-icon { display: flex; align-items: center; gap: 8px; }
 
       .fc-ledger { display: flex; flex-direction: column; }
       .fc-ledger-row {
         display: flex; justify-content: space-between; align-items: center;
-        padding: 10px 2px; font-size: 14px;
+        padding: 9px 2px; font-size: 13.5px;
       }
       .fc-anos { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; margin-bottom: 10px; }
       .fc-ano-pill {
         border: 1px solid var(--line); background: transparent; color: var(--ink-soft);
-        padding: 3px 10px; border-radius: 999px; font-size: 12px; cursor: pointer; font-family: inherit;
+        padding: 3px 10px; border-radius: 999px; font-size: 11.5px; font-weight: 600; cursor: pointer; font-family: inherit;
       }
-      .fc-ano-pill-active { background: var(--paper-dim); color: var(--ink); font-weight: 600; border-color: var(--ink-soft); }
+      .fc-ano-pill-active { background: var(--surface-2); color: var(--ink); border-color: var(--ink-soft); }
       .fc-ano-pill-ghost { display: inline-flex; align-items: center; gap: 2px; border-style: dashed; }
 
       .fc-month-pill-wrap { display: inline-flex; align-items: center; position: relative; }
@@ -1498,14 +1697,14 @@ function FcStyles() {
       }
 
       .fc-quickadd { margin-top: 14px; }
-      .fc-quickadd-label { font-size: 12px; color: var(--ink-soft); display: block; margin-bottom: 6px; }
+      .fc-quickadd-label { font-size: 11.5px; color: var(--ink-faint); display: block; margin-bottom: 6px; }
       .fc-chip-quickadd { display: inline-flex; align-items: center; gap: 3px; }
 
-      .fc-hint { font-size: 12px; color: var(--ink-soft); margin: 0 0 8px; }
+      .fc-hint { font-size: 11.5px; color: var(--ink-faint); margin: 0 0 8px; }
 
       .fc-confirm-inline {
         display: inline-flex; align-items: center; gap: 6px; font-size: 12px;
-        background: #fff; border: 1px solid var(--neg); border-radius: 999px; padding: 3px 6px 3px 10px;
+        background: var(--surface); border: 1px solid var(--neg); border-radius: 999px; padding: 3px 6px 3px 10px;
       }
       .fc-confirm-inline-center {
         flex-wrap: wrap; justify-content: center; border-radius: 12px; padding: 10px 14px; gap: 10px;
@@ -1514,12 +1713,12 @@ function FcStyles() {
       .fc-icon-btn-danger { border-color: var(--neg); color: var(--neg); }
       .fc-icon-btn-danger:hover { background: var(--neg); color: #fff; }
       .fc-danger-btn {
-        border: 1px solid var(--neg); background: var(--neg); color: #fff; border-radius: 6px;
+        border: 1px solid var(--neg); background: var(--neg); color: #fff; border-radius: 8px;
         padding: 6px 12px; font-size: 12px; cursor: pointer; font-family: inherit;
       }
       .fc-danger-btn:hover { opacity: 0.9; }
 
-      .fc-data-zone { text-align: center; margin-top: 32px; padding-top: 16px; border-top: 1px solid var(--line); }
+      .fc-data-zone { text-align: center; margin-top: 28px; padding-top: 16px; border-top: 1px solid var(--line); }
       .fc-data-buttons { display: flex; justify-content: center; align-items: center; gap: 8px; }
       .fc-data-link {
         border: none; background: none; color: var(--ink-soft); font-size: 12px; cursor: pointer;
@@ -1528,80 +1727,83 @@ function FcStyles() {
       .fc-data-link:hover { color: var(--ink); }
       .fc-data-sep { color: var(--line); font-size: 12px; }
       .fc-data-panel {
-        margin-top: 12px; text-align: left; background: var(--paper-dim); border-radius: 10px; padding: 12px;
+        margin-top: 12px; text-align: left; background: var(--surface-2); border-radius: 12px; padding: 12px;
       }
       .fc-data-textarea {
         width: 100%; min-height: 120px; font-family: monospace; font-size: 11px; border: 1px solid var(--line);
-        border-radius: 8px; padding: 8px; background: #fff; color: var(--ink); resize: vertical; box-sizing: border-box;
+        border-radius: 8px; padding: 8px; background: var(--surface); color: var(--ink); resize: vertical; box-sizing: border-box;
       }
       .fc-data-panel-actions { display: flex; align-items: center; gap: 10px; margin-top: 8px; }
 
-      .fc-danger-zone { text-align: center; margin-top: 32px; padding-top: 16px; border-top: 1px solid var(--line); }
+      .fc-danger-zone { text-align: center; margin-top: 28px; padding-top: 16px; border-top: 1px solid var(--line); }
       .fc-danger-link {
-        border: none; background: none; color: var(--ink-soft); font-size: 12px; cursor: pointer;
+        border: none; background: none; color: var(--ink-faint); font-size: 11.5px; cursor: pointer;
         font-family: inherit; text-decoration: underline; text-underline-offset: 2px;
       }
       .fc-danger-link:hover { color: var(--neg); }
 
       .fc-cat-name { display: flex; align-items: center; }
-      .fc-cat-name-wrap { display: flex; flex-direction: column; gap: 2px; }
-      .fc-cat-sub { font-size: 11px; color: var(--ink-soft); margin-left: 14px; }
 
       .fc-budget-panel {
-        background: var(--paper-dim); border-radius: 10px; padding: 12px 14px; margin-top: 14px;
+        background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 16px; margin-top: 12px;
       }
-      .fc-budget-row { display: flex; gap: 24px; flex-wrap: wrap; margin-bottom: 8px; }
+      .fc-budget-row { display: flex; gap: 22px; flex-wrap: wrap; margin-bottom: 10px; }
       .fc-budget-item { display: flex; flex-direction: column; gap: 2px; font-size: 15px; }
-      .fc-budget-label { font-size: 11px; color: var(--ink-soft); }
+      .fc-budget-label { font-size: 10.5px; color: var(--ink-faint); font-weight: 600; text-transform: uppercase; letter-spacing: .04em; }
       .fc-progress-track {
-        height: 6px; background: #fff; border-radius: 999px; overflow: hidden; border: 1px solid var(--line);
+        height: 7px; background: var(--surface-2); border-radius: 999px; overflow: hidden;
       }
-      .fc-progress-fill { height: 100%; border-radius: 999px; transition: width 0.2s ease; }
-      .fc-ledger-total { border-top: 2px solid var(--ink); margin-top: 4px; font-weight: 600; padding-top: 12px; }
+      .fc-progress-fill { height: 100%; border-radius: 999px; transition: width 0.4s ease; }
+      .fc-ledger-total { border-top: 1.5px solid var(--ink); margin-top: 4px; font-weight: 700; padding-top: 12px; }
       .fc-row-right { display: flex; align-items: center; gap: 8px; }
       .fc-tabular { font-variant-numeric: tabular-nums; }
-      .fc-empty { color: var(--ink-soft); font-size: 13px; padding: 12px 2px; }
+      .fc-empty { color: var(--ink-faint); font-size: 13px; padding: 12px 2px; }
 
       .fc-amount-btn {
         background: none; border: none; font: inherit; color: var(--ink); cursor: pointer;
-        padding: 2px 4px; border-radius: 4px; font-variant-numeric: tabular-nums;
+        padding: 2px 4px; border-radius: 6px; font-variant-numeric: tabular-nums;
       }
-      .fc-amount-btn:hover { background: var(--paper-dim); }
+      .fc-amount-btn:hover { background: var(--surface-2); }
 
       .fc-input {
-        font-family: inherit; font-size: 13px; border: 1px solid var(--line); border-radius: 6px;
-        padding: 6px 8px; background: #fff; color: var(--ink);
+        font-family: inherit; font-size: 13px; border: 1px solid var(--line); border-radius: 9px;
+        padding: 8px 10px; background: var(--surface); color: var(--ink);
       }
-      .fc-input-plain { border: none; background: transparent; padding: 2px 4px; font-size: 14px; flex: 1; }
-      .fc-input-plain:hover, .fc-input-plain:focus { background: var(--paper-dim); outline: none; }
+      .fc-input-plain { border: none; background: transparent; padding: 2px 4px; font-size: 13.5px; flex: 1; }
+      .fc-input-plain:hover, .fc-input-plain:focus { background: var(--surface-2); outline: none; }
       .fc-input-grow { flex: 1; }
 
       .fc-icon-btn {
-        border: 1px solid var(--line); background: #fff; border-radius: 6px; padding: 5px;
+        border: 1px solid var(--line); background: var(--surface); border-radius: 8px; padding: 5px;
         display: inline-flex; align-items: center; justify-content: center; cursor: pointer;
         color: var(--ink-soft);
       }
       .fc-icon-btn:hover { color: var(--ink); border-color: var(--ink-soft); }
-      .fc-icon-btn-solid { background: var(--ink); color: var(--paper); border-color: var(--ink); }
-      .fc-icon-btn-solid:hover { color: var(--paper); opacity: 0.9; }
+      .fc-icon-btn-solid { background: var(--accent); color: var(--hero-ink); border-color: var(--accent); }
+      .fc-icon-btn-solid:hover { background: var(--accent-deep); border-color: var(--accent-deep); }
 
-      .fc-add-row { display: flex; gap: 8px; margin-top: 14px; }
+      .fc-add-row { display: flex; gap: 7px; margin-top: 12px; }
 
       .fc-cat-chips { display: flex; flex-wrap: wrap; gap: 6px; }
       .fc-chip {
-        border: 1px solid var(--line); background: #fff; color: var(--ink-soft);
-        padding: 6px 12px; border-radius: 999px; font-size: 13px; cursor: pointer; font-family: inherit;
+        border: 1px solid var(--line); background: var(--surface); color: var(--ink-soft);
+        padding: 6px 12px; border-radius: 999px; font-size: 12.5px; font-weight: 600; cursor: pointer; font-family: inherit;
+        display: inline-flex; align-items: center;
       }
-      .fc-chip-active { font-weight: 600; }
+      .fc-chip-active { font-weight: 700; }
 
-      .fc-fixas-grid { display: grid; grid-template-columns: 1fr; gap: 28px; }
+      .fc-fixas-grid { display: grid; grid-template-columns: 1fr; gap: 12px; }
       @media (min-width: 720px) {
         .fc-fixas-grid { grid-template-columns: 1fr 1fr; }
       }
-      .fc-orcamentos-section { margin-top: 32px; padding-top: 24px; border-top: 1px solid var(--line); }
+      .fc-fixas-card {
+        background: var(--surface); border-radius: 14px; padding: 16px;
+        box-shadow: var(--shadow-sm); border: 1px solid var(--line);
+      }
+      .fc-orcamentos-section { margin-top: 24px; padding-top: 20px; border-top: 1px solid var(--line); }
       .fc-section-title {
         display: flex; justify-content: space-between; align-items: center;
-        font-weight: 600; font-size: 14px; margin-bottom: 8px;
+        font-weight: 600; font-size: 13.5px; margin-bottom: 8px;
       }
     `}</style>
   );
