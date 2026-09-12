@@ -9,7 +9,7 @@ import {
   Tooltip,
   Legend,
 } from "recharts";
-import { Plus, Trash2, ChevronRight, Home as HomeIcon, X, Check } from "lucide-react";
+import { Plus, Trash2, ChevronRight, Home as HomeIcon, X, Check, Eye, EyeOff } from "lucide-react";
 import { createClient } from "@supabase/supabase-js";
 
 /* ------------------------------------------------------------------ */
@@ -426,7 +426,7 @@ const blankAno = (label) => ({ id: uid(), label: label || yearNow(), months: [] 
 /* Pequenos componentes de UI                                          */
 /* ------------------------------------------------------------------ */
 
-function EditableAmount({ value, onCommit, align = "right", className = "" }) {
+function EditableAmount({ value, onCommit, align = "right", className = "", mask = false }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(String(value ?? 0));
 
@@ -458,7 +458,7 @@ function EditableAmount({ value, onCommit, align = "right", className = "" }) {
   }
   return (
     <button className={"fc-amount-btn fc-tabular " + className} onClick={() => setEditing(true)}>
-      {fmt(value)}
+      {mask ? "••••••" : fmt(value)}
     </button>
   );
 }
@@ -543,6 +543,21 @@ export default function FinancasCasa() {
   const [importError, setImportError] = useState("");
   const [importArmed, setImportArmed] = useState(false);
   const [copyFeedback, setCopyFeedback] = useState("");
+  const [hideValues, setHideValues] = useState(() => {
+    try {
+      return localStorage.getItem("fc-hide-values") === "1";
+    } catch (e) {
+      return false;
+    }
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem("fc-hide-values", hideValues ? "1" : "0");
+    } catch (e) {}
+  }, [hideValues]);
+
+  const money = useCallback((v) => (hideValues ? "••••••" : fmt(v)), [hideValues]);
 
   const openAno = (ano) => {
     setActiveAnoId(ano.id);
@@ -889,6 +904,13 @@ export default function FinancasCasa() {
             <div className="fc-subtitle">Joel &amp; Antonio</div>
           </div>
         </div>
+        <button
+          className="fc-icon-btn fc-hide-btn"
+          title={hideValues ? "Mostrar valores" : "Esconder valores"}
+          onClick={() => setHideValues((v) => !v)}
+        >
+          {hideValues ? <EyeOff size={16} /> : <Eye size={16} />}
+        </button>
       </header>
 
       <AnoSwitcher
@@ -982,9 +1004,9 @@ export default function FinancasCasa() {
           <section className="fc-hero">
             <div className="fc-hero-main">
               <span className="fc-hero-eyebrow">Ainda dá pra gastar em {month.label}</span>
-              <span className="fc-hero-number fc-tabular">{fmt(diferenca)}</span>
+              <span className="fc-hero-number fc-tabular">{money(diferenca)}</span>
               <span className="fc-hero-sub fc-tabular">
-                Previsto {fmt(totalPrevisto)} · Já gasto {fmt(totalGasto)}
+                Previsto {money(totalPrevisto)} · Já gasto {money(totalGasto)}
               </span>
               <div className="fc-hero-chips">
                 <span className="fc-hero-chip">
@@ -994,12 +1016,13 @@ export default function FinancasCasa() {
                     value={month.antonio}
                     onCommit={(v) => setPerson("antonio", v)}
                     className="fc-hero-chip-value"
+                    mask={hideValues}
                   />
                 </span>
                 <span className="fc-hero-chip">
                   <span className="fc-hero-avatar">J</span>
                   <span className="fc-hero-role">Joel (calc.)</span>
-                  <span className="fc-hero-chip-value fc-tabular">{fmt(joelCalculado)}</span>
+                  <span className="fc-hero-chip-value fc-tabular">{money(joelCalculado)}</span>
                 </span>
               </div>
             </div>
@@ -1068,15 +1091,15 @@ export default function FinancasCasa() {
                     </div>
                     <div className="fc-env-nums">
                       <span>
-                        <span className="fc-env-spent fc-tabular">{fmt(gasto)}</span>
-                        <span className="fc-env-budget fc-tabular">de {fmt(orcamento)}</span>
+                        <span className="fc-env-spent fc-tabular">{money(gasto)}</span>
+                        <span className="fc-env-budget fc-tabular">de {money(orcamento)}</span>
                       </span>
                       <span
                         className="fc-env-left fc-tabular"
                         style={{ color: resta < 0 ? "var(--neg)" : "var(--pos)" }}
                       >
                         {resta < 0 ? "" : "+"}
-                        {fmt(resta)}
+                        {money(resta)}
                       </span>
                     </div>
                   </div>
@@ -1085,7 +1108,7 @@ export default function FinancasCasa() {
             </div>
             <div className="fc-ledger-row fc-ledger-total">
               <span>Total previsto do mês</span>
-              <span className="fc-tabular">{fmt(totalPrevisto)}</span>
+              <span className="fc-tabular">{money(totalPrevisto)}</span>
             </div>
           </div>
         )}
@@ -1117,11 +1140,11 @@ export default function FinancasCasa() {
                   <div className="fc-budget-row">
                     <span className="fc-budget-item">
                       <span className="fc-budget-label">Orçamento</span>
-                      <span className="fc-tabular fc-amount-computed">{fmt(orcamento)}</span>
+                      <span className="fc-tabular fc-amount-computed">{money(orcamento)}</span>
                     </span>
                     <span className="fc-budget-item">
                       <span className="fc-budget-label">Gasto</span>
-                      <span className="fc-tabular">{fmt(gasto)}</span>
+                      <span className="fc-tabular">{money(gasto)}</span>
                     </span>
                     <span className="fc-budget-item">
                       <span className="fc-budget-label">Resta</span>
@@ -1129,7 +1152,7 @@ export default function FinancasCasa() {
                         className="fc-tabular"
                         style={{ color: resta < 0 ? "var(--neg)" : "var(--pos)", fontWeight: 600 }}
                       >
-                        {fmt(resta)}
+                        {money(resta)}
                       </span>
                     </span>
                   </div>
@@ -1164,7 +1187,7 @@ export default function FinancasCasa() {
                         className="fc-chip fc-chip-quickadd"
                         onClick={() => addLancamentoDireto(activeCat, item.name, item.valor)}
                       >
-                        <Plus size={12} /> {item.name} · {fmt(item.valor)}
+                        <Plus size={12} /> {item.name} · {money(item.valor)}
                       </button>
                     ))}
                   </div>
@@ -1207,6 +1230,7 @@ export default function FinancasCasa() {
                     <EditableAmount
                       value={item.valor}
                       onCommit={(v) => editLancamento(activeCat, item.id, "valor", v)}
+                      mask={hideValues}
                     />
                     <button
                       className="fc-icon-btn"
@@ -1220,7 +1244,7 @@ export default function FinancasCasa() {
               {(month.lancamentos[activeCat] || []).length > 0 && (
                 <div className="fc-ledger-row fc-ledger-total">
                   <span>Subtotal</span>
-                  <span className="fc-tabular">{fmt(categoryTotal(month, activeCat))}</span>
+                  <span className="fc-tabular">{money(categoryTotal(month, activeCat))}</span>
                 </div>
               )}
             </div>
@@ -1258,6 +1282,7 @@ export default function FinancasCasa() {
                       <EditableAmount
                         value={item.valor}
                         onCommit={(v) => editItem("contasCasaItems", item.id, "valor", v)}
+                        mask={hideValues}
                       />
                       <button
                         className="fc-icon-btn"
@@ -1270,7 +1295,7 @@ export default function FinancasCasa() {
                 ))}
                 <div className="fc-ledger-row fc-ledger-total">
                   <span>Subtotal</span>
-                  <span className="fc-tabular">{fmt(catalogTotal(month, "contasCasaItems"))}</span>
+                  <span className="fc-tabular">{money(catalogTotal(month, "contasCasaItems"))}</span>
                 </div>
               </div>
             </div>
@@ -1303,6 +1328,7 @@ export default function FinancasCasa() {
                       <EditableAmount
                         value={item.valor}
                         onCommit={(v) => editItem("servicosItems", item.id, "valor", v)}
+                        mask={hideValues}
                       />
                       <button
                         className="fc-icon-btn"
@@ -1315,7 +1341,7 @@ export default function FinancasCasa() {
                 ))}
                 <div className="fc-ledger-row fc-ledger-total">
                   <span>Subtotal</span>
-                  <span className="fc-tabular">{fmt(catalogTotal(month, "servicosItems"))}</span>
+                  <span className="fc-tabular">{money(catalogTotal(month, "servicosItems"))}</span>
                 </div>
               </div>
             </div>
@@ -1341,6 +1367,7 @@ export default function FinancasCasa() {
                       <EditableAmount
                         value={getOrcamento(month, c.key)}
                         onCommit={(v) => setOrcamento(c.key, v)}
+                        mask={hideValues}
                       />
                     </span>
                   </div>
@@ -1368,7 +1395,7 @@ export default function FinancasCasa() {
                   <CartesianGrid strokeDasharray="3 3" stroke="var(--line)" />
                   <XAxis dataKey="name" tick={{ fill: "var(--ink-soft)", fontSize: 12 }} />
                   <YAxis tick={{ fill: "var(--ink-soft)", fontSize: 12 }} />
-                  <Tooltip formatter={(v) => fmt(v)} contentStyle={{ fontSize: 12 }} />
+                  <Tooltip formatter={(v) => money(v)} contentStyle={{ fontSize: 12 }} />
                   <Legend wrapperStyle={{ fontSize: 12 }} />
                   {CATS.map((c) => (
                     <Bar key={c.key} dataKey={c.label} stackId="a" fill={c.color} />
@@ -1392,7 +1419,7 @@ export default function FinancasCasa() {
                   <CartesianGrid strokeDasharray="3 3" stroke="var(--line)" />
                   <XAxis dataKey="name" tick={{ fill: "var(--ink-soft)", fontSize: 12 }} />
                   <YAxis tick={{ fill: "var(--ink-soft)", fontSize: 12 }} />
-                  <Tooltip formatter={(v) => fmt(v)} contentStyle={{ fontSize: 12 }} />
+                  <Tooltip formatter={(v) => money(v)} contentStyle={{ fontSize: 12 }} />
                   <Legend wrapperStyle={{ fontSize: 12 }} />
                   <Bar dataKey="Joel" fill={PERSON_COLORS.joel} />
                   <Bar dataKey="Antonio" fill={PERSON_COLORS.antonio} />
@@ -1566,7 +1593,7 @@ function FcStyles() {
       .fc-wrap h1, .fc-wrap h2, .fc-wrap h3, .fc-serif { font-family: 'Sora', sans-serif; }
       .fc-loading { text-align: center; padding: 60px 0; color: var(--ink-soft); }
 
-      .fc-header { margin-bottom: 16px; }
+      .fc-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; gap: 10px; }
       .fc-brand { display: flex; align-items: center; gap: 10px; }
       .fc-brand-badge {
         width: 34px; height: 34px; border-radius: 10px; flex-shrink: 0;
@@ -1575,6 +1602,7 @@ function FcStyles() {
       }
       .fc-brand-name { font-family: 'Sora', sans-serif; font-size: 18px; font-weight: 600; }
       .fc-subtitle { color: var(--ink-soft); font-size: 12px; margin-top: 1px; }
+      .fc-hide-btn { flex-shrink: 0; }
 
       .fc-months {
         display: flex; flex-wrap: wrap; gap: 6px; align-items: center;
