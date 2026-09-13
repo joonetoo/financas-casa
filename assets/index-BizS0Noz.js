@@ -266,8 +266,9 @@ ${S}`}class mt extends Error{constructor({message:e,code:r,cause:n,name:i}){var 
         padding: 6px 12px; border-radius: 999px; font-size: 12.5px; font-weight: 600; cursor: pointer;
         font-family: inherit;
       }
-      .fc-month-pill:hover { color: var(--ink); }
+      .fc-month-pill:hover:not(.fc-month-pill-active) { color: var(--ink); }
       .fc-month-pill-active { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+      .fc-month-pill-active:hover { color: var(--bg); }
       .fc-month-pill-ghost {
         display: inline-flex; align-items: center; gap: 4px; border: 1px dashed var(--line); background: transparent;
       }
