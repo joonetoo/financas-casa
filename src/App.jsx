@@ -9,7 +9,18 @@ import {
   Tooltip,
   Legend,
 } from "recharts";
-import { Plus, Trash2, ChevronRight, Home as HomeIcon, X, Check, Eye, EyeOff } from "lucide-react";
+import {
+  Plus,
+  Trash2,
+  ChevronRight,
+  ChevronLeft,
+  ChevronDown,
+  Home as HomeIcon,
+  X,
+  Check,
+  Eye,
+  EyeOff,
+} from "lucide-react";
 import { createClient } from "@supabase/supabase-js";
 
 /* ------------------------------------------------------------------ */
@@ -73,20 +84,44 @@ const sumBy = (arr, key) =>
 /* Categorias fixas do sistema (mantidas da planilha original)         */
 /* ------------------------------------------------------------------ */
 
+// Uma família só, derivada do verde do app: quatro verdes do escuro ao claro
+// para as categorias que mais pesam, depois areia, terracota e verde-azulado.
+// Estas cores pintam os chips E as séries do gráfico — a ordem é a mesma, então
+// na barra empilhada o bloco escuro embaixo é sempre a maior despesa.
 const CATS = [
-  { key: "contasCasa", label: "Contas da casa", color: "#1B263B", icon: "contas", fixed: false, catalog: "contasCasaItems" },
-  { key: "servicos", label: "Serviços & assinaturas", color: "#415A77", icon: "servicos", fixed: false, catalog: "servicosItems" },
-  { key: "mercado", label: "Mercado", color: "#B98A4A", icon: "mercado", fixed: false },
-  { key: "feira", label: "Feira da semana", color: "#778D7A", icon: "feira", fixed: false },
-  { key: "combustivel", label: "Combustível / estacionamento", color: "#5C7C82", icon: "combustivel", fixed: false },
-  { key: "meusGastos", label: "Meus gastos", color: "#A9727C", icon: "meusgastos", fixed: false },
-  { key: "comprasCasa", label: "Compras da casa", color: "#A08A64", icon: "compras", fixed: false },
-  { key: "investimentos", label: "Investimentos", color: "#6B5B73", icon: "investimentos", fixed: false },
+  { key: "contasCasa", label: "Contas da casa", color: "#14513A", icon: "contas", fixed: false, catalog: "contasCasaItems" },
+  { key: "servicos", label: "Serviços & assinaturas", color: "#2E8C63", icon: "servicos", fixed: false, catalog: "servicosItems" },
+  { key: "mercado", label: "Mercado", color: "#4CC38A", icon: "mercado", fixed: false },
+  { key: "feira", label: "Feira da semana", color: "#8FE7B8", icon: "feira", fixed: false },
+  { key: "combustivel", label: "Combustível / estacionamento", color: "#C3E3C0", icon: "combustivel", fixed: false },
+  { key: "meusGastos", label: "Meus gastos", color: "#D9A55D", icon: "meusgastos", fixed: false },
+  { key: "comprasCasa", label: "Compras da casa", color: "#E39478", icon: "compras", fixed: false },
+  { key: "investimentos", label: "Investimentos", color: "#7FB0B8", icon: "investimentos", fixed: false },
 ];
 
 const VAR_CATS = CATS.filter((c) => !c.fixed);
 
-const PERSON_COLORS = { joel: "#1B263B", antonio: "#B98A4A" };
+// Estado de uma categoria no mês, em três faixas: folga, apertado (>=85%) e
+// acima. Arredonda pra centavos antes de comparar — 1200 - 1200 dá
+// -0,0000000001 em ponto flutuante, e era isso que fazia uma categoria
+// exatamente no limite aparecer como "-R$ 0,00" em vermelho enquanto outra,
+// na mesma situação, aparecia como "+R$ 0,00" em verde.
+function budgetState(orcamento, gasto) {
+  const resta = Math.round((orcamento - gasto) * 100) / 100;
+  const pct = orcamento > 0 ? (gasto / orcamento) * 100 : 0;
+  if (resta < 0) return { resta, over: true, word: null, barPct: 100, color: "var(--neg)" };
+  if (orcamento > 0 && resta === 0)
+    return { resta, over: false, word: "no limite", barPct: 100, color: "var(--warn)" };
+  return {
+    resta,
+    over: false,
+    word: null,
+    barPct: Math.min(100, pct),
+    color: pct >= 85 ? "var(--warn)" : "var(--pos)",
+  };
+}
+
+const PERSON_COLORS = { joel: "#4CC38A", antonio: "#7FB0B8" };
 
 /* ------------------------------------------------------------------ */
 /* Ícones das categorias (SVG inline, sem dependência externa)         */
@@ -532,6 +567,28 @@ function EditableAmount({ value, onCommit, align = "right", className = "", mask
   );
 }
 
+// O balão padrão do recharts é branco com texto preto — no tema escuro ele
+// aparece como um retângulo de luz no meio do gráfico. Este usa a superfície
+// elevada do app e lista só as categorias com valor no mês (das oito, quase
+// sempre a metade está zerada).
+function ChartTooltip({ active, payload, label, money }) {
+  if (!active || !payload || payload.length === 0) return null;
+  const itens = payload.filter((p) => Number(p.value) > 0);
+  if (itens.length === 0) return null;
+  return (
+    <div className="fc-chart-tip">
+      <div className="fc-chart-tip-title">{label}</div>
+      {itens.map((p) => (
+        <div className="fc-chart-tip-row" key={p.dataKey}>
+          <span className="fc-chart-tip-dot" style={{ background: p.color }} />
+          <span className="fc-chart-tip-name">{p.dataKey}</span>
+          <span className="fc-chart-tip-val fc-tabular">{money(p.value)}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function TabButton({ active, children, onClick, innerRef }) {
   return (
     <button ref={innerRef} className={"fc-tab" + (active ? " fc-tab-active" : "")} onClick={onClick}>
@@ -618,6 +675,7 @@ export default function FinancasCasa() {
   const [importArmed, setImportArmed] = useState(false);
   const [copyFeedback, setCopyFeedback] = useState("");
   const [toast, setToast] = useState(null);
+  const [periodOpen, setPeriodOpen] = useState(false);
   const toastIdRef = useRef(0);
 
   const showToast = useCallback((msg, undoFn) => {
@@ -645,7 +703,6 @@ export default function FinancasCasa() {
 
   const tabSlider = useSlider();
   const yearSlider = useSlider();
-  const monthSlider = useSlider();
   const chipSlider = useSlider();
 
   useLayoutEffect(() => {
@@ -655,20 +712,23 @@ export default function FinancasCasa() {
     yearSlider.sync(activeAnoId);
   }, [activeAnoId, data?.anos?.length]);
   useLayoutEffect(() => {
-    monthSlider.sync(activeMonthId);
-  }, [activeMonthId, activeAnoId, confirmDeleteMonthId]);
-  useLayoutEffect(() => {
     chipSlider.sync(activeCat);
+  }, [activeCat, activeTab]);
+
+  // a faixa de categorias agora rola em vez de quebrar linha: traz a ativa pra
+  // vista, senão ela some pra fora da tela num celular.
+  useEffect(() => {
+    const el = document.querySelector(".fc-cat-chips .fc-chip-active");
+    if (el) el.scrollIntoView({ block: "nearest", inline: "center", behavior: "smooth" });
   }, [activeCat, activeTab]);
 
   const resyncSliders = useCallback(
     (animate = false) => {
       tabSlider.update(activeTab, animate);
       yearSlider.update(activeAnoId, animate);
-      monthSlider.update(activeMonthId, animate);
       chipSlider.update(activeCat, animate);
     },
-    [activeTab, activeAnoId, activeMonthId, activeCat]
+    [activeTab, activeAnoId, activeCat]
   );
 
   useEffect(() => {
@@ -925,6 +985,31 @@ export default function FinancasCasa() {
   const antonioValor = Number(month.antonio) || 0;
   const joelCalculado = totalPrevisto - antonioValor;
   const diferenca = totalPrevisto - totalGasto;
+  const semOrcamento = CATS.filter(
+    (c) => plannedTotal(month, c.key) === 0 && categoryTotal(month, c.key) === 0
+  ).length;
+
+  // As setas andam mês a mês e atravessam a virada do ano: no primeiro mês de
+  // 2026, voltar cai no último mês de 2025, se ele existir.
+  const monthNeighbor = (dir) => {
+    const anos = data.anos;
+    const ai = anos.findIndex((a) => a.id === activeAnoId);
+    const meses = anos[ai]?.months || [];
+    const mi = meses.findIndex((m) => m.id === activeMonthId);
+    const vizinho = meses[mi + dir];
+    if (vizinho) return { anoId: anos[ai].id, monthId: vizinho.id };
+    const outroAno = anos[ai + dir];
+    if (!outroAno || outroAno.months.length === 0) return null;
+    const alvo = dir > 0 ? outroAno.months[0] : outroAno.months[outroAno.months.length - 1];
+    return { anoId: outroAno.id, monthId: alvo.id };
+  };
+  const canStepMonth = (dir) => monthNeighbor(dir) !== null;
+  const stepMonth = (dir) => {
+    const alvo = monthNeighbor(dir);
+    if (!alvo) return;
+    if (alvo.anoId !== activeAnoId) setActiveAnoId(alvo.anoId);
+    setActiveMonthId(alvo.monthId);
+  };
 
   /* ---------------- ações ---------------- */
 
@@ -1173,91 +1258,144 @@ export default function FinancasCasa() {
         </button>
       </header>
 
-      <AnoSwitcher
-        data={data}
-        activeAnoId={activeAnoId}
-        openAno={openAno}
-        addingAno={addingAno}
-        setAddingAno={setAddingAno}
-        newAnoLabel={newAnoLabel}
-        setNewAnoLabel={setNewAnoLabel}
-        onConfirmAno={confirmAddAno}
-        registerItem={yearSlider.registerItem}
-        sliderStyle={yearSlider.style}
-      />
-
-      <nav className="fc-months">
-        <div className="fc-slide-pill" style={monthSlider.style} />
-        {activeAno.months.map((m) => (
-          <span
-            key={m.id}
-            ref={confirmDeleteMonthId === m.id ? null : monthSlider.registerItem(m.id)}
-            className={"fc-month-pill-wrap" + (m.id === activeMonthId ? " fc-month-pill-wrap-active" : "")}
-          >
-            {confirmDeleteMonthId === m.id ? (
-              <span className="fc-confirm-inline">
-                <span className="fc-confirm-text">Excluir {m.label}?</span>
-                <button
-                  className="fc-icon-btn fc-icon-btn-danger"
-                  title="Confirmar exclusão"
-                  onClick={() => deleteMonth(m.id)}
-                >
-                  <Check size={13} />
-                </button>
-                <button
-                  className="fc-icon-btn"
-                  title="Cancelar"
-                  onClick={() => setConfirmDeleteMonthId(null)}
-                >
-                  <X size={13} />
-                </button>
-              </span>
-            ) : (
-              <>
-                <button
-                  className={"fc-month-pill" + (m.id === activeMonthId ? " fc-month-pill-active" : "")}
-                  onClick={() => setActiveMonthId(m.id)}
-                >
-                  {m.label}
-                </button>
-                <button
-                  className="fc-month-del"
-                  title={`Excluir ${m.label}`}
-                  onClick={() => setConfirmDeleteMonthId(m.id)}
-                >
-                  <Trash2 size={15} />
-                </button>
-              </>
-            )}
-          </span>
-        ))}
-        {addingMonth ? (
-          <span className="fc-add-month-form">
-            <input
-              autoFocus
-              className="fc-input"
-              placeholder="Nome do mês"
-              value={newMonthLabel}
-              onChange={(e) => setNewMonthLabel(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && confirmAddMonth()}
-            />
-            <button className="fc-icon-btn" onClick={confirmAddMonth} title="Adicionar">
-              <ChevronRight size={16} />
-            </button>
-            <button
-              className="fc-icon-btn"
-              onClick={() => setAddingMonth(false)}
-              title="Cancelar"
-            >
-              <X size={16} />
-            </button>
-          </span>
-        ) : (
-          <button className="fc-month-pill fc-month-pill-ghost" onClick={() => setAddingMonth(true)}>
-            <Plus size={14} /> mês
-          </button>
-        )}
+      <nav className="fc-period">
+        <button
+          className="fc-period-arrow"
+          title="Mês anterior"
+          disabled={!canStepMonth(-1)}
+          onClick={() => stepMonth(-1)}
+        >
+          <ChevronLeft size={17} />
+        </button>
+        <button
+          className={"fc-period-label" + (periodOpen ? " fc-period-label-open" : "")}
+          aria-expanded={periodOpen}
+          onClick={() => setPeriodOpen((v) => !v)}
+        >
+          {month.label} {activeAno.label}
+          <ChevronDown size={14} className="fc-period-caret" />
+        </button>
+        <button
+          className="fc-period-arrow"
+          title="Próximo mês"
+          disabled={!canStepMonth(1)}
+          onClick={() => stepMonth(1)}
+        >
+          <ChevronRight size={17} />
+        </button>
       </nav>
+
+      {periodOpen && (
+        <div className="fc-period-sheet">
+          <div className="fc-period-group">
+            <span className="fc-period-group-label">Ano</span>
+            <div className="fc-period-items">
+              {data.anos.map((a) => (
+                <button
+                  key={a.id}
+                  className={"fc-period-chip" + (a.id === activeAnoId ? " fc-period-chip-active" : "")}
+                  onClick={() => openAno(a)}
+                >
+                  {a.label}
+                </button>
+              ))}
+              {addingAno ? (
+                <span className="fc-add-month-form">
+                  <input
+                    autoFocus
+                    className="fc-input"
+                    placeholder="Ano"
+                    value={newAnoLabel}
+                    onChange={(e) => setNewAnoLabel(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && confirmAddAno()}
+                  />
+                  <button className="fc-icon-btn" onClick={() => confirmAddAno()} title="Adicionar">
+                    <Check size={15} />
+                  </button>
+                  <button className="fc-icon-btn" onClick={() => setAddingAno(false)} title="Cancelar">
+                    <X size={15} />
+                  </button>
+                </span>
+              ) : (
+                <button className="fc-period-chip fc-period-chip-ghost" onClick={() => setAddingAno(true)}>
+                  <Plus size={13} /> ano
+                </button>
+              )}
+            </div>
+          </div>
+
+          <div className="fc-period-group">
+            <span className="fc-period-group-label">Mês</span>
+            <div className="fc-period-items">
+              {activeAno.months.map((m) =>
+                confirmDeleteMonthId === m.id ? (
+                  <span key={m.id} className="fc-confirm-inline">
+                    <span className="fc-confirm-text">Excluir {m.label}?</span>
+                    <button
+                      className="fc-icon-btn fc-icon-btn-danger"
+                      title="Confirmar exclusão"
+                      onClick={() => deleteMonth(m.id)}
+                    >
+                      <Check size={14} />
+                    </button>
+                    <button
+                      className="fc-icon-btn"
+                      title="Cancelar"
+                      onClick={() => setConfirmDeleteMonthId(null)}
+                    >
+                      <X size={14} />
+                    </button>
+                  </span>
+                ) : (
+                  <span
+                    key={m.id}
+                    className={"fc-period-month" + (m.id === activeMonthId ? " fc-period-month-active" : "")}
+                  >
+                    <button
+                      className="fc-period-month-btn"
+                      onClick={() => {
+                        setActiveMonthId(m.id);
+                        setPeriodOpen(false);
+                      }}
+                    >
+                      {m.label}
+                    </button>
+                    <button
+                      className="fc-period-month-del"
+                      title={`Excluir ${m.label}`}
+                      onClick={() => setConfirmDeleteMonthId(m.id)}
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </span>
+                )
+              )}
+              {addingMonth ? (
+                <span className="fc-add-month-form">
+                  <input
+                    autoFocus
+                    className="fc-input"
+                    placeholder="Nome do mês"
+                    value={newMonthLabel}
+                    onChange={(e) => setNewMonthLabel(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && confirmAddMonth()}
+                  />
+                  <button className="fc-icon-btn" onClick={confirmAddMonth} title="Adicionar">
+                    <Check size={15} />
+                  </button>
+                  <button className="fc-icon-btn" onClick={() => setAddingMonth(false)} title="Cancelar">
+                    <X size={15} />
+                  </button>
+                </span>
+              ) : (
+                <button className="fc-period-chip fc-period-chip-ghost" onClick={() => setAddingMonth(true)}>
+                  <Plus size={13} /> mês
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       <nav className="fc-tabs">
         <div className="fc-slide-pill fc-slide-pill-tab" style={tabSlider.style} />
@@ -1266,28 +1404,32 @@ export default function FinancasCasa() {
           active={activeTab === "resumo"}
           onClick={() => setActiveTab("resumo")}
         >
-          Resumo
+          <span className="fc-tab-long">Resumo</span>
+          <span className="fc-tab-short">Resumo</span>
         </TabButton>
         <TabButton
           innerRef={tabSlider.registerItem("lancamentos")}
           active={activeTab === "lancamentos"}
           onClick={() => setActiveTab("lancamentos")}
         >
-          Lançamentos
+          <span className="fc-tab-long">Lançamentos</span>
+          <span className="fc-tab-short">Lançar</span>
         </TabButton>
         <TabButton
           innerRef={tabSlider.registerItem("fixas")}
           active={activeTab === "fixas"}
           onClick={() => setActiveTab("fixas")}
         >
-          Fixas &amp; assinaturas
+          <span className="fc-tab-long">Fixas &amp; assinaturas</span>
+          <span className="fc-tab-short">Fixas</span>
         </TabButton>
         <TabButton
           innerRef={tabSlider.registerItem("comparativo")}
           active={activeTab === "comparativo"}
           onClick={() => setActiveTab("comparativo")}
         >
-          Comparativo
+          <span className="fc-tab-long">Comparativo</span>
+          <span className="fc-tab-short">Comparar</span>
         </TabButton>
       </nav>
 
@@ -1347,38 +1489,54 @@ export default function FinancasCasa() {
               );
             })()}
             <div className="fc-env-grid">
-              {CATS.map((c) => {
-                const gasto = categoryTotal(month, c.key);
-                const orcamento = plannedTotal(month, c.key);
-                const resta = orcamento - gasto;
-                const pct = orcamento > 0 ? Math.min(100, (gasto / orcamento) * 100) : 0;
-                return (
-                  <div className="fc-env-card" key={c.key} style={{ "--cat": c.color }}>
-                    <div className="fc-env-top">
-                      <span className="fc-env-icon">
-                        <CatIcon name={c.icon} />
-                      </span>
-                      <span className="fc-env-name">{c.label}</span>
+              {CATS.map((c) => ({
+                c,
+                gasto: categoryTotal(month, c.key),
+                orcamento: plannedTotal(month, c.key),
+              }))
+                .filter((x) => x.orcamento > 0 || x.gasto > 0)
+                .map(({ c, gasto, orcamento }) => {
+                  const est = budgetState(orcamento, gasto);
+                  return (
+                    <div className="fc-env-card" key={c.key} style={{ "--cat": c.color }}>
+                      <div className="fc-env-top">
+                        <span className="fc-env-icon">
+                          <CatIcon name={c.icon} />
+                        </span>
+                        <span className="fc-env-name">{c.label}</span>
+                        <span
+                          className={"fc-env-left" + (est.word ? "" : " fc-tabular fc-env-left-num")}
+                          style={{ color: est.color }}
+                        >
+                          {est.word
+                            ? est.word
+                            : est.over
+                            ? `${money(-est.resta)} acima`
+                            : money(est.resta)}
+                        </span>
+                      </div>
+                      <div className="fc-env-gauge">
+                        <div
+                          className="fc-env-gauge-fill"
+                          style={{ width: est.barPct + "%", background: est.color }}
+                        />
+                      </div>
+                      <div className="fc-env-nums">
+                        <span className="fc-env-budget fc-tabular">
+                          {money(gasto)} de {money(orcamento)}
+                        </span>
+                      </div>
                     </div>
-                    <div className="fc-env-gauge">
-                      <div className="fc-env-gauge-fill" style={{ width: pct + "%" }} />
-                    </div>
-                    <div className="fc-env-nums">
-                      <span>
-                        <span className="fc-env-spent fc-tabular">{money(gasto)}</span>
-                        <span className="fc-env-budget fc-tabular">de {money(orcamento)}</span>
-                      </span>
-                      <span
-                        className="fc-env-left fc-tabular"
-                        style={{ color: resta < 0 ? "var(--neg)" : "var(--pos)" }}
-                      >
-                        {resta < 0 ? "" : "+"}
-                        {money(resta)}
-                      </span>
-                    </div>
-                  </div>
-                );
-              })}
+                  );
+                })}
+              {semOrcamento > 0 && (
+                <button className="fc-env-empty" onClick={() => setActiveTab("fixas")}>
+                  {semOrcamento === 1
+                    ? "1 categoria sem orçamento definido"
+                    : `${semOrcamento} categorias sem orçamento definido`}
+                  <ChevronRight size={14} />
+                </button>
+              )}
             </div>
             <div className="fc-ledger-row fc-ledger-total fc-hero-resumo-total">
               <span>Total previsto do mês</span>
@@ -1412,9 +1570,9 @@ export default function FinancasCasa() {
             {(() => {
               const orcamento = getOrcamento(month, activeCat);
               const gasto = categoryTotal(month, activeCat);
-              const resta = orcamento - gasto;
-              const pct = orcamento > 0 ? Math.min(100, (gasto / orcamento) * 100) : 0;
-              const barColor = pct >= 100 ? "var(--neg)" : pct >= 80 ? "var(--warn)" : "var(--accent)";
+              const est = budgetState(orcamento, gasto);
+              const pct = est.barPct;
+              const barColor = est.color;
               return (
                 <div className="fc-budget-panel">
                   <div className="fc-budget-row">
@@ -1429,10 +1587,14 @@ export default function FinancasCasa() {
                     <span className="fc-budget-item">
                       <span className="fc-budget-label">Resta</span>
                       <span
-                        className="fc-tabular"
-                        style={{ color: resta < 0 ? "var(--neg)" : "var(--pos)", fontWeight: 600 }}
+                        className={est.word ? "" : "fc-tabular"}
+                        style={{ color: est.color, fontWeight: 600 }}
                       >
-                        {money(resta)}
+                        {est.word
+                          ? est.word
+                          : est.over
+                          ? `${money(-est.resta)} acima`
+                          : money(est.resta)}
                       </span>
                     </span>
                   </div>
@@ -1681,10 +1843,25 @@ export default function FinancasCasa() {
                   <CartesianGrid strokeDasharray="3 3" stroke="var(--line)" />
                   <XAxis dataKey="name" tick={{ fill: "var(--ink-soft)", fontSize: 12 }} />
                   <YAxis tick={{ fill: "var(--ink-soft)", fontSize: 12 }} />
-                  <Tooltip formatter={(v) => money(v)} contentStyle={{ fontSize: 12 }} />
-                  <Legend wrapperStyle={{ fontSize: 12 }} />
+                  <Tooltip
+                    cursor={{ fill: "rgba(255,255,255,.04)" }}
+                    content={<ChartTooltip money={money} />}
+                  />
+                  <Legend
+                    wrapperStyle={{ fontSize: 11.5, paddingTop: 10 }}
+                    iconType="square"
+                    iconSize={9}
+                    formatter={(v) => <span style={{ color: "var(--ink-soft)" }}>{v}</span>}
+                  />
                   {CATS.map((c) => (
-                    <Bar key={c.key} dataKey={c.label} stackId="a" fill={c.color} />
+                    <Bar
+                      key={c.key}
+                      dataKey={c.label}
+                      stackId="a"
+                      fill={c.color}
+                      stroke="var(--bg)"
+                      strokeWidth={1}
+                    />
                   ))}
                 </BarChart>
               </ResponsiveContainer>
@@ -1705,8 +1882,16 @@ export default function FinancasCasa() {
                   <CartesianGrid strokeDasharray="3 3" stroke="var(--line)" />
                   <XAxis dataKey="name" tick={{ fill: "var(--ink-soft)", fontSize: 12 }} />
                   <YAxis tick={{ fill: "var(--ink-soft)", fontSize: 12 }} />
-                  <Tooltip formatter={(v) => money(v)} contentStyle={{ fontSize: 12 }} />
-                  <Legend wrapperStyle={{ fontSize: 12 }} />
+                  <Tooltip
+                    cursor={{ fill: "rgba(255,255,255,.04)" }}
+                    content={<ChartTooltip money={money} />}
+                  />
+                  <Legend
+                    wrapperStyle={{ fontSize: 11.5, paddingTop: 10 }}
+                    iconType="square"
+                    iconSize={9}
+                    formatter={(v) => <span style={{ color: "var(--ink-soft)" }}>{v}</span>}
+                  />
                   <Bar dataKey="Joel" fill={PERSON_COLORS.joel} />
                   <Bar dataKey="Antonio" fill={PERSON_COLORS.antonio} />
                 </BarChart>
@@ -1876,9 +2061,13 @@ function FcStyles() {
         color: var(--ink);
         font-family: 'Manrope', sans-serif;
         font-weight: 500;
+        /* digitos de largura fixa em todo o app: sem isso uma coluna de
+           valores nao alinha na virgula, porque cada digito tem largura
+           propria na Manrope. */
+        font-variant-numeric: tabular-nums;
         border-radius: 18px;
         padding: 24px;
-        max-width: 1180px;
+        max-width: 1320px;
         margin: 0 auto;
       }
       @media (prefers-reduced-motion: reduce) {
@@ -1903,6 +2092,7 @@ function FcStyles() {
       .fc-brand-name { font-family: 'Sora', sans-serif; font-size: 18px; font-weight: 700; }
       .fc-subtitle { color: var(--ink-soft); font-size: 12px; margin-top: 1px; font-weight: 500; }
       .fc-hide-btn { flex-shrink: 0; }
+      @media (max-width: 820px) { .fc-hide-btn { width: 44px; height: 44px; } }
 
       /* -------- indicador deslizante (abas, meses, ano, categorias) -------- */
       .fc-anos, .fc-months, .fc-tabs, .fc-cat-chips { position: relative; }
@@ -1915,16 +2105,11 @@ function FcStyles() {
       }
       .fc-slide-pill-tab { background: var(--surface); box-shadow: var(--shadow-sm); border-radius: 14px; }
 
-      .fc-months {
-        display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
-        padding-bottom: 12px; margin-bottom: 16px;
-      }
       .fc-month-pill {
         border: none; background: transparent; color: var(--ink-soft);
         padding: 9px 11px; border-radius: 999px; font-size: 13px; font-weight: 700; cursor: pointer;
         font-family: inherit; transition: color .3s var(--ease-slide);
       }
-      .fc-month-pill-active { color: var(--bg); }
       .fc-month-pill-ghost {
         display: inline-flex; align-items: center; gap: 4px; border: 1px dashed var(--line); background: transparent;
         color: var(--ink-faint); padding: 9px 14px; transition: border-color .15s ease, color .15s ease;
@@ -1932,22 +2117,74 @@ function FcStyles() {
       .fc-month-pill-ghost:hover { border-color: var(--accent); color: var(--accent); }
       .fc-add-month-form { display: inline-flex; align-items: center; gap: 4px; }
 
-      .fc-month-pill-wrap {
-        display: inline-flex; align-items: center; gap: 2px; border: 1px solid var(--line);
-        border-radius: 999px; padding: 3px; transition: border-color .3s var(--ease-slide), transform .15s var(--ease), box-shadow .15s var(--ease);
+      /* -------- periodo: ano e mes numa linha so --------
+         Antes eram duas faixas que, num celular, quebravam em varias linhas e
+         somavam 243px antes de qualquer conteudo — com uma lixeira colada em
+         cada mes, bem onde o polegar passa. Criar e excluir moram na folha que
+         abre ao tocar no nome, longe do caminho do dia a dia. */
+      .fc-period { display: flex; align-items: center; gap: 8px; margin-bottom: 14px; }
+      .fc-period-arrow {
+        width: 44px; height: 44px; flex-shrink: 0; border-radius: 999px;
+        border: 1px solid var(--line); background: transparent; color: var(--ink-soft); cursor: pointer;
+        display: inline-flex; align-items: center; justify-content: center;
+        transition: color .15s var(--ease), border-color .15s var(--ease), transform .12s var(--ease);
       }
-      .fc-month-pill-wrap:hover { transform: translateY(-1px); box-shadow: var(--shadow-sm); }
-      .fc-month-pill-wrap-active { border-color: var(--ink); }
-      .fc-month-del {
-        width: 34px; height: 34px; flex-shrink: 0; border-radius: 50%; border: none;
+      .fc-period-arrow:hover:not(:disabled) { color: var(--ink); border-color: var(--ink-faint); }
+      .fc-period-arrow:active:not(:disabled) { transform: scale(.92); }
+      .fc-period-arrow:disabled { opacity: .3; cursor: default; }
+      .fc-period-label {
+        flex: 1; min-height: 44px; border-radius: 999px; cursor: pointer;
+        border: 1px solid var(--line); background: var(--surface); color: var(--ink);
+        font-family: 'Sora', sans-serif; font-size: 15px; font-weight: 700;
+        display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+        transition: border-color .15s var(--ease), background-color .15s var(--ease);
+      }
+      .fc-period-label:hover { border-color: var(--ink-faint); }
+      .fc-period-label-open { border-color: var(--accent); }
+      .fc-period-caret { color: var(--ink-faint); transition: transform .2s var(--ease); }
+      .fc-period-label-open .fc-period-caret { transform: rotate(180deg); }
+      @media (min-width: 700px) { .fc-period-label { flex: 0 0 auto; padding: 0 22px; } }
+
+      .fc-period-sheet {
+        background: var(--surface); border: 1px solid var(--line); border-radius: 20px;
+        padding: 16px 18px; margin-bottom: 16px; display: flex; flex-direction: column; gap: 14px;
+        animation: fcFadeUp .28s var(--ease);
+      }
+      .fc-period-group { display: flex; flex-direction: column; gap: 8px; }
+      .fc-period-group-label {
+        font-size: 10.5px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase;
+        color: var(--ink-faint);
+      }
+      .fc-period-items { display: flex; flex-wrap: wrap; gap: 7px; align-items: center; }
+      .fc-period-chip {
+        min-height: 40px; padding: 0 16px; border-radius: 999px; cursor: pointer; font-family: inherit;
+        border: 1px solid var(--line); background: transparent; color: var(--ink-soft);
+        font-size: 13px; font-weight: 700; display: inline-flex; align-items: center; gap: 5px;
+        transition: border-color .15s ease, color .15s ease, background-color .15s ease;
+      }
+      .fc-period-chip:hover { color: var(--ink); border-color: var(--ink-faint); }
+      .fc-period-chip-active { background: var(--ink); border-color: var(--ink); color: var(--bg); }
+      .fc-period-chip-ghost { border-style: dashed; color: var(--ink-faint); }
+      .fc-period-chip-ghost:hover { border-color: var(--accent); color: var(--accent); }
+      .fc-period-month {
+        display: inline-flex; align-items: center; border: 1px solid var(--line); border-radius: 999px;
+        padding: 2px; transition: border-color .15s ease;
+      }
+      .fc-period-month-active { border-color: var(--accent); }
+      .fc-period-month-btn {
+        min-height: 40px; padding: 0 14px; border: none; background: transparent; cursor: pointer;
+        font-family: inherit; font-size: 13px; font-weight: 700; color: var(--ink-soft); border-radius: 999px;
+      }
+      .fc-period-month-active .fc-period-month-btn { color: var(--ink); }
+      .fc-period-month-btn:hover { color: var(--ink); }
+      .fc-period-month-del {
+        width: 40px; height: 40px; flex-shrink: 0; border-radius: 999px; border: none;
         background: transparent; color: var(--ink-faint); cursor: pointer;
         display: inline-flex; align-items: center; justify-content: center;
         transition: background-color .18s var(--ease), color .18s var(--ease), transform .12s var(--ease);
       }
-      .fc-month-pill-wrap-active .fc-month-del { color: color-mix(in srgb, var(--bg) 70%, transparent); }
-      .fc-month-del:hover { background: var(--neg-soft); color: var(--neg); }
-      .fc-month-pill-wrap-active .fc-month-del:hover { background: color-mix(in srgb, var(--neg) 88%, transparent); color: #fff; }
-      .fc-month-del:active { transform: scale(.88); }
+      .fc-period-month-del:hover { background: var(--neg-soft); color: var(--neg); }
+      .fc-period-month-del:active { transform: scale(.88); }
 
       .fc-hero {
         position: relative; overflow: hidden;
@@ -1966,6 +2203,7 @@ function FcStyles() {
       .fc-hero-number { font-family: 'Sora', sans-serif; font-size: 36px; font-weight: 800; line-height: 1.05; }
       .fc-hero-sub { font-size: 12.5px; color: var(--hero-sub); font-weight: 500; }
       .fc-hero-chips { display: flex; gap: 8px; margin-top: auto; flex-wrap: wrap; }
+      .fc-hero-chip { min-width: 0; flex: 1 1 150px; }
       .fc-hero-chip {
         flex: 1; display: flex; align-items: center; gap: 7px;
         background: rgba(0,0,0,.22); border: 1px solid rgba(255,255,255,.16);
@@ -2003,18 +2241,49 @@ function FcStyles() {
       .fc-tab:hover:not(.fc-tab-active) { color: var(--ink); }
       .fc-tab:active { transform: scale(.98); }
       .fc-tab-active { color: var(--ink); }
-      @media (max-width: 699px) { .fc-tabs { display: grid; grid-template-columns: repeat(2, 1fr); } }
+      .fc-tab-short { display: none; }
+
+      /* No celular as quatro secoes descem pro rodape: alcance do polegar e,
+         por ficar fixa por cima do conteudo, custo zero de altura na pagina.
+         O indicador deslizante sai de cena aqui — ele e posicionado a partir
+         do offset dentro do .fc-tabs, que numa barra fixa nao corresponde mais
+         ao que se ve; o estado ativo vira cor e um tracinho. */
+      @media (max-width: 820px) {
+        .fc-tabs {
+          position: fixed; left: 0; right: 0; bottom: 0; z-index: 40;
+          display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0;
+          margin: 0; padding: 4px 4px calc(4px + env(safe-area-inset-bottom));
+          border-radius: 0; border-top: 1px solid var(--line);
+          background: color-mix(in srgb, var(--bg) 88%, var(--surface));
+          backdrop-filter: blur(12px);
+        }
+        .fc-tabs .fc-slide-pill { display: none; }
+        .fc-tab {
+          min-height: 56px; border-radius: 12px; font-size: 11px; padding: 6px 2px;
+          display: flex; flex-direction: column; align-items: center; justify-content: center;
+        }
+        .fc-tab-long { display: none; }
+        .fc-tab-short { display: inline; }
+        .fc-tab-active { color: var(--accent-bright); }
+        .fc-tab-active::after {
+          content: ""; width: 16px; height: 2px; border-radius: 2px;
+          background: var(--accent-bright); margin-top: 4px;
+        }
+        .fc-main { padding-bottom: 96px; }
+      }
 
       .fc-tab-content { animation: fcTabIn .4s var(--ease-slide); }
       @keyframes fcTabIn { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
       @media (prefers-reduced-motion: reduce) { .fc-tab-content { animation: none; } }
 
-      .fc-hero-resumo { display: grid; grid-template-columns: 1fr; gap: 16px; align-items: start; }
-      @media (min-width: 900px) { .fc-hero-resumo { grid-template-columns: 360px 1fr; } }
+      .fc-hero-resumo { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; align-items: start; }
+      @media (min-width: 900px) { .fc-hero-resumo { grid-template-columns: 360px minmax(0, 1fr); } }
+      @media (min-width: 1150px) { .fc-hero-resumo { grid-template-columns: 420px minmax(0, 1fr); gap: 20px; } }
       .fc-hero-resumo-total { grid-column: 1 / -1; }
 
-      .fc-env-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
-      @media (min-width: 560px) { .fc-env-grid { grid-template-columns: repeat(3, 1fr); } }
+      .fc-env-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; }
+      @media (min-width: 560px) { .fc-env-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+      @media (min-width: 900px) { .fc-env-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
       .fc-env-card {
         background: var(--surface); border-radius: 26px; padding: 16px;
         box-shadow: var(--shadow-sm); border: 1px solid var(--line);
@@ -2030,6 +2299,7 @@ function FcStyles() {
       @keyframes fcFadeUp { from { opacity: 0; transform: translateY(22px) scale(.96); } to { opacity: 1; transform: translateY(0) scale(1); } }
       @media (prefers-reduced-motion: reduce) { .fc-env-card { opacity: 1; animation: none; } }
       .fc-env-top { display: flex; align-items: center; gap: 8px; }
+      .fc-env-top .fc-env-name { flex: 1; min-width: 0; }
       .fc-env-icon {
         --cat-on: color-mix(in srgb, var(--cat, var(--accent)), var(--ink) 42%);
         width: 28px; height: 28px; border-radius: 10px; flex-shrink: 0;
@@ -2045,9 +2315,28 @@ function FcStyles() {
         height: 100%; border-radius: 999px; background: var(--cat-on); transition: width 0.5s var(--ease);
       }
       .fc-env-nums { display: flex; justify-content: space-between; align-items: baseline; margin-top: auto; }
-      .fc-env-spent { font-size: 14px; font-weight: 700; font-family: 'Sora', sans-serif; display: block; }
-      .fc-env-budget { font-size: 10.5px; color: var(--ink-faint); font-weight: 600; display: block; }
-      .fc-env-left { font-size: 11px; font-weight: 700; }
+      .fc-env-budget { font-size: 11px; color: var(--ink-faint); font-weight: 600; display: block; }
+      /* o que sobrou e o numero de destaque: e a mesma pergunta que o herói
+         faz la em cima ("ainda da pra gastar"), respondida por categoria. */
+      .fc-env-left { font-size: 13px; font-weight: 700; flex-shrink: 0; white-space: nowrap; }
+      .fc-env-left-num { font-family: 'Sora', sans-serif; font-size: 16px; font-weight: 800; }
+      .fc-env-empty {
+        grid-column: 1 / -1; display: flex; align-items: center; justify-content: center; gap: 7px;
+        min-height: 48px; border-radius: 20px; border: 1px dashed var(--line); background: transparent;
+        color: var(--ink-faint); font-family: inherit; font-size: 12.5px; font-weight: 600; cursor: pointer;
+        transition: border-color .15s ease, color .15s ease;
+      }
+      .fc-env-empty:hover { border-color: var(--accent); color: var(--accent); }
+
+      .fc-chart-tip {
+        background: var(--surface-2); border: 1px solid var(--line); border-radius: 14px;
+        padding: 10px 12px; box-shadow: var(--shadow-md); min-width: 190px;
+      }
+      .fc-chart-tip-title { font-family: 'Sora', sans-serif; font-size: 12.5px; font-weight: 700; margin-bottom: 7px; }
+      .fc-chart-tip-row { display: flex; align-items: center; gap: 8px; font-size: 11.5px; line-height: 1.8; }
+      .fc-chart-tip-dot { width: 9px; height: 9px; border-radius: 3px; flex-shrink: 0; }
+      .fc-chart-tip-name { flex: 1; min-width: 0; color: var(--ink-soft); }
+      .fc-chart-tip-val { font-weight: 700; color: var(--ink); }
 
       .fc-section-title-with-icon { display: flex; align-items: center; gap: 8px; }
 
@@ -2143,7 +2432,7 @@ function FcStyles() {
 
       .fc-cat-name { display: flex; align-items: center; gap: 8px; }
 
-      .fc-lanc-layout { display: grid; grid-template-columns: 1fr; gap: 16px; align-items: start; margin-top: 12px; }
+      .fc-lanc-layout { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; align-items: start; margin-top: 12px; }
       @media (min-width: 900px) { .fc-lanc-layout { grid-template-columns: 300px 1fr; } }
       .fc-lanc-side .fc-budget-panel { margin-top: 0; }
 
@@ -2204,7 +2493,13 @@ function FcStyles() {
 
       .fc-add-row { display: flex; gap: 7px; margin-top: 12px; flex-wrap: wrap; }
 
-      .fc-cat-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+      /* uma linha que rola, em vez de sete linhas empilhadas no celular */
+      .fc-cat-chips {
+        display: flex; flex-wrap: nowrap; gap: 8px; overflow-x: auto; overflow-y: hidden;
+        scrollbar-width: none; padding-bottom: 2px;
+      }
+      .fc-cat-chips::-webkit-scrollbar { display: none; }
+      .fc-cat-chips > .fc-chip { flex: 0 0 auto; }
       .fc-chip {
         --cat-on: color-mix(in srgb, var(--cat, var(--accent)), var(--ink) 42%);
         border: 1px solid var(--line); background: transparent; color: var(--ink-soft);
@@ -2223,9 +2518,9 @@ function FcStyles() {
       }
       .fc-chip-active .fc-chip-icon { background: color-mix(in srgb, var(--bg) 26%, transparent); color: var(--bg); }
 
-      .fc-fixas-grid { display: grid; grid-template-columns: 1fr; gap: 12px; }
+      .fc-fixas-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; }
       @media (min-width: 720px) {
-        .fc-fixas-grid { grid-template-columns: 1fr 1fr; }
+        .fc-fixas-grid { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
       }
       .fc-fixas-card {
         background: var(--surface); border-radius: 26px; padding: 18px;
