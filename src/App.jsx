@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useLayoutEffect, useMemo, useCallback, useRef } from "react";
 import {
   ResponsiveContainer,
   BarChart,
@@ -23,6 +23,10 @@ const SUPABASE_ANON_KEY =
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 const storage = {
+  // Importante: distingue "linha realmente não existe" (data null, sem error)
+  // de "falha ao buscar" (error, ou exceção de rede) — os dois casos NÃO podem
+  // ser tratados igual, senão uma instabilidade de rede vira "banco vazio" e
+  // acaba sobrescrevendo dados reais com a semente/vazio (já aconteceu).
   async get(key) {
     try {
       const { data, error } = await supabase
@@ -30,11 +34,12 @@ const storage = {
         .select("data")
         .eq("id", key)
         .maybeSingle();
-      if (error || !data) return null;
+      if (error) return { failed: true };
+      if (!data) return { value: null };
       return { value: JSON.stringify(data.data) };
     } catch (e) {
       console.error("Falha ao carregar do Supabase", e);
-      return null;
+      return { failed: true };
     }
   },
   async set(key, value) {
@@ -146,6 +151,52 @@ function CatIcon({ name, size = 15 }) {
       {CAT_ICON_PATHS[name]}
     </svg>
   );
+}
+
+/* ------------------------------------------------------------------ */
+/* Indicador deslizante (abas, meses, ano, categorias)                 */
+/* ------------------------------------------------------------------ */
+
+const SLIDE_TRANSITION =
+  "transform .44s cubic-bezier(.66,.01,.24,1.02), width .44s cubic-bezier(.66,.01,.24,1.02), height .44s cubic-bezier(.66,.01,.24,1.02), opacity .2s ease";
+
+function useSlider() {
+  const itemRefs = useRef({});
+  const firstRef = useRef(true);
+  const [style, setStyle] = useState({ opacity: 0 });
+
+  const registerItem = useCallback(
+    (key) => (el) => {
+      if (el) itemRefs.current[key] = el;
+      else delete itemRefs.current[key];
+    },
+    []
+  );
+
+  const update = useCallback((activeKey, animate = true) => {
+    const el = itemRefs.current[activeKey];
+    if (!el) {
+      setStyle((s) => ({ ...s, opacity: 0 }));
+      return;
+    }
+    setStyle({
+      opacity: 1,
+      width: el.offsetWidth,
+      height: el.offsetHeight,
+      transform: `translate(${el.offsetLeft}px, ${el.offsetTop}px)`,
+      transition: animate ? SLIDE_TRANSITION : "none",
+    });
+  }, []);
+
+  const sync = useCallback(
+    (activeKey) => {
+      update(activeKey, !firstRef.current);
+      firstRef.current = false;
+    },
+    [update]
+  );
+
+  return { registerItem, style, update, sync };
 }
 
 /* ------------------------------------------------------------------ */
@@ -418,6 +469,24 @@ const SEED_DATA = { anos: [{ id: "ano-2026", label: "2026", months: SEED_MONTHS 
 const STORAGE_KEY = "financas-casa-data-v3";
 const STORAGE_KEY_LEGACY = "financas-casa-data-v2";
 
+// Backup diário rotativo: 1x por dia (por dia da semana, guarda até 7
+// "fotos" recentes num id separado), sempre a partir de uma leitura que já
+// deu certo (nunca de dado que caiu no fallback por falha de rede) — assim,
+// se o salvamento principal algum dia sobrescrever algo errado, ainda dá
+// pra puxar manualmente um desses backups no Supabase.
+const BACKUP_DATE_FLAG = "fc-last-backup-date";
+async function backupIfNeeded(goodData) {
+  try {
+    const today = new Date().toISOString().slice(0, 10);
+    if (localStorage.getItem(BACKUP_DATE_FLAG) === today) return;
+    const weekday = new Date().getDay();
+    await storage.set(`${STORAGE_KEY}-backup-${weekday}`, JSON.stringify(goodData));
+    localStorage.setItem(BACKUP_DATE_FLAG, today);
+  } catch (e) {
+    console.error("Falha ao gravar backup diário", e);
+  }
+}
+
 const yearNow = () => String(new Date().getFullYear());
 
 const blankAno = (label) => ({ id: uid(), label: label || yearNow(), months: [] });
@@ -451,8 +520,8 @@ function EditableAmount({ value, onCommit, align = "right", className = "", mask
             setEditing(false);
           }
         }}
-        className="fc-input"
-        style={{ textAlign: align, width: 110 }}
+        className="fc-input fc-input-amount"
+        style={{ textAlign: align }}
       />
     );
   }
@@ -463,9 +532,9 @@ function EditableAmount({ value, onCommit, align = "right", className = "", mask
   );
 }
 
-function TabButton({ active, children, onClick }) {
+function TabButton({ active, children, onClick, innerRef }) {
   return (
-    <button className={"fc-tab" + (active ? " fc-tab-active" : "")} onClick={onClick}>
+    <button ref={innerRef} className={"fc-tab" + (active ? " fc-tab-active" : "")} onClick={onClick}>
       {children}
     </button>
   );
@@ -480,12 +549,16 @@ function AnoSwitcher({
   newAnoLabel,
   setNewAnoLabel,
   onConfirmAno,
+  registerItem,
+  sliderStyle,
 }) {
   return (
     <nav className="fc-anos">
+      <div className="fc-slide-pill" style={sliderStyle} />
       {data.anos.map((a) => (
         <button
           key={a.id}
+          ref={registerItem(a.id)}
           className={"fc-ano-pill" + (a.id === activeAnoId ? " fc-ano-pill-active" : "")}
           onClick={() => openAno(a)}
         >
@@ -525,6 +598,7 @@ function AnoSwitcher({
 export default function FinancasCasa() {
   const [data, setData] = useState(null);
   const [loaded, setLoaded] = useState(false);
+  const [loadError, setLoadError] = useState(false);
   const [activeAnoId, setActiveAnoId] = useState(null);
   const [activeMonthId, setActiveMonthId] = useState(null);
   const [activeTab, setActiveTab] = useState("resumo");
@@ -543,6 +617,16 @@ export default function FinancasCasa() {
   const [importError, setImportError] = useState("");
   const [importArmed, setImportArmed] = useState(false);
   const [copyFeedback, setCopyFeedback] = useState("");
+  const [toast, setToast] = useState(null);
+  const toastIdRef = useRef(0);
+
+  const showToast = useCallback((msg, undoFn) => {
+    const id = ++toastIdRef.current;
+    setToast({ id, msg, undoFn });
+    setTimeout(() => {
+      setToast((t) => (t && t.id === id ? null : t));
+    }, 10000);
+  }, []);
   const [hideValues, setHideValues] = useState(() => {
     try {
       return localStorage.getItem("fc-hide-values") === "1";
@@ -559,47 +643,154 @@ export default function FinancasCasa() {
 
   const money = useCallback((v) => (hideValues ? "••••••" : fmt(v)), [hideValues]);
 
+  const tabSlider = useSlider();
+  const yearSlider = useSlider();
+  const monthSlider = useSlider();
+  const chipSlider = useSlider();
+
+  useLayoutEffect(() => {
+    tabSlider.sync(activeTab);
+  }, [activeTab]);
+  useLayoutEffect(() => {
+    yearSlider.sync(activeAnoId);
+  }, [activeAnoId, data?.anos?.length]);
+  useLayoutEffect(() => {
+    monthSlider.sync(activeMonthId);
+  }, [activeMonthId, activeAnoId, confirmDeleteMonthId]);
+  useLayoutEffect(() => {
+    chipSlider.sync(activeCat);
+  }, [activeCat, activeTab]);
+
+  const resyncSliders = useCallback(
+    (animate = false) => {
+      tabSlider.update(activeTab, animate);
+      yearSlider.update(activeAnoId, animate);
+      monthSlider.update(activeMonthId, animate);
+      chipSlider.update(activeCat, animate);
+    },
+    [activeTab, activeAnoId, activeMonthId, activeCat]
+  );
+
+  useEffect(() => {
+    window.addEventListener("resize", resyncSliders);
+    return () => window.removeEventListener("resize", resyncSliders);
+  }, [resyncSliders]);
+
+  // a fonte (Sora/Manrope) carrega de forma assíncrona; se o indicador for
+  // posicionado antes dela terminar, o texto muda de largura e o indicador
+  // fica "preso" no lugar errado — recalcula assim que a fonte estiver pronta.
+  useEffect(() => {
+    const ready = document.fonts && document.fonts.ready ? document.fonts.ready : Promise.resolve();
+    let alive = true;
+    ready.then(() => {
+      if (alive) resyncSliders(false);
+    });
+    return () => {
+      alive = false;
+    };
+  }, [resyncSliders]);
+
   const openAno = (ano) => {
     setActiveAnoId(ano.id);
     setActiveMonthId(ano.months[ano.months.length - 1]?.id ?? null);
   };
 
   useEffect(() => {
+    let alive = true;
     (async () => {
-      let finalData = SEED_DATA;
-      try {
-        const res = await storage.get(STORAGE_KEY);
-        if (res && res.value) {
-          finalData = JSON.parse(res.value);
-        } else {
-          const legacy = await storage.get(STORAGE_KEY_LEGACY).catch(() => null);
-          if (legacy && legacy.value) {
-            const old = JSON.parse(legacy.value);
-            finalData = { anos: [{ id: uid(), label: yearNow(), months: old.months || [] }] };
-          } else {
-            finalData = SEED_DATA;
-          }
+      // busca com algumas tentativas: uma instabilidade passageira de rede
+      // não pode ser confundida com "banco vazio" (ver storage.get acima).
+      let res = await storage.get(STORAGE_KEY);
+      for (let tentativa = 0; res.failed && tentativa < 3; tentativa++) {
+        await new Promise((r) => setTimeout(r, 800 * (tentativa + 1)));
+        res = await storage.get(STORAGE_KEY);
+      }
+      if (!alive) return;
+      if (res.failed) {
+        setLoadError(true);
+        return;
+      }
+
+      let finalData;
+      if (res.value) {
+        finalData = JSON.parse(res.value);
+        backupIfNeeded(finalData);
+      } else {
+        const legacy = await storage.get(STORAGE_KEY_LEGACY);
+        if (!alive) return;
+        if (legacy.failed) {
+          setLoadError(true);
+          return;
         }
-      } catch (e) {
-        finalData = SEED_DATA;
+        if (legacy.value) {
+          const old = JSON.parse(legacy.value);
+          finalData = { anos: [{ id: uid(), label: yearNow(), months: old.months || [] }] };
+        } else {
+          finalData = SEED_DATA;
+        }
       }
       if (!finalData.anos || finalData.anos.length === 0) finalData = SEED_DATA;
       setData(finalData);
       openAno(finalData.anos[finalData.anos.length - 1]);
       setLoaded(true);
     })();
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  // Fila serializada de gravação: sem isso, edições rápidas em sequência
+  // disparam vários upserts concorrentes e — numa rede instável — o mais
+  // antigo pode terminar DEPOIS do mais novo e sobrescrever uma edição mais
+  // recente com uma mais velha. Assim, só existe uma gravação em voo por
+  // vez; se `data` mudar de novo enquanto ela está em andamento, a próxima
+  // gravação dispara assim que a atual terminar, sempre com o estado mais
+  // atual (dataRef), nunca em paralelo.
+  const dataRef = useRef(data);
+  dataRef.current = data;
+  const savingRef = useRef(false);
+  const pendingSaveRef = useRef(false);
+
+  const flushSave = useCallback(async () => {
+    if (savingRef.current) {
+      pendingSaveRef.current = true;
+      return;
+    }
+    savingRef.current = true;
+    try {
+      await storage.set(STORAGE_KEY, JSON.stringify(dataRef.current), false);
+    } catch (e) {
+      console.error("Falha ao salvar", e);
+    } finally {
+      savingRef.current = false;
+    }
+    if (pendingSaveRef.current) {
+      pendingSaveRef.current = false;
+      flushSave();
+    }
   }, []);
 
   useEffect(() => {
+    // só salva depois de uma leitura bem-sucedida (loaded) — nunca a partir
+    // de um estado carregado após falha, pra não sobrescrever dados reais.
     if (!loaded || !data) return;
-    (async () => {
-      try {
-        await storage.set(STORAGE_KEY, JSON.stringify(data), false);
-      } catch (e) {
-        console.error("Falha ao salvar", e);
-      }
-    })();
-  }, [data, loaded]);
+    flushSave();
+  }, [data, loaded, flushSave]);
+
+  // Se a aba for pra segundo plano ou fechar logo depois de uma edição,
+  // garante que a gravação seja disparada imediatamente (nada de esperar o
+  // próximo tick) — reduz a janela em que a última edição poderia se perder.
+  useEffect(() => {
+    const onHide = () => {
+      if (document.visibilityState === "hidden" && loaded && data) flushSave();
+    };
+    document.addEventListener("visibilitychange", onHide);
+    window.addEventListener("pagehide", onHide);
+    return () => {
+      document.removeEventListener("visibilitychange", onHide);
+      window.removeEventListener("pagehide", onHide);
+    };
+  }, [loaded, data, flushSave]);
 
   const activeAno = useMemo(
     () => data?.anos.find((a) => a.id === activeAnoId) || null,
@@ -662,6 +853,22 @@ export default function FinancasCasa() {
     [plannedTotal]
   );
 
+  if (loadError) {
+    return (
+      <div className="fc-wrap fc-loading">
+        <FcStyles />
+        Não foi possível carregar seus dados. Verifique sua internet e
+        recarregue a página — por segurança, nada será salvo até conseguir
+        carregar corretamente.
+        <div style={{ marginTop: 16 }}>
+          <button className="fc-btn-primary" onClick={() => window.location.reload()}>
+            Tentar de novo
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   if (!loaded || !data || !activeAno) {
     return (
       <div className="fc-wrap fc-loading">
@@ -684,6 +891,8 @@ export default function FinancasCasa() {
           newAnoLabel={newAnoLabel}
           setNewAnoLabel={setNewAnoLabel}
           onConfirmAno={(label) => confirmAddAno(label)}
+          registerItem={yearSlider.registerItem}
+          sliderStyle={yearSlider.style}
         />
         <div className="fc-empty-year">
           <p>O ano {activeAno.label} ainda não tem nenhum mês.</p>
@@ -731,8 +940,21 @@ export default function FinancasCasa() {
       servicosItems: [...m.servicosItems, { id: uid(), name: "Nova assinatura", valor: 0 }],
     }));
 
-  const removeItem = (list, id) =>
-    updateMonth(month.id, (m) => ({ ...m, [list]: m[list].filter((i) => i.id !== id) }));
+  const removeItem = (list, id) => {
+    const monthId = month.id;
+    const idx = month[list].findIndex((i) => i.id === id);
+    const removed = month[list][idx];
+    updateMonth(monthId, (m) => ({ ...m, [list]: m[list].filter((i) => i.id !== id) }));
+    if (removed) {
+      showToast(`"${removed.name || "Item"}" excluído.`, () =>
+        updateMonth(monthId, (m) => {
+          const arr = [...m[list]];
+          arr.splice(Math.min(idx, arr.length), 0, removed);
+          return { ...m, [list]: arr };
+        })
+      );
+    }
+  };
 
   const editItem = (list, id, field, value) =>
     updateMonth(month.id, (m) => ({
@@ -757,14 +979,27 @@ export default function FinancasCasa() {
       },
     }));
 
-  const removeLancamento = (catKey, id) =>
-    updateMonth(month.id, (m) => ({
+  const removeLancamento = (catKey, id) => {
+    const monthId = month.id;
+    const idx = month.lancamentos[catKey].findIndex((i) => i.id === id);
+    const removed = month.lancamentos[catKey][idx];
+    updateMonth(monthId, (m) => ({
       ...m,
       lancamentos: {
         ...m.lancamentos,
         [catKey]: m.lancamentos[catKey].filter((i) => i.id !== id),
       },
     }));
+    if (removed) {
+      showToast(`"${removed.desc || "Lançamento"}" excluído.`, () =>
+        updateMonth(monthId, (m) => {
+          const arr = [...m.lancamentos[catKey]];
+          arr.splice(Math.min(idx, arr.length), 0, removed);
+          return { ...m, lancamentos: { ...m.lancamentos, [catKey]: arr } };
+        })
+      );
+    }
+  };
 
   const editLancamento = (catKey, id, field, value) =>
     updateMonth(month.id, (m) => ({
@@ -827,10 +1062,13 @@ export default function FinancasCasa() {
   }
 
   function deleteMonth(monthId) {
+    const anoId = activeAnoId;
+    const idx = activeAno.months.findIndex((m) => m.id === monthId);
+    const removed = activeAno.months[idx];
     setData((prev) => ({
       ...prev,
       anos: prev.anos.map((a) =>
-        a.id === activeAnoId ? { ...a, months: a.months.filter((m) => m.id !== monthId) } : a
+        a.id === anoId ? { ...a, months: a.months.filter((m) => m.id !== monthId) } : a
       ),
     }));
     if (monthId === activeMonthId) {
@@ -838,6 +1076,20 @@ export default function FinancasCasa() {
       setActiveMonthId(remaining[remaining.length - 1]?.id ?? null);
     }
     setConfirmDeleteMonthId(null);
+    if (removed) {
+      showToast(`Mês "${removed.label}" excluído.`, () => {
+        setData((prev) => ({
+          ...prev,
+          anos: prev.anos.map((a) => {
+            if (a.id !== anoId) return a;
+            const months = [...a.months];
+            months.splice(Math.min(idx, months.length), 0, removed);
+            return { ...a, months };
+          }),
+        }));
+        setActiveMonthId(removed.id);
+      });
+    }
   }
 
   function confirmAddAno(label) {
@@ -851,10 +1103,18 @@ export default function FinancasCasa() {
   }
 
   function resetAll() {
+    const previous = data;
+    const previousAnoId = activeAnoId;
+    const previousMonthId = activeMonthId;
     const fresh = { anos: [blankAno()] };
     setData(fresh);
     openAno(fresh.anos[0]);
     setConfirmReset(false);
+    showToast("Todos os dados foram apagados.", () => {
+      setData(previous);
+      setActiveAnoId(previousAnoId);
+      setActiveMonthId(previousMonthId);
+    });
   }
 
   function exportJson() {
@@ -922,12 +1182,16 @@ export default function FinancasCasa() {
         newAnoLabel={newAnoLabel}
         setNewAnoLabel={setNewAnoLabel}
         onConfirmAno={confirmAddAno}
+        registerItem={yearSlider.registerItem}
+        sliderStyle={yearSlider.style}
       />
 
       <nav className="fc-months">
+        <div className="fc-slide-pill" style={monthSlider.style} />
         {activeAno.months.map((m) => (
           <span
             key={m.id}
+            ref={confirmDeleteMonthId === m.id ? null : monthSlider.registerItem(m.id)}
             className={"fc-month-pill-wrap" + (m.id === activeMonthId ? " fc-month-pill-wrap-active" : "")}
           >
             {confirmDeleteMonthId === m.id ? (
@@ -961,7 +1225,7 @@ export default function FinancasCasa() {
                   title={`Excluir ${m.label}`}
                   onClick={() => setConfirmDeleteMonthId(m.id)}
                 >
-                  <Trash2 size={11} />
+                  <Trash2 size={15} />
                 </button>
               </>
             )}
@@ -995,77 +1259,93 @@ export default function FinancasCasa() {
         )}
       </nav>
 
-      {(() => {
-        const pctUsado = totalPrevisto > 0 ? Math.min(100, (totalGasto / totalPrevisto) * 100) : 0;
-        const r = 42;
-        const circumference = 2 * Math.PI * r;
-        const dashoffset = circumference * (1 - pctUsado / 100);
-        return (
-          <section className="fc-hero">
-            <div className="fc-hero-main">
-              <span className="fc-hero-eyebrow">Ainda dá pra gastar em {month.label}</span>
-              <span className="fc-hero-number fc-tabular">{money(diferenca)}</span>
-              <span className="fc-hero-sub fc-tabular">
-                Previsto {money(totalPrevisto)} · Já gasto {money(totalGasto)}
-              </span>
-              <div className="fc-hero-chips">
-                <span className="fc-hero-chip">
-                  <span className="fc-hero-avatar">A</span>
-                  <span className="fc-hero-role">Antonio</span>
-                  <EditableAmount
-                    value={month.antonio}
-                    onCommit={(v) => setPerson("antonio", v)}
-                    className="fc-hero-chip-value"
-                    mask={hideValues}
-                  />
-                </span>
-                <span className="fc-hero-chip">
-                  <span className="fc-hero-avatar">J</span>
-                  <span className="fc-hero-role">Joel (calc.)</span>
-                  <span className="fc-hero-chip-value fc-tabular">{money(joelCalculado)}</span>
-                </span>
-              </div>
-            </div>
-            <div className="fc-ring-wrap">
-              <svg viewBox="0 0 96 96">
-                <circle className="fc-ring-track" cx="48" cy="48" r={r} />
-                <circle
-                  className="fc-ring-fill"
-                  cx="48"
-                  cy="48"
-                  r={r}
-                  strokeDasharray={circumference}
-                  strokeDashoffset={dashoffset}
-                  transform="rotate(-90 48 48)"
-                />
-              </svg>
-              <div className="fc-ring-label">
-                <span className="fc-ring-pct">{Math.round(pctUsado)}%</span>
-                <span className="fc-ring-cap">usado</span>
-              </div>
-            </div>
-          </section>
-        );
-      })()}
-
       <nav className="fc-tabs">
-        <TabButton active={activeTab === "resumo"} onClick={() => setActiveTab("resumo")}>
+        <div className="fc-slide-pill fc-slide-pill-tab" style={tabSlider.style} />
+        <TabButton
+          innerRef={tabSlider.registerItem("resumo")}
+          active={activeTab === "resumo"}
+          onClick={() => setActiveTab("resumo")}
+        >
           Resumo
         </TabButton>
-        <TabButton active={activeTab === "lancamentos"} onClick={() => setActiveTab("lancamentos")}>
+        <TabButton
+          innerRef={tabSlider.registerItem("lancamentos")}
+          active={activeTab === "lancamentos"}
+          onClick={() => setActiveTab("lancamentos")}
+        >
           Lançamentos
         </TabButton>
-        <TabButton active={activeTab === "fixas"} onClick={() => setActiveTab("fixas")}>
+        <TabButton
+          innerRef={tabSlider.registerItem("fixas")}
+          active={activeTab === "fixas"}
+          onClick={() => setActiveTab("fixas")}
+        >
           Fixas &amp; assinaturas
         </TabButton>
-        <TabButton active={activeTab === "comparativo"} onClick={() => setActiveTab("comparativo")}>
+        <TabButton
+          innerRef={tabSlider.registerItem("comparativo")}
+          active={activeTab === "comparativo"}
+          onClick={() => setActiveTab("comparativo")}
+        >
           Comparativo
         </TabButton>
       </nav>
 
       <main className="fc-main">
         {activeTab === "resumo" && (
-          <div>
+          <div className="fc-hero-resumo fc-tab-content">
+            {(() => {
+              const pctUsado = totalPrevisto > 0 ? Math.min(100, (totalGasto / totalPrevisto) * 100) : 0;
+              const r = 27;
+              const circumference = 2 * Math.PI * r;
+              const dashoffset = circumference * (1 - pctUsado / 100);
+              return (
+                <section className="fc-hero">
+                  <span className="fc-hero-eyebrow">Ainda dá pra gastar em {month.label}</span>
+                  <span className="fc-hero-number fc-tabular">{money(diferenca)}</span>
+                  <span className="fc-hero-sub fc-tabular">
+                    Previsto {money(totalPrevisto)} · Já gasto {money(totalGasto)}
+                  </span>
+                  <div className="fc-hero-gauge">
+                    <div className="fc-ring-wrap">
+                      <svg viewBox="0 0 64 64">
+                        <circle className="fc-ring-track" cx="32" cy="32" r={r} />
+                        <circle
+                          className="fc-ring-fill"
+                          cx="32"
+                          cy="32"
+                          r={r}
+                          strokeDasharray={circumference}
+                          strokeDashoffset={dashoffset}
+                          transform="rotate(-90 32 32)"
+                        />
+                      </svg>
+                    </div>
+                    <div className="fc-ring-label">
+                      <span className="fc-ring-pct">{Math.round(pctUsado)}% usado</span>
+                      <span className="fc-ring-cap">do orçamento do mês</span>
+                    </div>
+                  </div>
+                  <div className="fc-hero-chips">
+                    <span className="fc-hero-chip">
+                      <span className="fc-hero-avatar">J</span>
+                      <span className="fc-hero-role">Joel (calc.)</span>
+                      <span className="fc-hero-chip-value fc-tabular">{money(joelCalculado)}</span>
+                    </span>
+                    <span className="fc-hero-chip">
+                      <span className="fc-hero-avatar">A</span>
+                      <span className="fc-hero-role">Antonio</span>
+                      <EditableAmount
+                        value={month.antonio}
+                        onCommit={(v) => setPerson("antonio", v)}
+                        className="fc-hero-chip-value"
+                        mask={hideValues}
+                      />
+                    </span>
+                  </div>
+                </section>
+              );
+            })()}
             <div className="fc-env-grid">
               {CATS.map((c) => {
                 const gasto = categoryTotal(month, c.key);
@@ -1073,21 +1353,15 @@ export default function FinancasCasa() {
                 const resta = orcamento - gasto;
                 const pct = orcamento > 0 ? Math.min(100, (gasto / orcamento) * 100) : 0;
                 return (
-                  <div className="fc-env-card" key={c.key}>
+                  <div className="fc-env-card" key={c.key} style={{ "--cat": c.color }}>
                     <div className="fc-env-top">
-                      <span
-                        className="fc-env-icon"
-                        style={{ background: `color-mix(in srgb, ${c.color} 16%, white)`, color: c.color }}
-                      >
+                      <span className="fc-env-icon">
                         <CatIcon name={c.icon} />
                       </span>
                       <span className="fc-env-name">{c.label}</span>
                     </div>
                     <div className="fc-env-gauge">
-                      <div
-                        className="fc-env-gauge-fill"
-                        style={{ background: c.color, width: pct + "%" }}
-                      />
+                      <div className="fc-env-gauge-fill" style={{ width: pct + "%" }} />
                     </div>
                     <div className="fc-env-nums">
                       <span>
@@ -1106,7 +1380,7 @@ export default function FinancasCasa() {
                 );
               })}
             </div>
-            <div className="fc-ledger-row fc-ledger-total">
+            <div className="fc-ledger-row fc-ledger-total fc-hero-resumo-total">
               <span>Total previsto do mês</span>
               <span className="fc-tabular">{money(totalPrevisto)}</span>
             </div>
@@ -1114,27 +1388,33 @@ export default function FinancasCasa() {
         )}
 
         {activeTab === "lancamentos" && (
-          <div>
+          <div className="fc-tab-content">
             <div className="fc-cat-chips">
+              <div className="fc-slide-pill" style={chipSlider.style} />
               {VAR_CATS.map((c) => (
                 <button
                   key={c.key}
+                  ref={chipSlider.registerItem(c.key)}
                   className={"fc-chip" + (activeCat === c.key ? " fc-chip-active" : "")}
-                  style={activeCat === c.key ? { borderColor: c.color, color: "var(--ink)" } : {}}
+                  style={{ "--cat": c.color }}
                   onClick={() => setActiveCat(c.key)}
                 >
-                  <span className="fc-dot" style={{ background: c.color }} />
+                  <span className="fc-chip-icon">
+                    <CatIcon name={c.icon} size={13} />
+                  </span>
                   {c.label}
                 </button>
               ))}
             </div>
 
+            <div className="fc-lanc-layout">
+            <div className="fc-lanc-side">
             {(() => {
               const orcamento = getOrcamento(month, activeCat);
               const gasto = categoryTotal(month, activeCat);
               const resta = orcamento - gasto;
               const pct = orcamento > 0 ? Math.min(100, (gasto / orcamento) * 100) : 0;
-              const barColor = pct >= 100 ? "var(--neg)" : pct >= 80 ? "#B98A4A" : "var(--accent)";
+              const barColor = pct >= 100 ? "var(--neg)" : pct >= 80 ? "var(--warn)" : "var(--accent)";
               return (
                 <div className="fc-budget-panel">
                   <div className="fc-budget-row">
@@ -1168,6 +1448,8 @@ export default function FinancasCasa() {
                 </div>
               );
             })()}
+            </div>
+            <div className="fc-lanc-main">
 
             {(() => {
               const catDef = CATS.find((c) => c.key === activeCat);
@@ -1233,10 +1515,10 @@ export default function FinancasCasa() {
                       mask={hideValues}
                     />
                     <button
-                      className="fc-icon-btn"
+                      className="fc-icon-btn fc-icon-btn-trash"
                       onClick={() => removeLancamento(activeCat, item.id)}
                     >
-                      <Trash2 size={14} />
+                      <Trash2 size={16} />
                     </button>
                   </span>
                 </div>
@@ -1248,16 +1530,18 @@ export default function FinancasCasa() {
                 </div>
               )}
             </div>
+            </div>
+            </div>
           </div>
         )}
 
         {activeTab === "fixas" && (
-          <>
+          <div className="fc-tab-content">
           <div className="fc-fixas-grid">
             <div className="fc-fixas-card">
               <div className="fc-section-title">
                 <span className="fc-section-title-with-icon">
-                  <span className="fc-env-icon fc-env-icon-sm" style={{ background: "color-mix(in srgb, #1B263B 16%, white)", color: "#1B263B" }}>
+                  <span className="fc-env-icon fc-env-icon-sm" style={{ "--cat": "#1B263B" }}>
                     <CatIcon name="contas" size={13} />
                   </span>
                   Contas da casa
@@ -1285,10 +1569,10 @@ export default function FinancasCasa() {
                         mask={hideValues}
                       />
                       <button
-                        className="fc-icon-btn"
+                        className="fc-icon-btn fc-icon-btn-trash"
                         onClick={() => removeItem("contasCasaItems", item.id)}
                       >
-                        <Trash2 size={14} />
+                        <Trash2 size={16} />
                       </button>
                     </span>
                   </div>
@@ -1303,7 +1587,7 @@ export default function FinancasCasa() {
             <div className="fc-fixas-card">
               <div className="fc-section-title">
                 <span className="fc-section-title-with-icon">
-                  <span className="fc-env-icon fc-env-icon-sm" style={{ background: "color-mix(in srgb, #415A77 16%, white)", color: "#415A77" }}>
+                  <span className="fc-env-icon fc-env-icon-sm" style={{ "--cat": "#415A77" }}>
                     <CatIcon name="servicos" size={13} />
                   </span>
                   Serviços &amp; assinaturas
@@ -1331,10 +1615,10 @@ export default function FinancasCasa() {
                         mask={hideValues}
                       />
                       <button
-                        className="fc-icon-btn"
+                        className="fc-icon-btn fc-icon-btn-trash"
                         onClick={() => removeItem("servicosItems", item.id)}
                       >
-                        <Trash2 size={14} />
+                        <Trash2 size={16} />
                       </button>
                     </span>
                   </div>
@@ -1358,9 +1642,11 @@ export default function FinancasCasa() {
               </p>
               <div className="fc-ledger">
                 {VAR_CATS.filter((c) => !c.catalog).map((c) => (
-                  <div className="fc-row fc-ledger-row" key={c.key}>
+                  <div className="fc-row fc-ledger-row" key={c.key} style={{ "--cat": c.color }}>
                     <span className="fc-cat-name">
-                      <span className="fc-dot" style={{ background: c.color }} />
+                      <span className="fc-env-icon fc-env-icon-sm">
+                        <CatIcon name={c.icon} size={13} />
+                      </span>
                       {c.label}
                     </span>
                     <span className="fc-row-right">
@@ -1375,11 +1661,11 @@ export default function FinancasCasa() {
               </div>
             </div>
           </div>
-          </>
+          </div>
         )}
 
         {activeTab === "comparativo" && (
-          <div>
+          <div className="fc-tab-content">
             <p className="fc-section-title" style={{ marginBottom: 4 }}>
               <span>Gastos por categoria, mês a mês</span>
             </p>
@@ -1529,6 +1815,23 @@ export default function FinancasCasa() {
           </button>
         )}
       </div>
+
+      {toast && (
+        <div className="fc-toast">
+          <span>{toast.msg}</span>
+          {toast.undoFn && (
+            <button
+              className="fc-toast-undo"
+              onClick={() => {
+                toast.undoFn();
+                setToast(null);
+              }}
+            >
+              Desfazer
+            </button>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -1540,185 +1843,236 @@ export default function FinancasCasa() {
 function FcStyles() {
   return (
     <style>{`
-      @import url('https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap');
+      @import url('https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700;800&family=Manrope:wght@400;500;600;700;800&display=swap');
 
       .fc-wrap {
-        --bg: #F4F1DE;
-        --surface: #FFFFFF;
-        --surface-2: #ECE5D0;
-        --ink: #0D1B2A;
-        --ink-soft: #415A77;
-        --ink-faint: #8B96A0;
-        --line: #E3DAC2;
-        --accent: #6C8570;
-        --accent-deep: #546957;
-        --pos: #5C7A63;
-        --neg: #A85D45;
-        --hero-bg: #0D1B2A;
-        --hero-bg-2: #1B263B;
-        --hero-ink: #F4F1DE;
-        --hero-sub: #8FA0AC;
-        --shadow-sm: 0 1px 2px rgba(13,27,42,0.07), 0 1px 1px rgba(13,27,42,0.04);
-        --shadow-lg: 0 16px 40px -14px rgba(13,27,42,0.30);
+        color-scheme: dark;
+        --bg: #0D1512;
+        --surface: #161F1A;
+        --surface-2: #1D2921;
+        --ink: #EAF2EC;
+        --ink-soft: #B3C4BA;
+        --ink-faint: #7E9086;
+        --line: #293830;
+        --accent: #4CC38A;
+        --accent-deep: #092018;
+        --accent-bright: #7CE0AC;
+        --pos: #4CC38A;
+        --neg: #E39478;
+        --neg-soft: #3A2620;
+        --warn: #D9A55D;
+        --hero-1: #072118;
+        --hero-2: #125038;
+        --hero-glow: #2C8A61;
+        --hero-ink: #FFFFFF;
+        --hero-sub: #C3DFD0;
+        --shadow-sm: 0 1px 2px rgba(0,0,0,.4);
+        --shadow-md: 0 10px 24px -10px rgba(0,0,0,.55);
+        --shadow-lg: 0 26px 52px -18px rgba(0,0,0,.7);
+        --ease: cubic-bezier(.22,.9,.32,1);
+        --ease-slide: cubic-bezier(.66,.01,.24,1.02);
 
         background: var(--bg);
         color: var(--ink);
         font-family: 'Manrope', sans-serif;
+        font-weight: 500;
         border-radius: 18px;
         padding: 24px;
-        max-width: 900px;
+        max-width: 1180px;
         margin: 0 auto;
       }
-
-      @media (prefers-color-scheme: dark) {
-        .fc-wrap {
-          --bg: #141B22;
-          --surface: #1D2731;
-          --surface-2: #26313C;
-          --ink: #F0EDE2;
-          --ink-soft: #AEBAC4;
-          --ink-faint: #71808B;
-          --line: #324150;
-          --accent: #8AA48D;
-          --accent-deep: #9DB79F;
-          --pos: #8AA48D;
-          --neg: #C7876F;
-          --hero-bg: #0A1017;
-          --hero-bg-2: #12202C;
-          --shadow-sm: 0 1px 2px rgba(0,0,0,0.4);
-          --shadow-lg: 0 20px 48px -16px rgba(0,0,0,0.65);
+      @media (prefers-reduced-motion: reduce) {
+        .fc-wrap *, .fc-wrap *::before, .fc-wrap *::after {
+          animation-duration: .001ms !important; transition-duration: .001ms !important;
         }
       }
 
       .fc-wrap h1, .fc-wrap h2, .fc-wrap h3, .fc-serif { font-family: 'Sora', sans-serif; }
-      .fc-loading { text-align: center; padding: 60px 0; color: var(--ink-soft); }
+      .fc-wrap button, .fc-wrap input, .fc-wrap textarea { font-family: 'Manrope', sans-serif; font-weight: 500; }
+      .fc-loading { text-align: center; padding: 60px 0; color: var(--ink-soft); max-width: 420px; margin: 0 auto; }
+      .fc-btn-primary { background: var(--accent); color: var(--accent-deep); border: none; border-radius: 999px; padding: 10px 22px; font-weight: 700; cursor: pointer; transition: transform .15s var(--ease), box-shadow .15s var(--ease); }
+      .fc-btn-primary:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); }
 
       .fc-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; gap: 10px; }
       .fc-brand { display: flex; align-items: center; gap: 10px; }
       .fc-brand-badge {
-        width: 34px; height: 34px; border-radius: 10px; flex-shrink: 0;
-        background: var(--ink); color: var(--bg);
+        width: 38px; height: 38px; border-radius: 11px; flex-shrink: 0;
+        background: linear-gradient(145deg, var(--hero-2), var(--accent)); color: #fff;
         display: inline-flex; align-items: center; justify-content: center;
       }
-      .fc-brand-name { font-family: 'Sora', sans-serif; font-size: 18px; font-weight: 600; }
-      .fc-subtitle { color: var(--ink-soft); font-size: 12px; margin-top: 1px; }
+      .fc-brand-name { font-family: 'Sora', sans-serif; font-size: 18px; font-weight: 700; }
+      .fc-subtitle { color: var(--ink-soft); font-size: 12px; margin-top: 1px; font-weight: 500; }
       .fc-hide-btn { flex-shrink: 0; }
 
+      /* -------- indicador deslizante (abas, meses, ano, categorias) -------- */
+      .fc-anos, .fc-months, .fc-tabs, .fc-cat-chips { position: relative; }
+      .fc-anos > *, .fc-months > *, .fc-tabs > *, .fc-cat-chips > * { position: relative; z-index: 1; }
+      .fc-slide-pill {
+        position: absolute; top: 0; left: 0; z-index: 0; pointer-events: none;
+        border-radius: 999px; background: var(--ink);
+        transition: transform .44s var(--ease-slide), width .44s var(--ease-slide), height .44s var(--ease-slide), opacity .2s ease;
+        will-change: transform, width;
+      }
+      .fc-slide-pill-tab { background: var(--surface); box-shadow: var(--shadow-sm); border-radius: 14px; }
+
       .fc-months {
-        display: flex; flex-wrap: wrap; gap: 6px; align-items: center;
+        display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
         padding-bottom: 12px; margin-bottom: 16px;
       }
       .fc-month-pill {
-        border: 1px solid var(--line); background: var(--surface); color: var(--ink-soft);
-        padding: 6px 12px; border-radius: 999px; font-size: 12.5px; font-weight: 600; cursor: pointer;
-        font-family: inherit;
+        border: none; background: transparent; color: var(--ink-soft);
+        padding: 9px 11px; border-radius: 999px; font-size: 13px; font-weight: 700; cursor: pointer;
+        font-family: inherit; transition: color .3s var(--ease-slide);
       }
-      .fc-month-pill:hover:not(.fc-month-pill-active) { color: var(--ink); }
-      .fc-month-pill-active { background: var(--ink); color: var(--bg); border-color: var(--ink); }
-      .fc-month-pill-active:hover { color: var(--bg); }
+      .fc-month-pill-active { color: var(--bg); }
       .fc-month-pill-ghost {
         display: inline-flex; align-items: center; gap: 4px; border: 1px dashed var(--line); background: transparent;
+        color: var(--ink-faint); padding: 9px 14px; transition: border-color .15s ease, color .15s ease;
       }
+      .fc-month-pill-ghost:hover { border-color: var(--accent); color: var(--accent); }
       .fc-add-month-form { display: inline-flex; align-items: center; gap: 4px; }
 
+      .fc-month-pill-wrap {
+        display: inline-flex; align-items: center; gap: 2px; border: 1px solid var(--line);
+        border-radius: 999px; padding: 3px; transition: border-color .3s var(--ease-slide), transform .15s var(--ease), box-shadow .15s var(--ease);
+      }
+      .fc-month-pill-wrap:hover { transform: translateY(-1px); box-shadow: var(--shadow-sm); }
+      .fc-month-pill-wrap-active { border-color: var(--ink); }
+      .fc-month-del {
+        width: 34px; height: 34px; flex-shrink: 0; border-radius: 50%; border: none;
+        background: transparent; color: var(--ink-faint); cursor: pointer;
+        display: inline-flex; align-items: center; justify-content: center;
+        transition: background-color .18s var(--ease), color .18s var(--ease), transform .12s var(--ease);
+      }
+      .fc-month-pill-wrap-active .fc-month-del { color: color-mix(in srgb, var(--bg) 70%, transparent); }
+      .fc-month-del:hover { background: var(--neg-soft); color: var(--neg); }
+      .fc-month-pill-wrap-active .fc-month-del:hover { background: color-mix(in srgb, var(--neg) 88%, transparent); color: #fff; }
+      .fc-month-del:active { transform: scale(.88); }
+
       .fc-hero {
-        background: linear-gradient(155deg, var(--hero-bg), var(--hero-bg-2));
+        position: relative; overflow: hidden;
+        background:
+          radial-gradient(120% 140% at 100% 0%, color-mix(in srgb, var(--hero-glow) 55%, transparent), transparent 62%),
+          linear-gradient(155deg, var(--hero-1) 0%, var(--hero-2) 82%);
         color: var(--hero-ink);
-        border-radius: 16px; padding: 20px;
-        display: flex; justify-content: space-between; align-items: center;
-        gap: 18px; box-shadow: var(--shadow-lg);
-        margin-bottom: 16px; flex-wrap: wrap;
+        border-radius: 28px; padding: 22px;
+        display: flex; flex-direction: column; gap: 16px;
+        box-shadow: var(--shadow-lg);
       }
-      .fc-hero-main { display: flex; flex-direction: column; gap: 4px; min-width: 220px; }
       .fc-hero-eyebrow {
-        font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase;
-        color: var(--accent-deep); filter: brightness(1.6);
+        font-size: 12px; font-weight: 700; letter-spacing: .03em;
+        color: var(--hero-sub);
       }
-      .fc-hero-number { font-family: 'Sora', sans-serif; font-size: 32px; font-weight: 600; line-height: 1.05; }
-      .fc-hero-sub { font-size: 12.5px; color: var(--hero-sub); margin-top: 4px; }
-      .fc-hero-chips { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+      .fc-hero-number { font-family: 'Sora', sans-serif; font-size: 36px; font-weight: 800; line-height: 1.05; }
+      .fc-hero-sub { font-size: 12.5px; color: var(--hero-sub); font-weight: 500; }
+      .fc-hero-chips { display: flex; gap: 8px; margin-top: auto; flex-wrap: wrap; }
       .fc-hero-chip {
-        display: flex; align-items: center; gap: 6px;
-        background: rgba(244,241,222,0.07); border: 1px solid rgba(244,241,222,0.14);
-        padding: 5px 10px 5px 5px; border-radius: 999px; font-size: 12px; font-weight: 600;
+        flex: 1; display: flex; align-items: center; gap: 7px;
+        background: rgba(0,0,0,.22); border: 1px solid rgba(255,255,255,.16);
+        padding: 6px 12px 6px 6px; border-radius: 999px; font-size: 12px; font-weight: 700;
+        transition: background-color .18s var(--ease), border-color .18s var(--ease);
       }
+      .fc-hero-chip:hover { background: rgba(0,0,0,.3); border-color: rgba(255,255,255,.3); }
       .fc-hero-avatar {
-        width: 18px; height: 18px; border-radius: 50%; flex-shrink: 0;
-        background: rgba(244,241,222,0.14); display: inline-flex; align-items: center; justify-content: center;
-        font-size: 9px; font-weight: 700;
+        width: 20px; height: 20px; border-radius: 50%; flex-shrink: 0;
+        background: rgba(255,255,255,.28); display: inline-flex; align-items: center; justify-content: center;
+        font-size: 10px; font-weight: 800; color: #fff;
       }
-      .fc-hero-role { color: var(--hero-sub); font-weight: 500; }
-      .fc-hero-chip-value { font-weight: 700 !important; color: var(--hero-ink) !important; font-size: 12px !important; padding: 0 !important; }
+      .fc-hero-role { color: #FFFFFF; font-weight: 700; }
+      .fc-hero-chip-value { font-weight: 700 !important; color: var(--hero-ink) !important; font-size: 12.5px !important; padding: 0 !important; }
       .fc-amount-computed { color: inherit; }
 
-      .fc-ring-wrap { position: relative; width: 84px; height: 84px; flex-shrink: 0; }
+      .fc-hero-gauge { display: flex; align-items: center; gap: 14px; }
+      .fc-ring-wrap { position: relative; width: 64px; height: 64px; flex-shrink: 0; }
       .fc-ring-wrap svg { width: 100%; height: 100%; }
-      .fc-ring-track { fill: none; stroke: rgba(244,241,222,0.10); stroke-width: 7; }
-      .fc-ring-fill { fill: none; stroke: var(--accent); stroke-width: 7; stroke-linecap: round; transition: stroke-dashoffset 0.6s ease; }
-      .fc-ring-label {
-        position: absolute; inset: 0; display: flex; flex-direction: column;
-        align-items: center; justify-content: center; text-align: center;
-      }
-      .fc-ring-pct { font-family: 'Sora', sans-serif; font-weight: 600; font-size: 16px; }
-      .fc-ring-cap { font-size: 8px; color: var(--hero-sub); letter-spacing: .04em; text-transform: uppercase; }
-
-      .fc-dot { width: 7px; height: 7px; border-radius: 50%; display: inline-block; margin-right: 6px; flex-shrink: 0; }
+      .fc-ring-track { fill: none; stroke: rgba(255,255,255,.16); stroke-width: 6; }
+      .fc-ring-fill { fill: none; stroke: var(--accent-bright); stroke-width: 6; stroke-linecap: round; transition: stroke-dashoffset 0.6s var(--ease); }
+      .fc-ring-label { display: flex; flex-direction: column; }
+      .fc-ring-pct { font-family: 'Sora', sans-serif; font-weight: 700; font-size: 15px; }
+      .fc-ring-cap { font-size: 11px; color: var(--hero-sub); font-weight: 500; }
 
       .fc-tabs {
         display: flex; gap: 3px; margin-bottom: 16px; flex-wrap: wrap;
-        background: var(--surface-2); padding: 4px; border-radius: 12px;
+        background: var(--surface-2); padding: 5px; border-radius: 18px;
       }
       .fc-tab {
-        border: none; background: transparent; color: var(--ink-soft); font-size: 12.5px; font-weight: 600;
-        padding: 8px 6px; cursor: pointer; font-family: inherit; border-radius: 9px; flex: 1;
-        transition: background .15s ease, color .15s ease;
+        border: none; background: transparent; color: var(--ink-soft); font-size: 12.5px; font-weight: 700;
+        padding: 10px 6px; cursor: pointer; font-family: inherit; border-radius: 14px; flex: 1;
+        min-height: 40px; transition: color .3s var(--ease-slide), transform .15s var(--ease);
       }
-      .fc-tab:hover { color: var(--ink); }
-      .fc-tab-active { background: var(--surface); color: var(--ink); box-shadow: var(--shadow-sm); }
+      .fc-tab:hover:not(.fc-tab-active) { color: var(--ink); }
+      .fc-tab:active { transform: scale(.98); }
+      .fc-tab-active { color: var(--ink); }
+      @media (max-width: 699px) { .fc-tabs { display: grid; grid-template-columns: repeat(2, 1fr); } }
+
+      .fc-tab-content { animation: fcTabIn .4s var(--ease-slide); }
+      @keyframes fcTabIn { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+      @media (prefers-reduced-motion: reduce) { .fc-tab-content { animation: none; } }
+
+      .fc-hero-resumo { display: grid; grid-template-columns: 1fr; gap: 16px; align-items: start; }
+      @media (min-width: 900px) { .fc-hero-resumo { grid-template-columns: 360px 1fr; } }
+      .fc-hero-resumo-total { grid-column: 1 / -1; }
 
       .fc-env-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
-      @media (min-width: 620px) { .fc-env-grid { grid-template-columns: repeat(3, 1fr); } }
+      @media (min-width: 560px) { .fc-env-grid { grid-template-columns: repeat(3, 1fr); } }
       .fc-env-card {
-        background: var(--surface); border-radius: 14px; padding: 14px;
+        background: var(--surface); border-radius: 26px; padding: 16px;
         box-shadow: var(--shadow-sm); border: 1px solid var(--line);
         display: flex; flex-direction: column; gap: 9px; min-height: 128px;
+        transition: transform .22s var(--ease), box-shadow .22s var(--ease), border-color .22s var(--ease);
+        opacity: 0; animation: fcFadeUp .65s var(--ease) forwards;
       }
+      .fc-env-card:hover { transform: translateY(-7px) scale(1.015); box-shadow: var(--shadow-md); border-color: transparent; }
+      .fc-env-card:nth-child(1) { animation-delay: .03s; } .fc-env-card:nth-child(2) { animation-delay: .09s; }
+      .fc-env-card:nth-child(3) { animation-delay: .15s; } .fc-env-card:nth-child(4) { animation-delay: .21s; }
+      .fc-env-card:nth-child(5) { animation-delay: .27s; } .fc-env-card:nth-child(6) { animation-delay: .33s; }
+      .fc-env-card:nth-child(7) { animation-delay: .39s; } .fc-env-card:nth-child(8) { animation-delay: .45s; }
+      @keyframes fcFadeUp { from { opacity: 0; transform: translateY(22px) scale(.96); } to { opacity: 1; transform: translateY(0) scale(1); } }
+      @media (prefers-reduced-motion: reduce) { .fc-env-card { opacity: 1; animation: none; } }
       .fc-env-top { display: flex; align-items: center; gap: 8px; }
       .fc-env-icon {
-        width: 28px; height: 28px; border-radius: 9px; flex-shrink: 0;
+        --cat-on: color-mix(in srgb, var(--cat, var(--accent)), var(--ink) 42%);
+        width: 28px; height: 28px; border-radius: 10px; flex-shrink: 0;
         display: inline-flex; align-items: center; justify-content: center;
+        background: color-mix(in srgb, var(--cat-on) 20%, var(--surface));
+        color: var(--cat-on);
       }
-      .fc-env-icon-sm { width: 22px; height: 22px; border-radius: 7px; }
-      .fc-env-name { font-weight: 600; font-size: 12.5px; line-height: 1.2; }
+      .fc-env-icon-sm { width: 24px; height: 24px; border-radius: 8px; }
+      .fc-env-name { font-weight: 700; font-size: 12.5px; line-height: 1.2; }
       .fc-env-gauge { height: 6px; border-radius: 999px; background: var(--surface-2); overflow: hidden; }
-      .fc-env-gauge-fill { height: 100%; border-radius: 999px; transition: width 0.4s ease; }
+      .fc-env-gauge-fill {
+        --cat-on: color-mix(in srgb, var(--cat, var(--accent)), var(--ink) 42%);
+        height: 100%; border-radius: 999px; background: var(--cat-on); transition: width 0.5s var(--ease);
+      }
       .fc-env-nums { display: flex; justify-content: space-between; align-items: baseline; margin-top: auto; }
       .fc-env-spent { font-size: 14px; font-weight: 700; font-family: 'Sora', sans-serif; display: block; }
-      .fc-env-budget { font-size: 10.5px; color: var(--ink-faint); font-weight: 500; display: block; }
-      .fc-env-left { font-size: 11px; font-weight: 600; }
+      .fc-env-budget { font-size: 10.5px; color: var(--ink-faint); font-weight: 600; display: block; }
+      .fc-env-left { font-size: 11px; font-weight: 700; }
 
       .fc-section-title-with-icon { display: flex; align-items: center; gap: 8px; }
 
       .fc-ledger { display: flex; flex-direction: column; }
       .fc-ledger-row {
         display: flex; justify-content: space-between; align-items: center;
-        padding: 9px 2px; font-size: 13.5px;
+        padding: 9px 6px; font-size: 13.5px; border-radius: 11px;
+        transition: background-color .15s var(--ease);
+        opacity: 0; animation: fcFadeUp .4s var(--ease) forwards;
       }
-      .fc-anos { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; margin-bottom: 10px; }
+      .fc-ledger-row:hover { background: var(--surface-2); }
+      .fc-ledger-row:nth-child(1) { animation-delay: .02s; } .fc-ledger-row:nth-child(2) { animation-delay: .05s; }
+      .fc-ledger-row:nth-child(3) { animation-delay: .08s; } .fc-ledger-row:nth-child(4) { animation-delay: .11s; }
+      .fc-ledger-row:nth-child(5) { animation-delay: .14s; } .fc-ledger-row:nth-child(6) { animation-delay: .17s; }
+      .fc-ledger-row.fc-ledger-total { opacity: 1; animation: none; }
+      @media (prefers-reduced-motion: reduce) { .fc-ledger-row { opacity: 1; animation: none; } }
+      .fc-anos { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-bottom: 10px; }
       .fc-ano-pill {
         border: 1px solid var(--line); background: transparent; color: var(--ink-soft);
-        padding: 3px 10px; border-radius: 999px; font-size: 11.5px; font-weight: 600; cursor: pointer; font-family: inherit;
+        padding: 6px 12px; border-radius: 999px; font-size: 12px; font-weight: 700; cursor: pointer; font-family: inherit;
+        transition: color .3s var(--ease-slide), border-color .3s var(--ease-slide), transform .15s var(--ease);
       }
-      .fc-ano-pill-active { background: var(--surface-2); color: var(--ink); border-color: var(--ink-soft); }
+      .fc-ano-pill:hover:not(.fc-ano-pill-active) { border-color: var(--accent); color: var(--ink); transform: translateY(-1px); }
+      .fc-ano-pill-active { color: var(--bg); border-color: var(--ink); }
       .fc-ano-pill-ghost { display: inline-flex; align-items: center; gap: 2px; border-style: dashed; }
-
-      .fc-month-pill-wrap { display: inline-flex; align-items: center; position: relative; }
-      .fc-month-del {
-        border: none; background: transparent; color: var(--ink-soft); cursor: pointer;
-        padding: 4px; margin-left: -6px; opacity: 0.35; border-radius: 6px;
-      }
-      .fc-month-pill-wrap:hover .fc-month-del { opacity: 0.7; }
-      .fc-month-del:hover, .fc-month-del:active { opacity: 1 !important; color: var(--neg); }
 
       .fc-empty-year {
         display: flex; flex-direction: column; align-items: flex-start; gap: 12px;
@@ -1726,10 +2080,10 @@ function FcStyles() {
       }
 
       .fc-quickadd { margin-top: 14px; }
-      .fc-quickadd-label { font-size: 11.5px; color: var(--ink-faint); display: block; margin-bottom: 6px; }
+      .fc-quickadd-label { font-size: 11.5px; color: var(--ink-faint); display: block; margin-bottom: 6px; font-weight: 600; }
       .fc-chip-quickadd { display: inline-flex; align-items: center; gap: 3px; }
 
-      .fc-hint { font-size: 11.5px; color: var(--ink-faint); margin: 0 0 8px; }
+      .fc-hint { font-size: 11.5px; color: var(--ink-faint); margin: 0 0 8px; font-weight: 500; }
 
       .fc-confirm-inline {
         display: inline-flex; align-items: center; gap: 6px; font-size: 12px;
@@ -1742,8 +2096,8 @@ function FcStyles() {
       .fc-icon-btn-danger { border-color: var(--neg); color: var(--neg); }
       .fc-icon-btn-danger:hover { background: var(--neg); color: #fff; }
       .fc-danger-btn {
-        border: 1px solid var(--neg); background: var(--neg); color: #fff; border-radius: 8px;
-        padding: 6px 12px; font-size: 12px; cursor: pointer; font-family: inherit;
+        border: 1px solid var(--neg); background: var(--neg); color: #fff; border-radius: 10px;
+        padding: 6px 12px; font-size: 12px; cursor: pointer; font-family: inherit; font-weight: 700;
       }
       .fc-danger-btn:hover { opacity: 0.9; }
 
@@ -1751,7 +2105,7 @@ function FcStyles() {
       .fc-data-buttons { display: flex; justify-content: center; align-items: center; gap: 8px; }
       .fc-data-link {
         border: none; background: none; color: var(--ink-soft); font-size: 12px; cursor: pointer;
-        font-family: inherit; text-decoration: underline; text-underline-offset: 2px;
+        font-family: inherit; font-weight: 600; text-decoration: underline; text-underline-offset: 2px;
       }
       .fc-data-link:hover { color: var(--ink); }
       .fc-data-sep { color: var(--line); font-size: 12px; }
@@ -1760,79 +2114,133 @@ function FcStyles() {
       }
       .fc-data-textarea {
         width: 100%; min-height: 120px; font-family: monospace; font-size: 11px; border: 1px solid var(--line);
-        border-radius: 8px; padding: 8px; background: var(--surface); color: var(--ink); resize: vertical; box-sizing: border-box;
+        border-radius: 10px; padding: 8px; background: var(--surface); color: var(--ink); resize: vertical; box-sizing: border-box;
       }
       .fc-data-panel-actions { display: flex; align-items: center; gap: 10px; margin-top: 8px; }
 
       .fc-danger-zone { text-align: center; margin-top: 28px; padding-top: 16px; border-top: 1px solid var(--line); }
+      .fc-toast {
+        position: fixed; left: 50%; bottom: 22px; transform: translateX(-50%);
+        display: flex; align-items: center; gap: 14px;
+        background: var(--surface-2); color: var(--ink); border: 1px solid var(--line);
+        border-radius: 999px; padding: 10px 10px 10px 18px; box-shadow: var(--shadow-lg);
+        font-size: 13.5px; z-index: 40; max-width: calc(100vw - 32px);
+        animation: fcToastIn .3s var(--ease);
+      }
+      .fc-toast-undo {
+        background: var(--accent); color: var(--accent-deep); border: none; border-radius: 999px;
+        padding: 7px 16px; font-weight: 700; cursor: pointer; white-space: nowrap;
+        transition: transform .15s var(--ease);
+      }
+      .fc-toast-undo:hover { transform: translateY(-1px); }
+      @keyframes fcToastIn { from { opacity: 0; transform: translateX(-50%) translateY(12px); } to { opacity: 1; transform: translateX(-50%) translateY(0); } }
+      @media (prefers-reduced-motion: reduce) { .fc-toast { animation: none; } }
       .fc-danger-link {
         border: none; background: none; color: var(--ink-faint); font-size: 11.5px; cursor: pointer;
-        font-family: inherit; text-decoration: underline; text-underline-offset: 2px;
+        font-family: inherit; font-weight: 600; text-decoration: underline; text-underline-offset: 2px;
       }
       .fc-danger-link:hover { color: var(--neg); }
 
-      .fc-cat-name { display: flex; align-items: center; }
+      .fc-cat-name { display: flex; align-items: center; gap: 8px; }
+
+      .fc-lanc-layout { display: grid; grid-template-columns: 1fr; gap: 16px; align-items: start; margin-top: 12px; }
+      @media (min-width: 900px) { .fc-lanc-layout { grid-template-columns: 300px 1fr; } }
+      .fc-lanc-side .fc-budget-panel { margin-top: 0; }
 
       .fc-budget-panel {
-        background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 16px; margin-top: 12px;
+        background: var(--surface); border: 1px solid var(--line); border-radius: 26px; padding: 18px;
+        transition: transform .22s var(--ease), box-shadow .22s var(--ease);
+        opacity: 0; animation: fcFadeUp .65s var(--ease) forwards;
       }
+      .fc-budget-panel:hover { transform: translateY(-4px); box-shadow: var(--shadow-md); }
       .fc-budget-row { display: flex; gap: 22px; flex-wrap: wrap; margin-bottom: 10px; }
       .fc-budget-item { display: flex; flex-direction: column; gap: 2px; font-size: 15px; }
-      .fc-budget-label { font-size: 10.5px; color: var(--ink-faint); font-weight: 600; text-transform: uppercase; letter-spacing: .04em; }
+      .fc-budget-label { font-size: 10.5px; color: var(--ink-faint); font-weight: 700; text-transform: uppercase; letter-spacing: .04em; }
       .fc-progress-track {
-        height: 7px; background: var(--surface-2); border-radius: 999px; overflow: hidden;
+        height: 8px; background: var(--surface-2); border-radius: 999px; overflow: hidden;
       }
-      .fc-progress-fill { height: 100%; border-radius: 999px; transition: width 0.4s ease; }
+      .fc-progress-fill { height: 100%; border-radius: 999px; transition: width 0.5s var(--ease); }
       .fc-ledger-total { border-top: 1.5px solid var(--ink); margin-top: 4px; font-weight: 700; padding-top: 12px; }
-      .fc-row-right { display: flex; align-items: center; gap: 8px; }
+      .fc-ledger-total:hover { background: transparent; }
+      .fc-row-right { display: flex; align-items: center; gap: 6px; }
       .fc-tabular { font-variant-numeric: tabular-nums; }
-      .fc-empty { color: var(--ink-faint); font-size: 13px; padding: 12px 2px; }
+      .fc-empty { color: var(--ink-faint); font-size: 13px; padding: 12px 6px; font-weight: 500; }
 
       .fc-amount-btn {
         background: none; border: none; font: inherit; color: var(--ink); cursor: pointer;
-        padding: 2px 4px; border-radius: 6px; font-variant-numeric: tabular-nums;
+        padding: 8px 10px; border-radius: 10px; font-variant-numeric: tabular-nums; font-weight: 700;
+        transition: background-color .15s var(--ease);
       }
       .fc-amount-btn:hover { background: var(--surface-2); }
 
       .fc-input {
-        font-family: inherit; font-size: 13px; border: 1px solid var(--line); border-radius: 9px;
-        padding: 8px 10px; background: var(--surface); color: var(--ink);
+        font-family: inherit; font-size: 13px; border: 1px solid var(--line); border-radius: 11px;
+        padding: 9px 11px; background: var(--surface); color: var(--ink);
+        transition: border-color .15s var(--ease), background-color .15s var(--ease);
       }
-      .fc-input-plain { border: none; background: transparent; padding: 2px 4px; font-size: 13.5px; flex: 1; }
+      .fc-input:focus { outline: none; border-color: var(--accent); }
+      .fc-input-amount { min-width: 96px; width: auto; text-align: right; }
+      .fc-input-plain { border: none; background: transparent; padding: 6px 8px; font-size: 13.5px; flex: 1; border-radius: 9px; }
       .fc-input-plain:hover, .fc-input-plain:focus { background: var(--surface-2); outline: none; }
       .fc-input-grow { flex: 1; }
 
       .fc-icon-btn {
-        border: 1px solid var(--line); background: var(--surface); border-radius: 8px; padding: 5px;
+        border: 1px solid var(--line); background: var(--surface); border-radius: 10px; padding: 8px;
         display: inline-flex; align-items: center; justify-content: center; cursor: pointer;
-        color: var(--ink-soft);
+        color: var(--ink-soft); min-width: 34px; min-height: 34px;
+        transition: color .15s var(--ease), border-color .15s var(--ease), background-color .15s var(--ease), transform .12s var(--ease);
       }
       .fc-icon-btn:hover { color: var(--ink); border-color: var(--ink-soft); }
-      .fc-icon-btn-solid { background: var(--accent); color: var(--hero-ink); border-color: var(--accent); }
-      .fc-icon-btn-solid:hover { background: var(--accent-deep); border-color: var(--accent-deep); }
-
-      .fc-add-row { display: flex; gap: 7px; margin-top: 12px; }
-
-      .fc-cat-chips { display: flex; flex-wrap: wrap; gap: 6px; }
-      .fc-chip {
-        border: 1px solid var(--line); background: var(--surface); color: var(--ink-soft);
-        padding: 6px 12px; border-radius: 999px; font-size: 12.5px; font-weight: 600; cursor: pointer; font-family: inherit;
-        display: inline-flex; align-items: center;
+      .fc-icon-btn:active { transform: scale(.94); }
+      .fc-icon-btn-solid {
+        background: linear-gradient(140deg, var(--hero-2), var(--accent)); color: #fff; border-color: transparent;
       }
-      .fc-chip-active { font-weight: 700; }
+      .fc-icon-btn-solid:hover { filter: brightness(1.1); transform: translateY(-1px); box-shadow: var(--shadow-md); }
+      .fc-icon-btn-trash {
+        width: 40px; height: 40px; min-width: 40px; min-height: 40px; border-radius: 50%;
+        border-color: transparent; background: transparent; color: var(--ink-faint);
+      }
+      .fc-icon-btn-trash:hover { background: var(--neg-soft); color: var(--neg); border-color: transparent; }
+
+      .fc-add-row { display: flex; gap: 7px; margin-top: 12px; flex-wrap: wrap; }
+
+      .fc-cat-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+      .fc-chip {
+        --cat-on: color-mix(in srgb, var(--cat, var(--accent)), var(--ink) 42%);
+        border: 1px solid var(--line); background: transparent; color: var(--ink-soft);
+        padding: 7px 14px 7px 7px; border-radius: 999px; font-size: 12.5px; font-weight: 600; cursor: pointer; font-family: inherit;
+        display: inline-flex; align-items: center; gap: 8px; min-height: 40px;
+        transition: border-color .3s var(--ease-slide), color .3s var(--ease-slide), transform .15s var(--ease);
+      }
+      .fc-chip:hover:not(.fc-chip-active) { border-color: var(--cat-on); color: var(--ink); transform: translateY(-1px); }
+      .fc-chip:active { transform: scale(.98); }
+      .fc-chip-active { font-weight: 700; border-color: var(--ink); color: var(--bg); }
+      .fc-chip-icon {
+        width: 22px; height: 22px; border-radius: 8px; flex-shrink: 0;
+        display: inline-flex; align-items: center; justify-content: center;
+        background: color-mix(in srgb, var(--cat-on) 20%, var(--surface)); color: var(--cat-on);
+        transition: background-color .3s var(--ease-slide), color .3s var(--ease-slide);
+      }
+      .fc-chip-active .fc-chip-icon { background: color-mix(in srgb, var(--bg) 26%, transparent); color: var(--bg); }
 
       .fc-fixas-grid { display: grid; grid-template-columns: 1fr; gap: 12px; }
       @media (min-width: 720px) {
         .fc-fixas-grid { grid-template-columns: 1fr 1fr; }
       }
       .fc-fixas-card {
-        background: var(--surface); border-radius: 14px; padding: 16px;
+        background: var(--surface); border-radius: 26px; padding: 18px;
         box-shadow: var(--shadow-sm); border: 1px solid var(--line);
+        transition: transform .22s var(--ease), box-shadow .22s var(--ease);
+        opacity: 0; animation: fcFadeUp .65s var(--ease) forwards;
       }
+      .fc-fixas-card:nth-child(1) { animation-delay: .05s; }
+      .fc-fixas-card:nth-child(2) { animation-delay: .14s; }
+      .fc-fixas-card:hover { transform: translateY(-5px); box-shadow: var(--shadow-md); }
+      @media (prefers-reduced-motion: reduce) { .fc-budget-panel, .fc-fixas-card { opacity: 1; animation: none; } }
       .fc-orcamentos-section { margin-top: 24px; padding-top: 20px; border-top: 1px solid var(--line); }
       .fc-section-title {
         display: flex; justify-content: space-between; align-items: center;
-        font-weight: 600; font-size: 13.5px; margin-bottom: 8px;
+        font-weight: 700; font-size: 13.5px; margin-bottom: 8px;
       }
     `}</style>
   );

@@ -4,12 +4,7 @@
 
 body {
   margin: 0;
-  background: #f4f1de;
+  background: #0D1512;
   min-height: 100vh;
-}
-
-@media (prefers-color-scheme: dark) {
-  body {
-    background: #141b22;
-  }
+  color-scheme: dark;
 }
