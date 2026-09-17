@@ -2202,22 +2202,32 @@ function FcStyles() {
       }
       .fc-hero-number { font-family: 'Sora', sans-serif; font-size: 36px; font-weight: 800; line-height: 1.05; }
       .fc-hero-sub { font-size: 12.5px; color: var(--hero-sub); font-weight: 500; }
-      .fc-hero-chips { display: flex; gap: 8px; margin-top: auto; flex-wrap: wrap; }
-      .fc-hero-chip { min-width: 0; flex: 1 1 150px; }
+      /* Um por linha, e nao dois lado a lado: a coluna do herói tem ~360px e
+         "Joel (calc.) R$ 2.964,71" + "Antonio R$ 1.583,22" nunca couberam nela.
+         Lado a lado, um quebrava o nome em duas linhas e o valor do outro
+         vazava pra fora da borda arredondada. Empilhados viram uma listinha de
+         quem paga o que, com o valor sempre alinhado a direita. */
+      .fc-hero-chips { display: flex; flex-direction: column; gap: 7px; margin-top: auto; }
       .fc-hero-chip {
-        flex: 1; display: flex; align-items: center; gap: 7px;
+        display: flex; align-items: center; gap: 9px;
         background: rgba(0,0,0,.22); border: 1px solid rgba(255,255,255,.16);
-        padding: 6px 12px 6px 6px; border-radius: 999px; font-size: 12px; font-weight: 700;
+        padding: 7px 14px 7px 7px; border-radius: 999px; font-size: 12.5px; font-weight: 700;
         transition: background-color .18s var(--ease), border-color .18s var(--ease);
       }
       .fc-hero-chip:hover { background: rgba(0,0,0,.3); border-color: rgba(255,255,255,.3); }
       .fc-hero-avatar {
-        width: 20px; height: 20px; border-radius: 50%; flex-shrink: 0;
+        width: 22px; height: 22px; border-radius: 50%; flex-shrink: 0;
         background: rgba(255,255,255,.28); display: inline-flex; align-items: center; justify-content: center;
         font-size: 10px; font-weight: 800; color: #fff;
       }
-      .fc-hero-role { color: #FFFFFF; font-weight: 700; }
-      .fc-hero-chip-value { font-weight: 700 !important; color: var(--hero-ink) !important; font-size: 12.5px !important; padding: 0 !important; }
+      .fc-hero-role {
+        color: #FFFFFF; font-weight: 700;
+        flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+      }
+      .fc-hero-chip-value {
+        font-weight: 700 !important; color: var(--hero-ink) !important; font-size: 13px !important;
+        padding: 0 !important; flex-shrink: 0; white-space: nowrap;
+      }
       .fc-amount-computed { color: inherit; }
 
       .fc-hero-gauge { display: flex; align-items: center; gap: 14px; }
@@ -2281,9 +2291,12 @@ function FcStyles() {
       @media (min-width: 1150px) { .fc-hero-resumo { grid-template-columns: 420px minmax(0, 1fr); gap: 20px; } }
       .fc-hero-resumo-total { grid-column: 1 / -1; }
 
-      .fc-env-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; }
-      @media (min-width: 560px) { .fc-env-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-      @media (min-width: 900px) { .fc-env-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+      /* auto-fill em vez de um numero fixo de colunas: o cartao poe nome e
+         valor lado a lado, e abaixo de ~260px o nome era espremido a poucos
+         pixels e o texto vazava por cima do valor. Assim a grade se ajusta a
+         largura que tiver, sem nunca criar cartao estreito demais. */
+      .fc-env-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px; }
+      @media (max-width: 400px) { .fc-env-grid { grid-template-columns: minmax(0, 1fr); } }
       .fc-env-card {
         background: var(--surface); border-radius: 26px; padding: 16px;
         box-shadow: var(--shadow-sm); border: 1px solid var(--line);
@@ -2308,7 +2321,7 @@ function FcStyles() {
         color: var(--cat-on);
       }
       .fc-env-icon-sm { width: 24px; height: 24px; border-radius: 8px; }
-      .fc-env-name { font-weight: 700; font-size: 12.5px; line-height: 1.2; }
+      .fc-env-name { font-weight: 700; font-size: 12.5px; line-height: 1.25; overflow-wrap: anywhere; }
       .fc-env-gauge { height: 6px; border-radius: 999px; background: var(--surface-2); overflow: hidden; }
       .fc-env-gauge-fill {
         --cat-on: color-mix(in srgb, var(--cat, var(--accent)), var(--ink) 42%);
