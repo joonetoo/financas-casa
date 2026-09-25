@@ -501,7 +501,10 @@ const SEED_MONTHS = [
 ];
 
 const SEED_DATA = { anos: [{ id: "ano-2026", label: "2026", months: SEED_MONTHS }] };
-const STORAGE_KEY = "financas-casa-data-v3";
+// VITE_STORAGE_KEY so vale no servidor de teste local (aponta pra uma COPIA
+// dos dados, "financas-casa-teste"); no app publicado e sempre a linha real.
+const STORAGE_KEY =
+  (import.meta.env.DEV && import.meta.env.VITE_STORAGE_KEY) || "financas-casa-data-v3";
 const STORAGE_KEY_LEGACY = "financas-casa-data-v2";
 
 // Backup diário rotativo: 1x por dia (por dia da semana, guarda até 7

@@ -18,6 +18,15 @@
         "cd /Users/joelneto/Documents/CLAUDE/MEI && export PATH=\"/Users/joelneto/.nvm/versions/node/v24.21.0/bin:$PATH\" && VITE_STORAGE_KEY=jnf-financeiro-teste exec npx vite --port 5192 --strictPort"
       ],
       "port": 5192
+    },
+    {
+      "name": "financas-teste",
+      "runtimeExecutable": "/bin/bash",
+      "runtimeArgs": [
+        "-c",
+        "cd \"/Users/joelneto/Documents/CLAUDE/PASTA CODE\" && export PATH=\"/Users/joelneto/.nvm/versions/node/v24.21.0/bin:$PATH\" && VITE_STORAGE_KEY=financas-casa-teste exec npx vite --port 5193 --strictPort"
+      ],
+      "port": 5193
     }
   ]
 }
