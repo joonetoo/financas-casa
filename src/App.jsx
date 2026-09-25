@@ -53,16 +53,14 @@ const storage = {
       return { failed: true };
     }
   },
+  // Lança erro se a gravação falhar — quem chama precisa saber, senão uma
+  // edição fica só na memória enquanto o app finge que salvou.
   async set(key, value) {
-    try {
-      const parsed = JSON.parse(value);
-      const { error } = await supabase
-        .from("app_data")
-        .upsert({ id: key, data: parsed, updated_at: new Date().toISOString() });
-      if (error) console.error("Falha ao salvar no Supabase", error);
-    } catch (e) {
-      console.error("Falha ao salvar no Supabase", e);
-    }
+    const parsed = JSON.parse(value);
+    const { error } = await supabase
+      .from("app_data")
+      .upsert({ id: key, data: parsed, updated_at: new Date().toISOString() });
+    if (error) throw error;
   },
 };
 
@@ -515,7 +513,9 @@ const STORAGE_KEY_LEGACY = "financas-casa-data-v2";
 const BACKUP_DATE_FLAG = "fc-last-backup-date";
 async function backupIfNeeded(goodData) {
   try {
-    const today = new Date().toISOString().slice(0, 10);
+    // data LOCAL (toISOString é UTC: depois das 21h no Brasil já seria amanhã)
+    const d = new Date();
+    const today = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
     if (localStorage.getItem(BACKUP_DATE_FLAG) === today) return;
     const weekday = new Date().getDay();
     await storage.set(`${STORAGE_KEY}-backup-${weekday}`, JSON.stringify(goodData));
@@ -813,25 +813,47 @@ export default function FinancasCasa() {
   dataRef.current = data;
   const savingRef = useRef(false);
   const pendingSaveRef = useRef(false);
+  const retryTimerRef = useRef(null);
+  const [saveError, setSaveError] = useState(false);
 
+  // Se a gravação falhar (internet caiu etc.), avisa na tela e tenta de novo
+  // a cada 5s até conseguir — sempre com o estado mais recente.
   const flushSave = useCallback(async () => {
     if (savingRef.current) {
       pendingSaveRef.current = true;
       return;
     }
     savingRef.current = true;
+    clearTimeout(retryTimerRef.current);
+    retryTimerRef.current = null;
+    let ok = false;
     try {
-      await storage.set(STORAGE_KEY, JSON.stringify(dataRef.current), false);
+      await storage.set(STORAGE_KEY, JSON.stringify(dataRef.current));
+      ok = true;
     } catch (e) {
       console.error("Falha ao salvar", e);
     } finally {
       savingRef.current = false;
     }
+    setSaveError(!ok);
     if (pendingSaveRef.current) {
       pendingSaveRef.current = false;
       flushSave();
+    } else if (!ok) {
+      retryTimerRef.current = setTimeout(flushSave, 5000);
     }
   }, []);
+
+  // Enquanto houver erro ao salvar, avisa antes de fechar a aba.
+  useEffect(() => {
+    if (!saveError) return;
+    const onBeforeUnload = (e) => {
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", onBeforeUnload);
+    return () => window.removeEventListener("beforeunload", onBeforeUnload);
+  }, [saveError]);
 
   useEffect(() => {
     // só salva depois de uma leitura bem-sucedida (loaded) — nunca a partir
@@ -2004,6 +2026,13 @@ export default function FinancasCasa() {
         )}
       </div>
 
+      {saveError && (
+        <div className="fc-save-error" role="alert">
+          <span className="fc-save-error-dot" />
+          Erro ao salvar · tentando de novo…
+        </div>
+      )}
+
       {toast && (
         <div className="fc-toast">
           <span>{toast.msg}</span>
@@ -2440,6 +2469,20 @@ function FcStyles() {
       .fc-toast-undo:hover { transform: translateY(-1px); }
       @keyframes fcToastIn { from { opacity: 0; transform: translateX(-50%) translateY(12px); } to { opacity: 1; transform: translateX(-50%) translateY(0); } }
       @media (prefers-reduced-motion: reduce) { .fc-toast { animation: none; } }
+      .fc-save-error {
+        position: fixed; left: 50%; top: 14px; transform: translateX(-50%);
+        display: flex; align-items: center; gap: 10px;
+        background: var(--neg-soft); color: var(--neg); border: 1px solid var(--neg);
+        border-radius: 999px; padding: 9px 18px; box-shadow: var(--shadow-lg);
+        font-size: 13.5px; font-weight: 700; z-index: 50;
+        max-width: calc(100vw - 32px); white-space: nowrap;
+      }
+      .fc-save-error-dot {
+        flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--neg);
+        animation: fcPulse 1.2s ease-in-out infinite;
+      }
+      @keyframes fcPulse { 50% { opacity: .3; } }
+      @media (prefers-reduced-motion: reduce) { .fc-save-error-dot { animation: none; } }
       .fc-danger-link {
         border: none; background: none; color: var(--ink-faint); font-size: 11.5px; cursor: pointer;
         font-family: inherit; font-weight: 600; text-decoration: underline; text-underline-offset: 2px;
