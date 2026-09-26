@@ -42,12 +42,12 @@ const storage = {
     try {
       const { data, error } = await supabase
         .from("app_data")
-        .select("data")
+        .select("data, updated_at")
         .eq("id", key)
         .maybeSingle();
       if (error) return { failed: true };
       if (!data) return { value: null };
-      return { value: JSON.stringify(data.data) };
+      return { value: JSON.stringify(data.data), updatedAt: data.updated_at };
     } catch (e) {
       console.error("Falha ao carregar do Supabase", e);
       return { failed: true };
@@ -61,6 +61,47 @@ const storage = {
       .from("app_data")
       .upsert({ id: key, data: parsed, updated_at: new Date().toISOString() });
     if (error) throw error;
+  },
+  // só a "hora da última gravação" da linha (leve) — pra saber se outro
+  // aparelho salvou algo desde a última vez que este leu
+  async getStamp(key) {
+    try {
+      const { data, error } = await supabase
+        .from("app_data")
+        .select("updated_at")
+        .eq("id", key)
+        .maybeSingle();
+      if (error) return { failed: true };
+      return { updatedAt: data ? data.updated_at : null };
+    } catch (e) {
+      return { failed: true };
+    }
+  },
+  // Grava SÓ se ninguém gravou desde `esperado` (a hora da versão que este
+  // aparelho tem). Sem isso, um aparelho com dados velhos (app aberto há
+  // horas no Mac) apagava o que o outro lançou (celular). Devolve
+  // {conflict:true} se a linha mudou; lança erro se a rede falhar.
+  async setIfUnchanged(key, value, esperado, novoCarimbo) {
+    const parsed = JSON.parse(value);
+    if (!esperado) {
+      const { error } = await supabase
+        .from("app_data")
+        .insert({ id: key, data: parsed, updated_at: novoCarimbo });
+      if (error) {
+        if (error.code === "23505") return { conflict: true };
+        throw error;
+      }
+      return { ok: true };
+    }
+    const { data, error } = await supabase
+      .from("app_data")
+      .update({ data: parsed, updated_at: novoCarimbo })
+      .eq("id", key)
+      .eq("updated_at", esperado)
+      .select("updated_at");
+    if (error) throw error;
+    if (!data || data.length === 0) return { conflict: true };
+    return { ok: true };
   },
 };
 
@@ -753,6 +794,15 @@ export default function FinancasCasa() {
     };
   }, [resyncSliders]);
 
+  // hora da última gravação que ESTE aparelho conhece; se a nuvem tiver outra,
+  // algum outro aparelho salvou depois (ver storage.setIfUnchanged)
+  const lastSyncedRef = useRef(null);
+  // tem edição feita aqui que ainda não foi pra nuvem?
+  const dirtyRef = useRef(false);
+  // a próxima mudança de `data` veio da nuvem (carregar/atualizar), não é edição
+  const fromServerRef = useRef(false);
+  const [conflito, setConflito] = useState(null);
+
   const openAno = (ano) => {
     setActiveAnoId(ano.id);
     setActiveMonthId(ano.months[ano.months.length - 1]?.id ?? null);
@@ -777,6 +827,8 @@ export default function FinancasCasa() {
       let finalData;
       if (res.value) {
         finalData = JSON.parse(res.value);
+        lastSyncedRef.current = res.updatedAt || null;
+        fromServerRef.current = true; // carregar não é editar: não grava nada
         backupIfNeeded(finalData);
       } else {
         const legacy = await storage.get(STORAGE_KEY_LEGACY);
@@ -792,7 +844,10 @@ export default function FinancasCasa() {
           finalData = SEED_DATA;
         }
       }
-      if (!finalData.anos || finalData.anos.length === 0) finalData = SEED_DATA;
+      if (!finalData.anos || finalData.anos.length === 0) {
+        finalData = SEED_DATA;
+        fromServerRef.current = false;
+      }
       setData(finalData);
       openAno(finalData.anos[finalData.anos.length - 1]);
       setLoaded(true);
@@ -823,17 +878,31 @@ export default function FinancasCasa() {
       pendingSaveRef.current = true;
       return;
     }
-    savingRef.current = true;
     clearTimeout(retryTimerRef.current);
     retryTimerRef.current = null;
+    if (!dirtyRef.current) return; // nada editado aqui: não grava nada
+    savingRef.current = true;
+    dirtyRef.current = false; // edições durante a gravação marcam de novo
+    const json = JSON.stringify(dataRef.current);
+    const carimbo = new Date().toISOString();
     let ok = false;
+    let conflito = false;
     try {
-      await storage.set(STORAGE_KEY, JSON.stringify(dataRef.current));
-      ok = true;
+      const r = await storage.setIfUnchanged(STORAGE_KEY, json, lastSyncedRef.current, carimbo);
+      if (r.conflict) conflito = true;
+      else {
+        lastSyncedRef.current = carimbo;
+        ok = true;
+      }
     } catch (e) {
       console.error("Falha ao salvar", e);
+      dirtyRef.current = true;
     } finally {
       savingRef.current = false;
+    }
+    if (conflito) {
+      await resolverConflitoRef.current(json);
+      return;
     }
     setSaveError(!ok);
     if (pendingSaveRef.current) {
@@ -843,6 +912,60 @@ export default function FinancasCasa() {
       retryTimerRef.current = setTimeout(flushSave, 5000);
     }
   }, []);
+
+  // Outro aparelho salvou depois da versão que este tinha, e este também tinha
+  // edição. Nunca grava por cima: guarda a versão DESTE aparelho numa linha
+  // separada (nada se perde), carrega a mais nova e avisa na tela.
+  const resolverConflitoRef = useRef(null);
+  resolverConflitoRef.current = async (jsonLocal) => {
+    const d = new Date();
+    const p2 = (n) => String(n).padStart(2, "0");
+    const dia = `${d.getFullYear()}-${p2(d.getMonth() + 1)}-${p2(d.getDate())}`;
+    const idCopia = `${STORAGE_KEY}-conflito-${dia}-${p2(d.getHours())}${p2(d.getMinutes())}${p2(d.getSeconds())}`;
+    const falhou = () => {
+      dirtyRef.current = true;
+      setSaveError(true);
+      retryTimerRef.current = setTimeout(flushSave, 5000);
+    };
+    try {
+      await storage.set(idCopia, jsonLocal);
+    } catch (e) {
+      return falhou();
+    }
+    const res = await storage.get(STORAGE_KEY);
+    if (res.failed || !res.value) return falhou();
+    if (dirtyRef.current) {
+      try { await storage.set(idCopia, JSON.stringify(dataRef.current)); } catch (e) { /* a primeira cópia já está salva */ }
+    }
+    lastSyncedRef.current = res.updatedAt || null;
+    dirtyRef.current = false;
+    pendingSaveRef.current = false;
+    fromServerRef.current = true;
+    setData(JSON.parse(res.value));
+    setSaveError(false);
+    setConflito({ quando: `${p2(d.getDate())}/${p2(d.getMonth() + 1)} às ${p2(d.getHours())}:${p2(d.getMinutes())}` });
+  };
+
+  // Busca a versão mais nova da nuvem quando outro aparelho salvou algo — só
+  // se este aparelho não tiver edição pendente (nunca descarta nada daqui).
+  const puxandoRef = useRef(false);
+  const puxarSeMudou = useCallback(async () => {
+    if (!loaded || dirtyRef.current || savingRef.current || puxandoRef.current) return;
+    puxandoRef.current = true;
+    try {
+      const s = await storage.getStamp(STORAGE_KEY);
+      if (s.failed || !s.updatedAt) return;
+      if (lastSyncedRef.current && Date.parse(s.updatedAt) === Date.parse(lastSyncedRef.current)) return;
+      const res = await storage.get(STORAGE_KEY);
+      if (res.failed || !res.value) return;
+      if (dirtyRef.current || savingRef.current) return; // editou enquanto buscava: fica com a daqui
+      lastSyncedRef.current = res.updatedAt || null;
+      fromServerRef.current = true;
+      setData(JSON.parse(res.value));
+    } finally {
+      puxandoRef.current = false;
+    }
+  }, [loaded]);
 
   // Enquanto houver erro ao salvar, avisa antes de fechar a aba.
   useEffect(() => {
@@ -859,6 +982,12 @@ export default function FinancasCasa() {
     // só salva depois de uma leitura bem-sucedida (loaded) — nunca a partir
     // de um estado carregado após falha, pra não sobrescrever dados reais.
     if (!loaded || !data) return;
+    if (fromServerRef.current) {
+      // veio da nuvem (carregar/atualizar): não é edição, não grava
+      fromServerRef.current = false;
+      return;
+    }
+    dirtyRef.current = true;
     flushSave();
   }, [data, loaded, flushSave]);
 
@@ -866,16 +995,34 @@ export default function FinancasCasa() {
   // garante que a gravação seja disparada imediatamente (nada de esperar o
   // próximo tick) — reduz a janela em que a última edição poderia se perder.
   useEffect(() => {
+    // SÓ grava ao esconder se houver edição: gravar sem editar era o que
+    // fazia um aparelho com dados velhos apagar o que o outro lançou.
     const onHide = () => {
-      if (document.visibilityState === "hidden" && loaded && data) flushSave();
+      if (document.visibilityState === "hidden" && loaded && dirtyRef.current) flushSave();
     };
+    const onVisivel = () => {
+      if (document.visibilityState === "visible") puxarSeMudou();
+    };
+    const onPageHide = () => {
+      if (loaded && dirtyRef.current) flushSave();
+    };
+    const onFocus = () => puxarSeMudou();
+    // janela do Mac que fica aberta o dia todo sem sair da tela: confere a cada 30s
+    const intervalo = setInterval(() => {
+      if (document.visibilityState === "visible") puxarSeMudou();
+    }, 30000);
     document.addEventListener("visibilitychange", onHide);
-    window.addEventListener("pagehide", onHide);
+    document.addEventListener("visibilitychange", onVisivel);
+    window.addEventListener("pagehide", onPageHide);
+    window.addEventListener("focus", onFocus);
     return () => {
       document.removeEventListener("visibilitychange", onHide);
-      window.removeEventListener("pagehide", onHide);
+      document.removeEventListener("visibilitychange", onVisivel);
+      window.removeEventListener("pagehide", onPageHide);
+      window.removeEventListener("focus", onFocus);
+      clearInterval(intervalo);
     };
-  }, [loaded, data, flushSave]);
+  }, [loaded, flushSave, puxarSeMudou]);
 
   const activeAno = useMemo(
     () => data?.anos.find((a) => a.id === activeAnoId) || null,
@@ -886,6 +1033,20 @@ export default function FinancasCasa() {
     () => activeAno?.months.find((m) => m.id === activeMonthId) || null,
     [activeAno, activeMonthId]
   );
+
+  // Se a versão que veio da nuvem não tem mais o ano/mês que estava aberto
+  // (apagado no outro aparelho), abre o último em vez de ficar em "Carregando…"
+  useEffect(() => {
+    if (!loaded || !data?.anos?.length) return;
+    const ano = data.anos.find((a) => a.id === activeAnoId);
+    if (!ano) {
+      const ultimo = data.anos[data.anos.length - 1];
+      setActiveAnoId(ultimo.id);
+      setActiveMonthId(ultimo.months[ultimo.months.length - 1]?.id ?? null);
+    } else if (activeMonthId && !ano.months.some((m) => m.id === activeMonthId)) {
+      setActiveMonthId(ano.months[ano.months.length - 1]?.id ?? null);
+    }
+  }, [data, loaded, activeAnoId, activeMonthId]);
 
   const updateMonth = useCallback((monthId, updater) => {
     setData((prev) => ({
@@ -2026,6 +2187,17 @@ export default function FinancasCasa() {
         )}
       </div>
 
+      {conflito && (
+        <div className="fc-conflito" role="alert">
+          <span>
+            <b>Este aparelho estava com uma versão antiga</b> — o app foi atualizado em outro
+            aparelho. Carreguei a versão mais nova. A última alteração feita aqui ({conflito.quando})
+            ficou guardada à parte, nada foi perdido: se faltar alguma coisa, dá pra recuperar.
+          </span>
+          <button type="button" onClick={() => setConflito(null)}>Entendi</button>
+        </div>
+      )}
+
       {saveError && (
         <div className="fc-save-error" role="alert">
           <span className="fc-save-error-dot" />
@@ -2469,6 +2641,20 @@ function FcStyles() {
       .fc-toast-undo:hover { transform: translateY(-1px); }
       @keyframes fcToastIn { from { opacity: 0; transform: translateX(-50%) translateY(12px); } to { opacity: 1; transform: translateX(-50%) translateY(0); } }
       @media (prefers-reduced-motion: reduce) { .fc-toast { animation: none; } }
+      .fc-conflito {
+        position: fixed; left: 50%; top: 14px; transform: translateX(-50%); z-index: 60;
+        display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+        width: min(640px, calc(100vw - 32px)); box-sizing: border-box;
+        background: var(--surface-2); color: var(--ink); border: 1px solid var(--warn);
+        border-radius: 18px; padding: 14px 16px; box-shadow: var(--shadow-lg);
+        font-size: 13.5px; line-height: 1.45;
+      }
+      .fc-conflito span { flex: 1 1 260px; }
+      .fc-conflito b { color: var(--warn); }
+      .fc-conflito button {
+        border: 0; background: var(--accent); color: var(--accent-deep); border-radius: 999px;
+        padding: 9px 18px; font-weight: 700; min-height: 40px; cursor: pointer;
+      }
       .fc-save-error {
         position: fixed; left: 50%; top: 14px; transform: translateX(-50%);
         display: flex; align-items: center; gap: 10px;
