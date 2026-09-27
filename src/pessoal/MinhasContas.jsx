@@ -12,7 +12,7 @@ import {
   periodoCom, andarPeriodo, nomePeriodo, dentroDo, doPeriodo, semAcento,
 } from "./logica.js";
 import { MCStyles } from "./estilo.jsx";
-import { usePrefs, IconeOink, Carregando } from "../tema.jsx";
+import { usePrefs, IconeOink, Carregando, usePilula } from "../tema.jsx";
 
 const OLHO_KEY = "fc-hide-values";
 
@@ -77,6 +77,7 @@ export default function MinhasContas({ chave, ativo = true, larga: largaProp }) 
   }, [obsAberta]);
   const [estado, setEstado] = useState("todas"); // todas | apagar | pagas
   const [catFiltro, setCatFiltro] = useState(null);
+  const [filtrosRef, pilulaFiltros] = usePilula([estado, busca, catFiltro, selecionando, ativo, larga, nv.carregado]);
   const [escolhendoFiltro, setEscolhendoFiltro] = useState(false);
   const [painel, setPainel] = useState(null); // {modo:'novo'} | {modo:'editar', id}
   const [perguntaProximas, setPerguntaProximas] = useState(null); // item editado
@@ -530,9 +531,10 @@ export default function MinhasContas({ chave, ativo = true, larga: largaProp }) 
                 <button className="mc-chip mc-chip-sel on" onClick={sairSelecao}><X size={14} /> Cancelar</button>
               </div>
             ) : (
-              <div className="mc-chips mc-fpill">
+              <div className="mc-chips mc-fpill" ref={filtrosRef}>
+                <div className="mc-pilula" style={pilulaFiltros} />
                 {[["todas", "Todas"], ["apagar", "A pagar"], ["pagas", "Pagas"], ["receitas", "Receitas"]].map(([k, t]) => (
-                  <button key={k} className={"mc-chip" + (estado === k && busca === null ? " on" : "")} onClick={() => { setBusca(null); setEstado(k); }}>{t}</button>
+                  <button key={k} className={"mc-chip" + (estado === k && busca === null ? " on" : "")} data-on={estado === k && busca === null ? "1" : undefined} onClick={() => { setBusca(null); setEstado(k); }}>{t}</button>
                 ))}
                 {catFiltro && catPorId[catFiltro] ? (
                   <button className="mc-chip on" onClick={() => setCatFiltro(null)}>

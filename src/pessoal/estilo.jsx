@@ -54,6 +54,10 @@ export function MCStyles() {
 .mc-fpill{flex:1 1 0;min-width:0;height:54px;padding:0 7px!important;border-radius:999px;background:var(--sf2);align-items:center;gap:2px!important}
 .mc-fpill .mc-chip{height:40px;border:none;background:transparent;font-size:14px;font-weight:800;padding:0 14px}
 .mc-fpill .mc-chip.on{background:var(--ink);color:var(--bg);font-weight:900}
+.mc-fpill{position:relative}
+.mc-fpill > .mc-chip{position:relative;z-index:1}
+.mc-fpill .mc-chip.on[data-on]{background:transparent}
+.mc-pilula{position:absolute;top:0;left:0;z-index:0;border-radius:999px;background:var(--ink);pointer-events:none;will-change:transform,width}
 .mc-fpill .mc-sel-conta{padding:0 10px}
 .mc-fbusca{flex:0 0 54px;height:54px;border-radius:999px;background:var(--sf2);display:flex;align-items:center;overflow:hidden;
   transition:flex-basis .45s cubic-bezier(.66,.01,.24,1.02)}

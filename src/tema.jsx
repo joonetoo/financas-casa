@@ -1,10 +1,40 @@
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useRef, useLayoutEffect } from "react";
 
 // Identidade do Oink (aprovada em 2026-09-27):
 //  - escuro = paleta "Menta & Chiclete"; claro = paleta "Pistache";
 //  - logo em Fredoka 600; o app todo em Nunito;
 //  - no Mac: vidro translúcido (estilo Liquid Glass); no celular: estilo One UI.
 // As preferências (aparência, ordem, período) ficam só no aparelho.
+
+// Pílula que desliza até o item ativo (mesmo movimento da aba Casa: começa
+// lento, acelera e freia). O item ativo leva data-on="1"; a caixa precisa de
+// position:relative. Devolve [ref da caixa, estilo da pílula].
+const DESLIZE = "transform .44s cubic-bezier(.66,.01,.24,1.02), width .44s cubic-bezier(.66,.01,.24,1.02), height .44s cubic-bezier(.66,.01,.24,1.02), opacity .2s ease";
+export function usePilula(deps) {
+  const caixaRef = useRef(null);
+  const primeira = useRef(true);
+  const [estilo, setEstilo] = useState({ opacity: 0 });
+  const medir = useCallback((animar) => {
+    const el = caixaRef.current && caixaRef.current.querySelector('[data-on="1"]');
+    if (!el || !el.offsetWidth) { setEstilo((e) => ({ ...e, opacity: 0 })); return; }
+    setEstilo({
+      opacity: 1, width: el.offsetWidth, height: el.offsetHeight,
+      transform: `translate(${el.offsetLeft}px, ${el.offsetTop}px)`,
+      transition: animar ? DESLIZE : "none",
+    });
+  }, []);
+  useLayoutEffect(() => {
+    medir(!primeira.current);
+    primeira.current = false;
+  }, deps); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    const f = () => medir(false);
+    window.addEventListener("resize", f);
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(f);
+    return () => window.removeEventListener("resize", f);
+  }, [medir]);
+  return [caixaRef, estilo];
+}
 
 const PREFS_KEY = "oink-prefs";
 const PADRAO = { aparencia: "escuro", ordem: "crescente", periodo: "mes" };

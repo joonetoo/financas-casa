@@ -3,7 +3,7 @@ import { Home, PiggyBank, TrendingUp, Settings, Plus } from "lucide-react";
 import FinancasCasa, { STORAGE_KEY as CHAVE_CASA } from "./App.jsx";
 import MinhasContas from "./pessoal/MinhasContas.jsx";
 import Configuracoes, { AvisoDesfazerGeral } from "./Configuracoes.jsx";
-import { TemaStyles, useTemaNoDocumento, IconeOink } from "./tema.jsx";
+import { TemaStyles, useTemaNoDocumento, IconeOink, usePilula } from "./tema.jsx";
 
 // Qual linha de dados cada aba usa:
 //  - servidor de teste (npm run dev): SEMPRE uma cópia de teste;
@@ -66,6 +66,7 @@ export default function Shell() {
   }, []);
 
   const novo = () => window.dispatchEvent(new Event("oink-novo"));
+  const [ladoRef, pilulaLado] = usePilula([aba, config, larga]);
 
   // As abas ficam TODAS montadas (só escondidas): cada uma continua com suas
   // proteções de salvamento rodando, e trocar de aba nunca recarrega nem
@@ -84,7 +85,10 @@ export default function Shell() {
         .sh-lado button{display:flex;align-items:center;gap:12px;height:46px;padding:0 14px;border:none;border-radius:14px;background:transparent;
           color:var(--o-soft);font:700 15px 'Nunito',sans-serif;cursor:pointer;text-align:left;transition:background .2s,color .2s}
         .sh-lado button:hover{background:color-mix(in srgb, var(--o-ink) 8%, transparent)}
-        .sh-lado button.on{background:var(--o-ink);color:var(--o-bg);font-weight:900}
+        .sh-lado button{position:relative;z-index:1}
+        .sh-lado button.on{color:var(--o-bg);font-weight:900}
+        .sh-lado button.on:hover{background:transparent}
+        .sh-pilula{position:absolute;top:0;left:0;z-index:0;border-radius:14px;background:var(--o-ink);pointer-events:none;will-change:transform,width}
         .sh-lado-fim{margin-top:auto}
         .sh-baixo{position:fixed;left:12px;right:12px;bottom:calc(14px + env(safe-area-inset-bottom));z-index:30;display:flex;gap:10px;align-items:center;
           max-width:640px;margin:0 auto}
@@ -106,14 +110,15 @@ export default function Shell() {
 
       <div className={larga ? "sh-larga" : ""}>
         {larga && (
-          <nav className="sh-lado vidro" aria-label="Abas">
+          <nav className="sh-lado vidro" aria-label="Abas" ref={ladoRef}>
+            <div className="sh-pilula" style={pilulaLado} />
             <div className="sh-lado-marca"><IconeOink size={42} /><span className="oink-logo">oink<i>.</i></span></div>
             {ABAS.map(([k, nome, , Icone]) => (
-              <button key={k} className={aba === k && !config ? "on" : ""} onClick={() => { setConfig(false); setAba(k); }}>
+              <button key={k} className={aba === k && !config ? "on" : ""} data-on={aba === k && !config ? "1" : undefined} onClick={() => { setConfig(false); setAba(k); }}>
                 <Icone size={19} /> {nome}
               </button>
             ))}
-            <button className={"sh-lado-fim" + (config ? " on" : "")} onClick={() => setConfig(true)}><Settings size={19} /> Configurações</button>
+            <button className={"sh-lado-fim" + (config ? " on" : "")} data-on={config ? "1" : undefined} onClick={() => setConfig(true)}><Settings size={19} /> Configurações</button>
           </nav>
         )}
 
