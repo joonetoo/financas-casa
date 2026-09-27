@@ -361,7 +361,7 @@ export default function MinhasContas({ chave, ativo = true, larga: largaProp }) 
   const [inteiro, centavos] = fmtValor(Math.abs(res)).split(",");
   const hero = (
     <div className={"mc-hero" + (larga ? " mc-hero-card vidro" : "")}>
-      {larga && <span className="mc-hero-ic"><IconeOink size={44} moedaCaindo={moedaCaindo > 0} key={moedaCaindo} /></span>}
+      {larga && <span className="mc-hero-ic"><IconeOink size={70} moedaCaindo={moedaCaindo > 0} key={moedaCaindo} /></span>}
       <div className="mc-hero-rot">{rotHero}</div>
       <div className="mc-hero-num">{oculto ? "R$ ••••" : <>R$ {inteiro}<small>,{centavos}</small></>}</div>
       <div className="mc-hero-pills">
