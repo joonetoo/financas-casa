@@ -1,0 +1,87 @@
+// Desenhos (traço, 24x24) usados nas categorias da aba "Minhas contas".
+// Cada chave é o nome guardado em categoria.icone — nunca renomear uma chave
+// existente (os dados salvos apontam pra ela); só acrescentar novas.
+export const ICONES = {
+  garfo: '<path d="M7 3v8M5 3v5a2 2 0 0 0 4 0V3M7 11v10M16 3c-2 1-3 3-3 7h3v11"/>',
+  tela: '<rect x="4" y="5" width="16" height="11" rx="2"/><path d="M9 20h6M12 16v4"/>',
+  cartao: '<rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18M7 15h4"/>',
+  carro: '<path d="M4 17v-5l2.2-5h11.6L20 12v5z"/><path d="M4 12h16"/><circle cx="8" cy="15" r="1"/><circle cx="16" cy="15" r="1"/>',
+  casa: '<path d="M4 11l8-7 8 7v9H4z"/><path d="M10 20v-5h4v5"/>',
+  sacola: '<path d="M5 8h14l-1 13H6z"/><path d="M9 8V6a3 3 0 0 1 6 0v2"/>',
+  pessoa: '<circle cx="12" cy="8" r="4"/><path d="M4 21c1-4 4.5-6 8-6s7 2 8 6"/>',
+  documento: '<path d="M7 3h7l4 4v14H7z"/><path d="M10 12h5M10 16h5"/>',
+  formatura: '<path d="M2 9l10-5 10 5-10 5z"/><path d="M6 11v5c3 2 9 2 12 0v-5"/>',
+  etiqueta: '<path d="M3 12V4h8l9 9-8 8z"/><circle cx="7.5" cy="8.5" r="1.3"/>',
+  carrinho: '<path d="M3 4h2l2.4 10.2a1 1 0 0 0 1 .8h8.9a1 1 0 0 0 1-.8L20 8H6.2"/><circle cx="9" cy="19" r="1.4"/><circle cx="17" cy="19" r="1.4"/>',
+  porcento: '<path d="M19 5L5 19"/><circle cx="7" cy="7" r="2"/><circle cx="17" cy="17" r="2"/>',
+  grafico: '<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>',
+  predio: '<path d="M5 21V5l7-2v18M12 8h7v13M8 8h1M8 12h1M8 16h1M15 12h1M15 16h1M3 21h18"/>',
+  taca: '<path d="M7 3h10l-1 7a4 4 0 0 1-8 0zM12 14v7M8 21h8"/>',
+  moto: '<circle cx="6" cy="16" r="3"/><circle cx="18" cy="16" r="3"/><path d="M6 16l4-6h4l4 6M13 10l-1-3h3"/>',
+  lista: '<path d="M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01"/>',
+  cruz: '<path d="M12 5v14M5 12h14"/>',
+  cifrao: '<path d="M12 3v18M16 7.5c0-1.9-1.8-3-4-3s-4 1.1-4 3 1.8 2.6 4 3 4 1.2 4 3.1-1.8 3-4 3-4-1.1-4-3"/>',
+  onibus: '<rect x="5" y="3" width="14" height="15" rx="3"/><path d="M5 11h14M8 21v-3M16 21v-3"/>',
+  aviao: '<path d="M3 14l18-7-6 14-3-6z"/>',
+  coracao: '<path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z"/>',
+  presente: '<rect x="4" y="9" width="16" height="11" rx="1"/><path d="M4 13h16M12 9v11M12 9c-2-4-6-3-5 0M12 9c2-4 6-3 5 0"/>',
+  pata: '<circle cx="7" cy="10" r="1.6"/><circle cx="17" cy="10" r="1.6"/><circle cx="10" cy="6" r="1.6"/><circle cx="14" cy="6" r="1.6"/><path d="M8 17c0-3 2-5 4-5s4 2 4 5-8 3-8 0z"/>',
+  controle: '<rect x="3" y="8" width="18" height="10" rx="4"/><path d="M8 11v4M6 13h4M16 12h.01M18 14h.01"/>',
+  celular: '<rect x="7" y="3" width="10" height="18" rx="2"/><path d="M11 18h2"/>',
+  raio: '<path d="M13 3L5 14h6l-1 7 8-11h-6z"/>',
+  subida: '<path d="M3 17l6-6 4 4 8-8M15 7h6v6"/>',
+  mais: '<circle cx="6" cy="12" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="18" cy="12" r="1.4"/>',
+  cofre: '<rect x="3" y="5" width="18" height="15" rx="2"/><circle cx="12" cy="12.5" r="3.5"/><path d="M12 9v1M7 20v1M17 20v1"/>',
+};
+
+export const CORES = [
+  "#C8413B", "#E0554F", "#E0733F", "#E8804F", "#D9A55D", "#3DB86B", "#2FA886", "#1E7A55",
+  "#4A8FDB", "#3F86D6", "#3D4BB0", "#6A35C9", "#6E4FC8", "#B0417F", "#D6457A", "#D9689E",
+  "#E58A8A", "#E58A9A", "#5B8BD9", "#8C959B",
+];
+
+// Categorias do Joel, copiadas do Organizze dele (prints de 2026-09-26).
+// `arquivada` = some das opções, mas os lançamentos antigos continuam com ela.
+const d = (nome, icone, cor, arquivada = false) => ({ tipo: "despesa", nome, icone, cor, arquivada });
+const r = (nome, icone, cor, arquivada = false) => ({ tipo: "receita", nome, icone, cor, arquivada });
+
+export const CATEGORIAS_PADRAO = [
+  d("Alimentação", "garfo", "#D6457A"),
+  d("Aplicativos", "tela", "#2FA886"),
+  d("Assinaturas e serviços", "cartao", "#6E4FC8"),
+  d("Carro", "carro", "#C8413B"),
+  d("Casa", "casa", "#3F86D6"),
+  d("Compras", "sacola", "#B0417F"),
+  d("Cuidados pessoais", "pessoa", "#E0554F"),
+  d("Dívidas e empréstimos", "documento", "#E58A8A"),
+  d("Educação", "formatura", "#3D4BB0"),
+  d("Empréstimo shoppe", "documento", "#E8804F"),
+  d("Fatura Itaú", "cartao", "#E8804F"),
+  d("Gasto atoa", "etiqueta", "#E8804F"),
+  d("Ifood Pago Cred", "carrinho", "#C8413B"),
+  d("Impostos e Taxas", "porcento", "#E8804F"),
+  d("Investimentos", "grafico", "#D9689E"),
+  d("Joel Neto Filmes", "predio", "#3D4BB0"),
+  d("Mercado", "carrinho", "#E0733F"),
+  d("Minhas coisas", "taca", "#E58A9A"),
+  d("Moto", "moto", "#2FA886"),
+  d("Nubank Cartão", "cartao", "#6A35C9"),
+  d("Outros", "lista", "#8C959B"),
+  d("Saúde", "cruz", "#4A8FDB"),
+  d("Shopee", "etiqueta", "#E8804F"),
+  d("Sobra do mês", "cartao", "#B0417F"),
+  d("Taxas", "cifrao", "#B0417F"),
+  d("Trampos", "cifrao", "#3DB86B"),
+  d("Transporte", "onibus", "#5B8BD9"),
+  d("Viagem", "aviao", "#E0554F"),
+  d("Wise Card", "cartao", "#3DB86B"),
+  d("Despesas da casa", "casa", "#8C959B", true),
+  d("Lazer e hobbies", "controle", "#8C959B", true),
+  r("Empréstimos", "cifrao", "#C8413B"),
+  r("Faturamentos", "cifrao", "#1E7A55"),
+  r("Frellas", "cifrao", "#3DB86B"),
+  r("Investimentos", "subida", "#1E7A55"),
+  r("Outras receitas", "mais", "#2FA886"),
+  r("Caixa da empresa", "cofre", "#8C959B", true),
+  r("Compras a dois", "pessoa", "#8C959B", true),
+];

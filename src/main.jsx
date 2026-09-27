@@ -1,10 +1,10 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
-import FinancasCasa from "./App.jsx";
+import Shell from "./Shell.jsx";
 import "./index.css";
 
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>
-    <FinancasCasa />
+    <Shell />
   </React.StrictMode>
 );
