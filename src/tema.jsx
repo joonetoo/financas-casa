@@ -214,6 +214,8 @@ html[data-tema] .fc-env-icon-sm{width:32px!important;height:32px!important}
 html[data-tema] .fc-chip{min-height:40px!important;padding:0 14px 0 6px!important;font-size:14px!important;font-weight:800!important}
 html[data-tema] .fc-chip-icon{width:28px!important;height:28px!important;border-radius:50%!important;background:var(--cat, var(--o-verde))!important;color:#fff!important}
 html[data-tema] .fc-chip-active{font-weight:900!important}
+/* a faixa de categorias rola de lado; sem esse respiro, o chip que sobe 1px no hover era cortado em cima */
+html[data-tema] .fc-cat-chips{padding-top:4px!important;padding-bottom:4px!important}
 html[data-tema] .fc-chip-quickadd{min-height:38px!important;padding:0 14px 0 10px!important;border:1.5px dashed color-mix(in srgb, var(--o-entrou) 60%, transparent)!important;
   background:color-mix(in srgb, var(--o-entrou) 10%, transparent)!important;color:var(--o-ink)!important;gap:6px!important}
 html[data-tema] .fc-chip-quickadd b{color:var(--o-entrou);font-weight:900}

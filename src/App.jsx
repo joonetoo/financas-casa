@@ -779,10 +779,17 @@ export default function FinancasCasa() {
     [activeTab, activeAnoId, activeCat]
   );
 
+  // As duas escutas abaixo usam sempre a versão mais nova do resync, mas só
+  // são ligadas UMA vez. Antes, a cada troca de aba elas eram religadas e a da
+  // fonte (que já tinha carregado) rodava na hora, reposicionando a pílula
+  // sem animação por cima do deslize — por isso o deslize tinha sumido.
+  const resyncRef = useRef(resyncSliders);
+  resyncRef.current = resyncSliders;
   useEffect(() => {
-    window.addEventListener("resize", resyncSliders);
-    return () => window.removeEventListener("resize", resyncSliders);
-  }, [resyncSliders]);
+    const aoRedimensionar = () => resyncRef.current(false);
+    window.addEventListener("resize", aoRedimensionar);
+    return () => window.removeEventListener("resize", aoRedimensionar);
+  }, []);
 
   // a fonte (Sora/Manrope) carrega de forma assíncrona; se o indicador for
   // posicionado antes dela terminar, o texto muda de largura e o indicador
@@ -791,12 +798,12 @@ export default function FinancasCasa() {
     const ready = document.fonts && document.fonts.ready ? document.fonts.ready : Promise.resolve();
     let alive = true;
     ready.then(() => {
-      if (alive) resyncSliders(false);
+      if (alive) resyncRef.current(false);
     });
     return () => {
       alive = false;
     };
-  }, [resyncSliders]);
+  }, []);
 
   // hora da última gravação que ESTE aparelho conhece; se a nuvem tiver outra,
   // algum outro aparelho salvou depois (ver storage.setIfUnchanged)
