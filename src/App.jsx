@@ -812,6 +812,21 @@ export default function FinancasCasa() {
     setActiveMonthId(ano.months[ano.months.length - 1]?.id ?? null);
   };
 
+  // Ao abrir o app, começa no mês de HOJE (se ele existir); senão, no último.
+  const abrirMesAtual = (d) => {
+    const agora = new Date();
+    const semAcento = (t) => String(t).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+    const nomes = ["janeiro", "fevereiro", "marco", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"];
+    const ano = d.anos.find((a) => String(a.label).trim() === String(agora.getFullYear()));
+    const mes = ano?.months.find((m) => semAcento(m.label) === nomes[agora.getMonth()]);
+    if (ano && mes) {
+      setActiveAnoId(ano.id);
+      setActiveMonthId(mes.id);
+    } else {
+      openAno(d.anos[d.anos.length - 1]);
+    }
+  };
+
   useEffect(() => {
     let alive = true;
     (async () => {
@@ -853,7 +868,7 @@ export default function FinancasCasa() {
         fromServerRef.current = false;
       }
       setData(finalData);
-      openAno(finalData.anos[finalData.anos.length - 1]);
+      abrirMesAtual(finalData);
       setLoaded(true);
     })();
     return () => {

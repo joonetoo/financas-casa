@@ -84,7 +84,7 @@ export default function MinhasContas({ chave, ativo = true }) {
   const tot = useMemo(() => totais(doMesTodos), [doMesTodos]);
   const visiveis = useMemo(
     () => doMesTodos.filter((l) =>
-      (estado === "todas" || (estado === "pagas" ? l.pago : !l.pago)) &&
+      (estado === "todas" || (estado === "receitas" ? l.tipo === "receita" : estado === "pagas" ? l.pago : !l.pago)) &&
       (!catFiltro || l.catId === catFiltro)),
     [doMesTodos, estado, catFiltro]
   );
@@ -299,7 +299,7 @@ export default function MinhasContas({ chave, ativo = true }) {
           <div className={"mc-res-rot " + (tot.resultado < 0 ? "mc-falta" : "mc-sobra")}>
             {tot.resultado < 0 ? "Falta ganhar" : "Sobra"}
           </div>
-          <div className="mc-res-num">{vR(Math.abs(tot.resultado))}</div>
+          <div className={"mc-res-num " + (tot.resultado < 0 ? "mc-neg" : "mc-pos")}>{vR(Math.abs(tot.resultado))}</div>
         </div>
         {!larga && (
           <button className="mc-fab" aria-label="Novo lançamento" onClick={() => setPainel({ modo: "novo", n: 1 })}>
@@ -350,7 +350,7 @@ export default function MinhasContas({ chave, ativo = true }) {
           </div>
 
           <div className="mc-chips">
-            {[["todas", "Todas"], ["apagar", "A pagar"], ["pagas", "Pagas"]].map(([k, t]) => (
+            {[["todas", "Todas"], ["apagar", "A pagar"], ["pagas", "Pagas"], ["receitas", "Receitas"]].map(([k, t]) => (
               <button key={k} className={"mc-chip" + (estado === k ? " on" : "")} onClick={() => setEstado(k)}>{t}</button>
             ))}
             {catFiltro && catPorId[catFiltro] ? (
@@ -446,7 +446,7 @@ export default function MinhasContas({ chave, ativo = true }) {
           titulo="Alteração salva!"
           texto={`Este lançamento ${perguntaProximas.serie?.tipo === "parcela" ? "é parcelado" : "se repete todo mês"}. Quer aplicar a mesma mudança nos próximos (${proximasDaSerie(lancs, perguntaProximas).length})?`}
           botoes={[
-            { txt: "Não, apenas este", onClick: () => setPerguntaProximas(null) },
+            { txt: "Não, apenas este", vermelho: true, onClick: () => setPerguntaProximas(null) },
             { txt: "Sim, atualizar próximos", principal: true, onClick: () => { aplicarProximas(perguntaProximas); setPerguntaProximas(null); } },
           ]}
           onFechar={() => setPerguntaProximas(null)}
@@ -565,9 +565,9 @@ function FormLancamento({
         </div>
       )}
 
-      <div className="mc-seg">
+      <div className="mc-seg mc-seg-tipo">
         {[["despesa", "Despesa"], ["receita", "Receita"]].map(([k, t]) => (
-          <button key={k} className={f.tipo === k ? "on" : ""} onClick={() => setF((o) => ({ ...o, tipo: k, catId: catPorId[o.catId]?.tipo === k ? o.catId : null }))}>{t}</button>
+          <button key={k} className={f.tipo === k ? "on " + k : ""} onClick={() => setF((o) => ({ ...o, tipo: k, catId: catPorId[o.catId]?.tipo === k ? o.catId : null }))}>{t}</button>
         ))}
       </div>
 
@@ -717,7 +717,7 @@ function Dialogo({ icone, titulo, texto, botoes, onFechar, perigo }) {
         <div className="mc-form-tit">{titulo}</div>
         <p>{texto}</p>
         {botoes.map((b) => (
-          <button key={b.txt} className={b.principal ? "mc-btn-p" : b.perigo ? "mc-btn-perigo" : b.fraco ? "mc-btn-fraco" : "mc-btn-s"} onClick={b.onClick}>{b.txt}</button>
+          <button key={b.txt} className={b.principal ? "mc-btn-p" : b.vermelho ? "mc-btn-verm" : b.perigo ? "mc-btn-perigo" : b.fraco ? "mc-btn-fraco" : "mc-btn-s"} onClick={b.onClick}>{b.txt}</button>
         ))}
       </div>
     </div>
