@@ -14,12 +14,17 @@ export function usePilula(deps) {
   const caixaRef = useRef(null);
   const primeira = useRef(true);
   const [estilo, setEstilo] = useState({ opacity: 0 });
+  const ultimo = useRef("");
   const medir = useCallback((animar) => {
     const el = caixaRef.current && caixaRef.current.querySelector('[data-on="1"]');
-    if (!el || !el.offsetWidth) { setEstilo((e) => ({ ...e, opacity: 0 })); return; }
+    if (!el || !el.offsetWidth) { ultimo.current = ""; setEstilo((e) => ({ ...e, opacity: 0 })); return; }
+    const transform = `translate(${el.offsetLeft}px, ${el.offsetTop}px)`;
+    const assinatura = `${el.offsetWidth}|${el.offsetHeight}|${transform}`;
+    // já está no lugar certo: não mexe (assim uma medição extra nunca corta um deslize)
+    if (assinatura === ultimo.current) return;
+    ultimo.current = assinatura;
     setEstilo({
-      opacity: 1, width: el.offsetWidth, height: el.offsetHeight,
-      transform: `translate(${el.offsetLeft}px, ${el.offsetTop}px)`,
+      opacity: 1, width: el.offsetWidth, height: el.offsetHeight, transform,
       transition: animar ? DESLIZE : "none",
     });
   }, []);
@@ -34,8 +39,32 @@ export function usePilula(deps) {
     const f = (e) => { if (e && e.isTrusted === false) return; medir(false); };
     window.addEventListener("resize", f);
     if (document.fonts && document.fonts.ready) document.fonts.ready.then(f);
-    return () => window.removeEventListener("resize", f);
+    // a janela do app no Mac às vezes ainda está se arrumando nos primeiros
+    // instantes: confere de novo algumas vezes logo depois de abrir
+    const timers = [150, 500, 1200, 2500].map((ms) => setTimeout(() => medir(false), ms));
+    window.addEventListener("load", f);
+    return () => {
+      window.removeEventListener("resize", f);
+      window.removeEventListener("load", f);
+      timers.forEach(clearTimeout);
+    };
   }, [medir]);
+  // Se a caixa ou os botões mudarem de tamanho depois (janela do app abrindo,
+  // letra chegando atrasada), mede de novo, sem animar. A primeira resposta
+  // do observador é só "comecei a olhar" e é ignorada, pra não cortar o deslize.
+  useEffect(() => {
+    const c = caixaRef.current;
+    if (!c || typeof ResizeObserver === "undefined") return undefined;
+    let comecou = false;
+    const ro = new ResizeObserver(() => {
+      if (!comecou) { comecou = true; return; }
+      medir(false);
+    });
+    ro.observe(c);
+    // a própria pílula (data-pilula) fica de fora: ela muda de tamanho ao deslizar
+    Array.from(c.children).forEach((f) => { if (!f.hasAttribute("data-pilula")) ro.observe(f); });
+    return () => ro.disconnect();
+  }, deps); // eslint-disable-line react-hooks/exhaustive-deps
   return [caixaRef, estilo];
 }
 

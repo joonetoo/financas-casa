@@ -532,7 +532,7 @@ export default function MinhasContas({ chave, ativo = true, larga: largaProp }) 
               </div>
             ) : (
               <div className="mc-chips mc-fpill" ref={filtrosRef}>
-                <div className="mc-pilula" style={pilulaFiltros} />
+                <div className="mc-pilula" data-pilula style={pilulaFiltros} />
                 {[["todas", "Todas"], ["apagar", "A pagar"], ["pagas", "Pagas"], ["receitas", "Receitas"]].map(([k, t]) => (
                   <button key={k} className={"mc-chip" + (estado === k && busca === null ? " on" : "")} data-on={estado === k && busca === null ? "1" : undefined} onClick={() => { setBusca(null); setEstado(k); }}>{t}</button>
                 ))}

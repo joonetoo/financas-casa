@@ -111,7 +111,7 @@ export default function Shell() {
       <div className={larga ? "sh-larga" : ""}>
         {larga && (
           <nav className="sh-lado vidro" aria-label="Abas" ref={ladoRef}>
-            <div className="sh-pilula" style={pilulaLado} />
+            <div className="sh-pilula" data-pilula style={pilulaLado} />
             <div className="sh-lado-marca"><IconeOink size={42} /><span className="oink-logo">oink<i>.</i></span></div>
             {ABAS.map(([k, nome, , Icone]) => (
               <button key={k} className={aba === k && !config ? "on" : ""} data-on={aba === k && !config ? "1" : undefined} onClick={() => { setConfig(false); setAba(k); }}>
