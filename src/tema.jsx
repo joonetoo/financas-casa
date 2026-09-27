@@ -142,6 +142,9 @@ html[data-tema] .fc-hero::after{content:"";position:absolute;inset:0;pointer-eve
 html[data-plat="mac"] .fc-hero{backdrop-filter:blur(40px) saturate(160%);-webkit-backdrop-filter:blur(40px) saturate(160%);
   background:linear-gradient(160deg, color-mix(in srgb, #2FA876 75%, var(--o-sf)), color-mix(in srgb, var(--o-sf) 82%, transparent))!important}
 html[data-tema="claro"] .fc-hero-chip{background:rgba(255,255,255,.6)!important;border-color:rgba(19,38,29,.10)!important;color:var(--o-ink)!important}
+html[data-tema] .fc-hero-role{color:var(--o-ink)!important}
+html[data-tema] .fc-hero-avatar{color:var(--o-ink)!important;background:color-mix(in srgb, var(--o-ink) 14%, transparent)!important}
+html[data-tema="claro"] .fc-hero-chip:hover{background:rgba(255,255,255,.8)!important}
 /* cartões das categorias: mesma "pele" dos cartões do app */
 html[data-tema] .fc-env-card{background:var(--o-sf2)!important;border:1px solid var(--o-line)!important;border-radius:22px!important;box-shadow:none!important}
 @media (prefers-reduced-motion:reduce){html[data-tema] .fc-hero::after{display:none}}
