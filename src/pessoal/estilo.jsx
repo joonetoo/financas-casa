@@ -230,8 +230,12 @@ export function MCStyles() {
 .mc-hero-card{position:relative;overflow:hidden;border-radius:26px;padding:22px;border:1px solid var(--line);
   background:linear-gradient(160deg, color-mix(in srgb, #1E8A5E 70%, var(--sf)), var(--sf))}
 .mc-hero-card .mc-hero-rot{color:color-mix(in srgb, var(--ink) 75%, transparent)}
-.mc-hero-card::after{content:"";position:absolute;top:0;bottom:0;left:0;width:70px;background:linear-gradient(90deg,transparent,rgba(255,255,255,.22),transparent);
-  animation:oink-brilho 5s ease-in-out infinite;pointer-events:none}
+/* o brilho é do tamanho do cartão e anda 100% → atravessa inteiro em qualquer largura */
+.mc-hero-card::after{content:"";position:absolute;inset:0;pointer-events:none;
+  background:linear-gradient(105deg,transparent 38%,rgba(255,255,255,.20) 50%,transparent 62%);
+  transform:translateX(-100%);animation:mc-brilho 5s ease-in-out infinite}
+@keyframes mc-brilho{0%{transform:translateX(-100%)}55%,100%{transform:translateX(100%)}}
+@media (prefers-reduced-motion:reduce){.mc-hero-card::after{animation:none;display:none}}
 .mc-hero-ic{position:absolute;right:18px;top:18px}
 .mc-periodo{display:flex;align-items:center;gap:10px;padding:6px 0 10px;position:relative}
 .mc-per-centro{flex-grow:1;display:flex;flex-direction:column;align-items:center;position:relative}
