@@ -121,7 +121,8 @@ html[data-tema] .fc-tab-active::after{display:none!important}
 html[data-tema] .fc-period{justify-content:center}
 html[data-tema] .fc-quadro{background:var(--o-sf);border:1px solid var(--o-line);border-radius:28px;padding:18px;margin-bottom:18px;
   animation:oink-sobe .4s cubic-bezier(.22,.9,.32,1)}
-@media (max-width:820px){ html[data-tema] .fc-quadro{padding:10px;border-radius:24px} }
+@media (max-width:820px){ html[data-tema] .fc-quadro{padding:0;border:none;border-radius:0;background:transparent!important;backdrop-filter:none!important}
+  html[data-tema] .fc-budget-item{font-size:15px!important;padding:10px!important} }
 html[data-tema] .fc-quadro .fc-tabs{background:var(--o-sf2)!important}
 html[data-tema] .fc-data-zone > *:not(.fc-danger-link):not(.fc-confirm-inline){display:none!important}
 html[data-tema] .fc-data-zone{border:none!important;padding-top:4px!important;margin-top:0!important}
@@ -141,12 +142,120 @@ html[data-tema] .fc-hero::after{content:"";position:absolute;inset:0;pointer-eve
 @keyframes oink-brilho-cartao{0%{transform:translateX(-100%)}55%,100%{transform:translateX(100%)}}
 html[data-plat="mac"] .fc-hero{backdrop-filter:blur(40px) saturate(160%);-webkit-backdrop-filter:blur(40px) saturate(160%);
   background:linear-gradient(160deg, color-mix(in srgb, #2FA876 75%, var(--o-sf)), color-mix(in srgb, var(--o-sf) 82%, transparent))!important}
-html[data-tema="claro"] .fc-hero-chip{background:rgba(255,255,255,.6)!important;border-color:rgba(19,38,29,.10)!important;color:var(--o-ink)!important}
-html[data-tema] .fc-hero-role{color:var(--o-ink)!important}
-html[data-tema] .fc-hero-avatar{color:var(--o-ink)!important;background:color-mix(in srgb, var(--o-ink) 14%, transparent)!important}
-html[data-tema="claro"] .fc-hero-chip:hover{background:rgba(255,255,255,.8)!important}
-/* cartões das categorias: mesma "pele" dos cartões do app */
-html[data-tema] .fc-env-card{background:var(--o-sf2)!important;border:1px solid var(--o-line)!important;border-radius:22px!important;box-shadow:none!important}
+
+/* ===== Casa repaginada na ID do Oink (mockup "Parte 3", aprovado 2026-09-27) ===== */
+/* topo: título grande igual ao "Minhas contas" */
+html[data-tema] .fc-header{align-items:flex-end}
+html[data-tema] .fc-brand-badge{display:none!important}
+html[data-tema] .fc-brand-name{font-size:30px!important;font-weight:900!important;letter-spacing:-.01em;line-height:1.1}
+html[data-plat="mac"] .fc-brand-name, html[data-plat="pc"] .fc-brand-name{font-size:36px!important}
+html[data-tema] .fc-subtitle{font-size:14px!important;font-weight:700!important;color:var(--o-faint)!important;margin-top:4px}
+html[data-tema] .fc-hide-btn{width:44px!important;height:44px!important;border-radius:15px!important;background:var(--o-sf)!important;color:var(--o-ink)!important}
+/* mês */
+html[data-tema] .fc-period-label{flex:0 0 auto!important;min-height:48px!important;padding:0 22px!important;border:none!important;background:var(--o-sf2)!important;
+  font-size:19px!important;font-weight:900!important}
+html[data-tema] .fc-period-arrow{border-radius:15px!important;color:var(--o-ink)!important}
+@media (max-width:820px){ html[data-tema] .fc-period{justify-content:space-between!important} }
+/* sub-abas: pílula com fundinho */
+html[data-tema] .fc-tabs{border-radius:999px!important;padding:5px!important;background:var(--o-sf2)!important}
+html[data-tema] .fc-tab{border-radius:999px!important;font-size:14px!important;font-weight:800!important;color:var(--o-soft)}
+html[data-tema] .fc-slide-pill-tab{border-radius:999px!important}
+html[data-tema] .fc-tab-active{font-weight:900!important}
+@media (max-width:820px){ html[data-tema] .fc-tab{font-size:13px!important} }
+
+/* cartão verde "Ainda dá pra gastar" */
+html[data-tema] .fc-hero{gap:0!important;padding:22px!important}
+@media (max-width:820px){ html[data-tema] .fc-hero{padding:20px 18px!important} html[data-tema] .fc-hero-chip{padding:10px!important;column-gap:8px!important} }
+html[data-tema] .fc-hero-eyebrow{font-size:15px!important;font-weight:700!important;text-transform:none!important;letter-spacing:0!important;
+  color:color-mix(in srgb, var(--o-ink) 75%, transparent)!important;opacity:1!important}
+html[data-tema] .fc-hero-number{font-size:46px!important;font-weight:900!important;letter-spacing:-.02em;line-height:1.05!important;margin-top:2px}
+html[data-plat="mac"] .fc-hero-number, html[data-plat="pc"] .fc-hero-number{font-size:54px!important}
+html[data-tema] .fc-hero-number small{font-size:.56em;font-weight:800;color:color-mix(in srgb, var(--o-ink) 60%, transparent)}
+.fc-hero-pills{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.fc-hero-pill{display:inline-flex;align-items:center;gap:5px;height:32px;padding:0 10px;border-radius:999px;font-size:12.5px;white-space:nowrap;font-weight:800;
+  background:color-mix(in srgb, var(--o-ink) 10%, transparent);color:var(--o-ink)}
+.fc-hero-uso{display:flex;justify-content:space-between;gap:10px;margin:18px 0 8px;font-size:13px;font-weight:800}
+.fc-hero-uso-resto{opacity:.7}
+.fc-hero-barra{height:14px;border-radius:999px;background:color-mix(in srgb, var(--o-ink) 12%, transparent);overflow:hidden}
+.fc-hero-barra i{display:block;height:100%;border-radius:999px;transition:width .6s cubic-bezier(.22,.9,.32,1)}
+html[data-tema] .fc-hero-chips{display:grid!important;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px!important;margin-top:16px!important}
+html[data-tema] .fc-hero-chip{display:grid!important;grid-template-columns:34px minmax(0,1fr);column-gap:10px;align-items:center;
+  padding:10px 12px!important;border-radius:18px!important;border:none!important;background:color-mix(in srgb, var(--o-ink) 8%, transparent)!important;color:var(--o-ink)!important}
+html[data-tema] .fc-hero-chip:hover{background:color-mix(in srgb, var(--o-ink) 13%, transparent)!important}
+html[data-tema] .fc-hero-avatar{grid-row:1 / 3;width:34px!important;height:34px!important;font-size:14px!important;font-weight:900!important}
+html[data-tema] .fc-av-joel{background:#FF7EA6!important;color:#3A0A1D!important}
+html[data-tema] .fc-av-antonio{background:#5FE3A1!important;color:#06301E!important}
+html[data-tema] .fc-hero-role{font-size:13px!important;font-weight:700!important;color:var(--o-ink)!important;opacity:.75;align-self:end;line-height:1.2}
+html[data-tema] .fc-hero-chip-value{font-size:15px!important;font-weight:900!important;color:var(--o-ink)!important;justify-self:start;text-align:left!important;
+  align-self:start;line-height:1.3}
+
+/* categorias do Resumo: ícone redondo colorido, "R$ x de R$ y", etiqueta e barra grossa */
+html[data-tema] .fc-env-grid{grid-template-columns:minmax(0,1fr)!important;gap:10px!important}
+html[data-tema] .fc-env-card{display:grid!important;grid-template-columns:42px minmax(0,1fr) auto;grid-template-areas:"ic nome tag" "ic num tag" "bar bar bar";
+  column-gap:12px;row-gap:1px;align-items:center;min-height:0!important;padding:14px 16px!important;background:var(--o-sf)!important;border:1px solid var(--o-line)!important;
+  border-radius:24px!important;box-shadow:none!important}
+html[data-tema] .fc-env-card:hover{transform:translateY(-3px)!important}
+html[data-tema] .fc-env-card .fc-env-top, html[data-tema] .fc-env-card .fc-env-nums{display:contents!important}
+html[data-tema] .fc-env-card .fc-env-icon{grid-area:ic;width:42px!important;height:42px!important}
+html[data-tema] .fc-env-card .fc-env-name{grid-area:nome;font-size:15px!important;font-weight:800!important;align-self:end;overflow-wrap:normal!important}
+@media (max-width:1239px){ html[data-tema] .fc-hero-resumo{grid-template-columns:minmax(0,1fr)!important} }
+html[data-tema] .fc-env-card .fc-env-budget{grid-area:num;font-size:13px!important;font-weight:700!important;color:var(--o-faint)!important;align-self:start}
+html[data-tema] .fc-env-card .fc-env-gauge{grid-area:bar;height:10px!important;margin-top:12px;background:color-mix(in srgb, var(--o-ink) 12%, transparent)!important}
+html[data-tema] .fc-env-left{height:26px;padding:0 10px;border-radius:999px;display:inline-flex!important;align-items:center;font-size:12px!important;font-weight:900!important;
+  background:color-mix(in srgb, currentColor 18%, transparent);white-space:nowrap}
+html[data-tema] .fc-env-card .fc-env-left{grid-area:tag}
+html[data-tema] .fc-env-empty{border-style:dashed!important;background:transparent!important;border-radius:20px!important;font-weight:700!important;color:var(--o-faint)!important}
+html[data-tema] .fc-hero-resumo-total{padding:14px 8px!important}
+/* ícone de categoria em todo lugar: bolinha com a cor da categoria */
+html[data-tema] .fc-env-icon{width:40px!important;height:40px!important;border-radius:50%!important;background:var(--cat, var(--o-verde))!important;color:#fff!important}
+html[data-tema] .fc-env-icon-sm{width:32px!important;height:32px!important}
+
+/* Lançamentos */
+html[data-tema] .fc-chip{min-height:40px!important;padding:0 14px 0 6px!important;font-size:14px!important;font-weight:800!important}
+html[data-tema] .fc-chip-icon{width:28px!important;height:28px!important;border-radius:50%!important;background:var(--cat, var(--o-verde))!important;color:#fff!important}
+html[data-tema] .fc-chip-active{font-weight:900!important}
+html[data-tema] .fc-chip-quickadd{min-height:38px!important;padding:0 14px 0 10px!important;border:1.5px dashed color-mix(in srgb, var(--o-entrou) 60%, transparent)!important;
+  background:color-mix(in srgb, var(--o-entrou) 10%, transparent)!important;color:var(--o-ink)!important;gap:6px!important}
+html[data-tema] .fc-chip-quickadd b{color:var(--o-entrou);font-weight:900}
+html[data-tema] .fc-quickadd-label{font-size:13px!important;font-weight:700!important;color:var(--o-faint)!important;margin-bottom:8px!important}
+html[data-tema] .fc-quickadd .fc-cat-chips{flex-wrap:wrap}
+html[data-tema] .fc-budget-panel{border-radius:24px!important;padding:16px!important;background:var(--o-sf)!important}
+.fc-budget-head{display:flex;align-items:center;gap:12px;margin-bottom:14px}
+.fc-budget-head .fc-env-icon{width:44px!important;height:44px!important}
+.fc-budget-head-txt{flex:1;min-width:0;display:flex;flex-direction:column}
+.fc-budget-head-txt b{font-size:16px;font-weight:800;line-height:1.25}
+.fc-budget-head-txt small{font-size:13px;font-weight:700;color:var(--o-faint)}
+html[data-tema] .fc-budget-row{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px!important;margin-bottom:12px!important}
+html[data-tema] .fc-budget-item{background:var(--o-sf2);border-radius:16px;padding:10px;font-size:15px!important;font-weight:900!important;min-width:0}
+html[data-tema] .fc-budget-item > span:last-child{font-size:inherit!important;font-weight:900!important;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+@media (min-width:900px){ html[data-tema] .fc-lanc-layout{grid-template-columns:360px minmax(0,1fr)!important} html[data-tema] .fc-budget-item{font-size:15px!important;padding:10px!important} }
+html[data-tema] .fc-budget-label{font-size:11px!important;font-weight:900!important;letter-spacing:.06em!important}
+html[data-tema] .fc-progress-track{height:12px!important;border-radius:999px!important;background:color-mix(in srgb, var(--o-ink) 12%, transparent)!important}
+html[data-tema] .fc-add-row{flex-wrap:nowrap!important;gap:8px!important;margin-top:14px!important}
+html[data-tema] .fc-add-row .fc-input{height:48px;min-width:0;border-radius:16px!important;background:var(--o-sf2)!important;font-size:15px!important;font-weight:700!important;padding:0 14px!important}
+html[data-tema] .fc-add-row .fc-input:not(.fc-input-grow){width:108px!important;flex-shrink:0}
+html[data-tema] .fc-add-row .fc-icon-btn-solid{width:48px;height:48px;flex-shrink:0;border-radius:16px!important;border:none!important;
+  background:linear-gradient(180deg,#FF9DBE,#FF6D9B)!important;color:#3A0A1D!important;box-shadow:0 4px 0 var(--o-rosa-sombra)!important}
+html[data-tema] .fc-add-row .fc-icon-btn-solid:active{transform:translateY(3px)!important;box-shadow:0 1px 0 var(--o-rosa-sombra)!important}
+html[data-tema] .fc-lanc-main .fc-ledger{background:var(--o-sf);border:1px solid var(--o-line);border-radius:24px;padding:6px 14px}
+/* linhas das listas (Lançamentos e Fixas) */
+html[data-tema] .fc-ledger-row{padding:10px 2px!important;border-radius:0!important;border-bottom:1px solid var(--o-line);font-size:15px!important}
+html[data-tema] .fc-ledger-row:hover{background:transparent!important}
+html[data-tema] .fc-ledger-row .fc-input-plain{min-width:0;font-size:15px!important;font-weight:700!important;color:var(--o-ink)!important}
+html[data-tema] .fc-ledger-row .fc-amount-btn{font-size:15px!important;font-weight:900!important}
+html[data-tema] .fc-ledger-total{border-top:none!important;border-bottom:none!important;padding:14px 4px 10px!important;margin-top:0!important}
+html[data-tema] .fc-ledger-total > span:first-child{font-size:14px;font-weight:700;color:var(--o-faint)}
+html[data-tema] .fc-ledger-total > span:last-child{font-size:16px;font-weight:900}
+html[data-tema] .fc-icon-btn-trash{border:none!important;background:transparent!important;color:var(--o-faint)!important;border-radius:50%!important;min-width:40px!important;min-height:40px!important}
+/* Fixas */
+html[data-tema] .fc-fixas-card{border-radius:24px!important;padding:16px 14px 8px!important;box-shadow:none!important}
+html[data-tema] .fc-section-title{font-size:16px!important;font-weight:800!important;margin-bottom:6px!important}
+html[data-tema] .fc-section-title-with-icon{gap:12px!important}
+html[data-tema] .fc-section-title .fc-icon-btn{min-width:40px;min-height:40px;border-radius:14px!important;color:var(--o-ink)!important}
+html[data-tema] .fc-hint{font-size:13px!important;font-weight:700!important;line-height:1.4}
+html[data-tema] .fc-cat-name{display:flex;align-items:center;gap:12px;font-weight:700}
+/* no claro, o "no limite" das barras fica dourado (o texto continua no tom mais escuro, pra ler bem) */
+html[data-tema="claro"] .fc-env-gauge, html[data-tema="claro"] .fc-hero-barra, html[data-tema="claro"] .fc-progress-track{--warn:#F2B632}
 @media (prefers-reduced-motion:reduce){html[data-tema] .fc-hero::after{display:none}}
 
 /* ---------------- logo ---------------- */

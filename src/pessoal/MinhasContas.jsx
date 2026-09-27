@@ -66,6 +66,15 @@ export default function MinhasContas({ chave, ativo = true, larga: largaProp }) 
   const [escolhendoCatSel, setEscolhendoCatSel] = useState(false);
   const [moedaCaindo, setMoedaCaindo] = useState(0);
   const [pulo, setPulo] = useState(null);
+  const [obsAberta, setObsAberta] = useState(null); // balãozinho da observação aberto por toque
+  const buscaRef = useRef(null);
+  // fecha o balãozinho da observação ao tocar em qualquer outro lugar
+  useEffect(() => {
+    if (!obsAberta) return;
+    const fechar = () => setObsAberta(null);
+    document.addEventListener("click", fechar);
+    return () => document.removeEventListener("click", fechar);
+  }, [obsAberta]);
   const [estado, setEstado] = useState("todas"); // todas | apagar | pagas
   const [catFiltro, setCatFiltro] = useState(null);
   const [escolhendoFiltro, setEscolhendoFiltro] = useState(false);
@@ -410,10 +419,23 @@ export default function MinhasContas({ chave, ativo = true, larga: largaProp }) 
             <span className="mc-t">{l.desc}{l.serie?.tipo === "parcela" && <span className="mc-pc">{l.serie.n}/{l.serie.total}</span>}</span>
             <span className="mc-s">
               {comData ? `${l.data.split("-").reverse().join("/")} · ` : ""}{c ? c.nome : "Sem categoria"}
-              {l.obs && <MessageSquare size={13} aria-label="tem observação" />}
-              {l.serie?.tipo === "fixo" && <Repeat size={13} aria-label="repete todo mês" />}
             </span>
           </span>
+          {(l.obs || l.serie?.tipo === "fixo") && (
+            <span className="mc-icones">
+              {l.obs && (
+                <span
+                  className={"mc-obs" + (obsAberta === l.id ? " aberta" : "")}
+                  aria-label={"Observação: " + l.obs}
+                  onClick={(e) => { e.stopPropagation(); setObsAberta((o) => (o === l.id ? null : l.id)); }}
+                >
+                  <MessageSquare size={17} />
+                  <span className="mc-tip" role="tooltip"><small>OBSERVAÇÃO</small>{l.obs}</span>
+                </span>
+              )}
+              {l.serie?.tipo === "fixo" && <Repeat size={16} aria-label="repete todo mês" />}
+            </span>
+          )}
           <span className={"mc-val" + (l.tipo === "receita" ? " mc-pos" : "")}>
             {l.tipo === "receita" ? "+" : "−"}{v(l.valor)}
           </span>
@@ -433,13 +455,18 @@ export default function MinhasContas({ chave, ativo = true, larga: largaProp }) 
     );
   };
 
+  const abrirBusca = () => {
+    setBusca("");
+    requestAnimationFrame(() => buscaRef.current?.focus());
+  };
+
   const nomeOpcaoPeriodo = (tipo) => nomePeriodo(periodoCom(tipo));
 
   return (
     <div className={"mc-wrap" + (larga ? " mc-larga" : "")}>
       <MCStyles />
 
-      {busca === null && (
+      {(
         <header className="mc-topo">
           {larga ? (
             <div className="mc-titulo-aba">Minhas contas</div>
@@ -447,7 +474,6 @@ export default function MinhasContas({ chave, ativo = true, larga: largaProp }) 
             <div className="mc-marca"><IconeOink size={36} moedaCaindo={moedaCaindo > 0} key={moedaCaindo} /><span className="oink-logo">oink<i>.</i></span></div>
           )}
           <div className="mc-topo-bts">
-            <button className="mc-ib" title="Buscar" aria-label="Buscar" onClick={() => setBusca("")}><Search size={19} /></button>
             <button className="mc-ib" title={oculto ? "Mostrar valores" : "Esconder valores"} aria-label="Esconder valores" onClick={() => setOculto((o) => !o)}>
               {oculto ? <EyeOff size={19} /> : <Eye size={19} />}
             </button>
@@ -456,22 +482,13 @@ export default function MinhasContas({ chave, ativo = true, larga: largaProp }) 
         </header>
       )}
 
-      {busca !== null && (
-        <div className="mc-busca-topo">
-          <label className="mc-busca mc-busca-grande">
-            <Search size={19} />
-            <input autoFocus value={busca} placeholder="Buscar em todos os meses…" onChange={(e) => setBusca(e.target.value)} aria-label="Buscar lançamentos" />
-          </label>
-          <button className="mc-link" onClick={() => setBusca(null)}>Cancelar</button>
-        </div>
-      )}
 
 
-      {!larga && busca === null && hero}
+      {!larga && hero}
 
       <div className="mc-corpo">
         <section className={"mc-lista-card" + (larga ? " vidro" : "")}>
-          {busca === null && (
+          {(
             <div className="mc-periodo">
               <button className="mc-ib" aria-label="Período anterior" onClick={() => setPeriodo(andarPeriodo(periodo, -1))}><ChevronLeft size={20} /></button>
               <div className="mc-per-centro">
@@ -503,34 +520,54 @@ export default function MinhasContas({ chave, ativo = true, larga: largaProp }) 
             </div>
           )}
 
-          {busca === null && selecionando && (
-            <div className="mc-chips">
-              <span className="mc-sel-conta">{sel.size} {sel.size === 1 ? "selecionado" : "selecionados"}</span>
-              <button className="mc-chip" onClick={() => setSel(sel.size === idsVisiveis.length && sel.size ? new Set() : new Set(idsVisiveis))}>
-                {sel.size === idsVisiveis.length && sel.size ? "Nenhum" : "Todos"}
-              </button>
-              <button className="mc-chip mc-chip-sel on" onClick={sairSelecao}><X size={14} /> Cancelar</button>
-            </div>
-          )}
-          {busca === null && !selecionando && (
-            <div className="mc-chips">
-              {[["todas", "Todas"], ["apagar", "A pagar"], ["pagas", "Pagas"], ["receitas", "Receitas"]].map(([k, t]) => (
-                <button key={k} className={"mc-chip" + (estado === k ? " on" : "")} onClick={() => setEstado(k)}>{t}</button>
-              ))}
-              {catFiltro && catPorId[catFiltro] ? (
-                <button className="mc-chip on" onClick={() => setCatFiltro(null)}>
-                  <CatIcone cat={catPorId[catFiltro]} size={18} /> {catPorId[catFiltro].nome} <X size={14} />
+          <div className={"mc-fbar" + (busca !== null ? " aberta" : "")}>
+            {selecionando ? (
+              <div className="mc-chips mc-fpill">
+                <span className="mc-sel-conta">{sel.size} {sel.size === 1 ? "selecionado" : "selecionados"}</span>
+                <button className="mc-chip" onClick={() => setSel(sel.size === idsVisiveis.length && sel.size ? new Set() : new Set(idsVisiveis))}>
+                  {sel.size === idsVisiveis.length && sel.size ? "Nenhum" : "Todos"}
                 </button>
-              ) : (
-                <button className="mc-chip" onClick={() => setEscolhendoFiltro(true)}><Filter size={14} /> Categoria</button>
-              )}
-              <button className="mc-chip mc-chip-sel" onClick={() => setSelecionando(true)}><CheckSquare size={14} /> Selecionar</button>
-            </div>
-          )}
+                <button className="mc-chip mc-chip-sel on" onClick={sairSelecao}><X size={14} /> Cancelar</button>
+              </div>
+            ) : (
+              <div className="mc-chips mc-fpill">
+                {[["todas", "Todas"], ["apagar", "A pagar"], ["pagas", "Pagas"], ["receitas", "Receitas"]].map(([k, t]) => (
+                  <button key={k} className={"mc-chip" + (estado === k && busca === null ? " on" : "")} onClick={() => { setBusca(null); setEstado(k); }}>{t}</button>
+                ))}
+                {catFiltro && catPorId[catFiltro] ? (
+                  <button className="mc-chip on" onClick={() => setCatFiltro(null)}>
+                    <CatIcone cat={catPorId[catFiltro]} size={18} /> {catPorId[catFiltro].nome} <X size={14} />
+                  </button>
+                ) : (
+                  <button className="mc-chip" onClick={() => { setBusca(null); setEscolhendoFiltro(true); }}><Filter size={14} /> Categoria</button>
+                )}
+                <button className="mc-chip mc-chip-sel" onClick={() => { setBusca(null); setSelecionando(true); }}><CheckSquare size={14} /> Selecionar</button>
+              </div>
+            )}
+            {!selecionando && (
+              <div className="mc-fbusca">
+                <input
+                  ref={buscaRef}
+                  value={busca ?? ""}
+                  tabIndex={busca === null ? -1 : 0}
+                  placeholder="Buscar por descrição"
+                  aria-label="Buscar em todos os meses"
+                  onChange={(e) => setBusca(e.target.value)}
+                  onKeyDown={(e) => e.key === "Escape" && setBusca(null)}
+                  onBlur={() => { if (!(busca || "").trim()) setBusca(null); }}
+                />
+                {busca === null ? (
+                  <button className="mc-fbusca-bt" aria-label="Buscar" title="Buscar" onClick={abrirBusca}><Search size={20} /></button>
+                ) : (
+                  <button className="mc-fbusca-bt" aria-label="Fechar busca" title="Fechar busca" onMouseDown={(e) => e.preventDefault()} onClick={() => setBusca(null)}><X size={20} /></button>
+                )}
+              </div>
+            )}
+          </div>
 
           {selecionando && <div className="mc-sel-aviso">Só no período que está na tela: nada muda nos outros meses.</div>}
 
-          {busca !== null ? (
+          {busca !== null && busca.trim() ? (
             <div className="mc-lista-anim">
               {busca.trim() && (
                 <div className="mc-sel-aviso">

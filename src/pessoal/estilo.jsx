@@ -49,6 +49,34 @@ export function MCStyles() {
 
 .mc-chips{display:flex;gap:8px;overflow-x:auto;padding:4px 0 6px;scrollbar-width:none}
 .mc-chips::-webkit-scrollbar{display:none}
+/* barra de filtros com fundinho (igual ao Organizze) + lupa que abre um campo animado */
+.mc-fbar{display:flex;gap:10px;align-items:center;margin:4px 0 8px}
+.mc-fpill{flex:1 1 0;min-width:0;height:54px;padding:0 7px!important;border-radius:999px;background:var(--sf2);align-items:center;gap:2px!important}
+.mc-fpill .mc-chip{height:40px;border:none;background:transparent;font-size:14px;font-weight:800;padding:0 14px}
+.mc-fpill .mc-chip.on{background:var(--ink);color:var(--bg);font-weight:900}
+.mc-fpill .mc-sel-conta{padding:0 10px}
+.mc-fbusca{flex:0 0 54px;height:54px;border-radius:999px;background:var(--sf2);display:flex;align-items:center;overflow:hidden;
+  transition:flex-basis .45s cubic-bezier(.66,.01,.24,1.02)}
+.mc-fbar.aberta .mc-fbusca{flex-basis:min(360px,64%)}
+.mc-fbusca input{flex:1;width:0;min-width:0;height:100%;border:none;outline:none;background:transparent;color:var(--ink);font:700 15px 'Nunito',sans-serif;
+  padding:0;opacity:0;transition:opacity .25s .15s}
+.mc-fbusca input::placeholder{color:var(--faint)}
+.mc-fbar.aberta .mc-fbusca input{opacity:1;padding-left:18px}
+.mc-fbusca-bt{width:54px;height:54px;flex-shrink:0;border:none;background:transparent;color:var(--ink);display:flex;align-items:center;justify-content:center;border-radius:999px}
+.mc-fbusca-bt:focus-visible{outline:2px solid var(--ac);outline-offset:-4px}
+@media (prefers-reduced-motion:reduce){.mc-fbusca,.mc-fbusca input{transition:none}}
+/* ícones da linha + balãozinho da observação (passar o mouse; no celular, tocar) */
+.mc-icones{display:flex;align-items:center;gap:2px;color:var(--faint);flex-shrink:0}
+.mc-obs{position:relative;display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;border-radius:10px;cursor:pointer}
+.mc-obs:hover,.mc-obs.aberta{color:var(--ink);background:var(--sf2)}
+.mc-tip{position:absolute;top:calc(100% + 10px);right:-6px;z-index:20;width:max-content;min-width:180px;max-width:min(280px,78vw);padding:12px 14px;border-radius:16px;
+  background:var(--ink);color:var(--bg);font-size:14px;font-weight:700;line-height:1.4;text-align:left;white-space:normal;overflow-wrap:anywhere;cursor:auto;
+  box-shadow:0 18px 40px -12px rgba(0,0,0,.55);opacity:0;pointer-events:none;transform:translateY(6px) scale(.96);transform-origin:top right;
+  transition:opacity .18s,transform .22s cubic-bezier(.34,1.56,.64,1)}
+.mc-tip::before{content:"";position:absolute;top:-6px;right:15px;width:14px;height:14px;border-radius:3px;background:var(--ink);transform:rotate(45deg)}
+.mc-tip small{display:block;font-size:11px;font-weight:900;letter-spacing:.06em;opacity:.6;margin-bottom:3px}
+.mc-obs.aberta .mc-tip{opacity:1;transform:none;pointer-events:auto}
+@media (hover:hover){.mc-obs:hover .mc-tip{opacity:1;transform:none}}
 .mc-chip{height:36px;padding:0 14px;border-radius:999px;border:1px solid var(--line);background:transparent;color:var(--soft);font-size:13px;font-weight:700;display:inline-flex;align-items:center;gap:6px;white-space:nowrap;flex-shrink:0}
 .mc-chip.on{background:var(--ink);color:var(--bg);border-color:var(--ink)}
 .mc-chip .mc-ic{border:1.5px solid var(--bg)}

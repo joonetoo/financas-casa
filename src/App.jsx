@@ -128,14 +128,14 @@ const sumBy = (arr, key) =>
 // Estas cores pintam os chips E as séries do gráfico — a ordem é a mesma, então
 // na barra empilhada o bloco escuro embaixo é sempre a maior despesa.
 const CATS = [
-  { key: "contasCasa", label: "Contas da casa", color: "#14513A", icon: "contas", fixed: false, catalog: "contasCasaItems" },
-  { key: "servicos", label: "Serviços & assinaturas", color: "#2E8C63", icon: "servicos", fixed: false, catalog: "servicosItems" },
-  { key: "mercado", label: "Mercado", color: "#4CC38A", icon: "mercado", fixed: false },
-  { key: "feira", label: "Feira da semana", color: "#8FE7B8", icon: "feira", fixed: false },
-  { key: "combustivel", label: "Combustível / estacionamento", color: "#C3E3C0", icon: "combustivel", fixed: false },
+  { key: "contasCasa", label: "Contas da casa", color: "#3F86D6", icon: "contas", fixed: false, catalog: "contasCasaItems" },
+  { key: "servicos", label: "Serviços & assinaturas", color: "#8B5CF6", icon: "servicos", fixed: false, catalog: "servicosItems" },
+  { key: "mercado", label: "Mercado", color: "#1FA36A", icon: "mercado", fixed: false },
+  { key: "feira", label: "Feira da semana", color: "#E8804F", icon: "feira", fixed: false },
+  { key: "combustivel", label: "Combustível / estacionamento", color: "#D6457A", icon: "combustivel", fixed: false },
   { key: "meusGastos", label: "Meus gastos", color: "#D9A55D", icon: "meusgastos", fixed: false },
-  { key: "comprasCasa", label: "Compras da casa", color: "#E39478", icon: "compras", fixed: false },
-  { key: "investimentos", label: "Investimentos", color: "#7FB0B8", icon: "investimentos", fixed: false },
+  { key: "comprasCasa", label: "Compras da casa", color: "#B0417F", icon: "compras", fixed: false },
+  { key: "investimentos", label: "Investimentos", color: "#2FA886", icon: "investimentos", fixed: false },
 ];
 
 const VAR_CATS = CATS.filter((c) => !c.fixed);
@@ -1450,7 +1450,7 @@ export default function FinancasCasa() {
             <HomeIcon size={17} strokeWidth={2} />
           </span>
           <div>
-            <div className="fc-brand-name">Contas da Casa</div>
+            <div className="fc-brand-name">Contas da casa</div>
             <div className="fc-subtitle">Joel &amp; Antonio</div>
           </div>
         </div>
@@ -1645,44 +1645,46 @@ export default function FinancasCasa() {
           <div className="fc-hero-resumo fc-tab-content">
             {(() => {
               const pctUsado = totalPrevisto > 0 ? Math.min(100, (totalGasto / totalPrevisto) * 100) : 0;
-              const r = 27;
-              const circumference = 2 * Math.PI * r;
-              const dashoffset = circumference * (1 - pctUsado / 100);
               return (
                 <section className="fc-hero">
                   <span className="fc-hero-eyebrow">Ainda dá pra gastar em {month.label}</span>
-                  <span className="fc-hero-number fc-tabular">{money(diferenca)}</span>
-                  <span className="fc-hero-sub fc-tabular">
-                    Previsto {money(totalPrevisto)} · Já gasto {money(totalGasto)}
+                  <span className="fc-hero-number fc-tabular">
+                    {hideValues ? (
+                      "••••••"
+                    ) : (
+                      <>
+                        <small>{diferenca < 0 ? "−R$ " : "R$ "}</small>
+                        {fmt(Math.abs(diferenca)).replace(/^-?R\$\s?/, "").split(",")[0]}
+                        <small>,{fmt(Math.abs(diferenca)).split(",")[1]}</small>
+                      </>
+                    )}
                   </span>
-                  <div className="fc-hero-gauge">
-                    <div className="fc-ring-wrap">
-                      <svg viewBox="0 0 64 64">
-                        <circle className="fc-ring-track" cx="32" cy="32" r={r} />
-                        <circle
-                          className="fc-ring-fill"
-                          cx="32"
-                          cy="32"
-                          r={r}
-                          strokeDasharray={circumference}
-                          strokeDashoffset={dashoffset}
-                          transform="rotate(-90 32 32)"
-                        />
-                      </svg>
-                    </div>
-                    <div className="fc-ring-label">
-                      <span className="fc-ring-pct">{Math.round(pctUsado)}% usado</span>
-                      <span className="fc-ring-cap">do orçamento do mês</span>
-                    </div>
+                  <span className="fc-hero-pills fc-tabular">
+                    <span className="fc-hero-pill">Previsto <b>{money(totalPrevisto)}</b></span>
+                    <span className="fc-hero-pill">Já gasto <b>{money(totalGasto)}</b></span>
+                  </span>
+                  <div className="fc-hero-uso">
+                    <span>{Math.round(pctUsado)}% do orçamento usado</span>
+                    <span className="fc-hero-uso-resto">
+                      {pctUsado >= 100 ? "no limite" : `sobra ${Math.max(0, 100 - Math.round(pctUsado))}%`}
+                    </span>
+                  </div>
+                  <div className="fc-hero-barra">
+                    <i
+                      style={{
+                        width: pctUsado + "%",
+                        background: budgetState(totalPrevisto, totalGasto).color,
+                      }}
+                    />
                   </div>
                   <div className="fc-hero-chips">
                     <span className="fc-hero-chip">
-                      <span className="fc-hero-avatar">J</span>
+                      <span className="fc-hero-avatar fc-av-joel">J</span>
                       <span className="fc-hero-role">Joel (calc.)</span>
                       <span className="fc-hero-chip-value fc-tabular">{money(joelCalculado)}</span>
                     </span>
                     <span className="fc-hero-chip">
-                      <span className="fc-hero-avatar">A</span>
+                      <span className="fc-hero-avatar fc-av-antonio">A</span>
                       <span className="fc-hero-role">Antonio</span>
                       <EditableAmount
                         value={month.antonio}
@@ -1719,7 +1721,7 @@ export default function FinancasCasa() {
                             ? est.word
                             : est.over
                             ? `${money(-est.resta)} acima`
-                            : money(est.resta)}
+                            : `sobra ${money(est.resta)}`}
                         </span>
                       </div>
                       <div className="fc-env-gauge">
@@ -1780,8 +1782,21 @@ export default function FinancasCasa() {
               const est = budgetState(orcamento, gasto);
               const pct = est.barPct;
               const barColor = est.color;
+              const catAtiva = CATS.find((c) => c.key === activeCat);
               return (
-                <div className="fc-budget-panel">
+                <div className="fc-budget-panel" style={{ "--cat": catAtiva?.color }}>
+                  <div className="fc-budget-head">
+                    <span className="fc-env-icon">
+                      <CatIcon name={catAtiva?.icon} size={19} />
+                    </span>
+                    <span className="fc-budget-head-txt">
+                      <b>{catAtiva?.label}</b>
+                      <small>orçamento vem de Fixas</small>
+                    </span>
+                    <span className="fc-env-left" style={{ color: est.color }}>
+                      {est.word ? est.word : est.over ? `${money(-est.resta)} acima` : `sobra ${money(est.resta)}`}
+                    </span>
+                  </div>
                   <div className="fc-budget-row">
                     <span className="fc-budget-item">
                       <span className="fc-budget-label">Orçamento</span>
@@ -1811,9 +1826,6 @@ export default function FinancasCasa() {
                       style={{ width: pct + "%", background: barColor }}
                     />
                   </div>
-                  <p className="fc-hint" style={{ marginTop: 8, marginBottom: 0 }}>
-                    Orçamento definido em Fixas &amp; assinaturas.
-                  </p>
                 </div>
               );
             })()}
@@ -1830,7 +1842,7 @@ export default function FinancasCasa() {
               if (pendentes.length === 0) return null;
               return (
                 <div className="fc-quickadd">
-                  <span className="fc-quickadd-label">Ainda não lançados:</span>
+                  <span className="fc-quickadd-label">Ainda não lançados — toque pra lançar:</span>
                   <div className="fc-cat-chips">
                     {pendentes.map((item) => (
                       <button
@@ -1838,7 +1850,7 @@ export default function FinancasCasa() {
                         className="fc-chip fc-chip-quickadd"
                         onClick={() => addLancamentoDireto(activeCat, item.name, item.valor)}
                       >
-                        <Plus size={12} /> {item.name} · {money(item.valor)}
+                        <Plus size={13} /> {item.name} · <b>{money(item.valor)}</b>
                       </button>
                     ))}
                   </div>
@@ -1849,7 +1861,7 @@ export default function FinancasCasa() {
             <div className="fc-add-row">
               <input
                 className="fc-input fc-input-grow"
-                placeholder="Descrição (ex: compra da semana)"
+                placeholder="Descrição"
                 value={lancDesc}
                 onChange={(e) => setLancDesc(e.target.value)}
               />
@@ -1910,8 +1922,8 @@ export default function FinancasCasa() {
             <div className="fc-fixas-card">
               <div className="fc-section-title">
                 <span className="fc-section-title-with-icon">
-                  <span className="fc-env-icon fc-env-icon-sm" style={{ "--cat": "#1B263B" }}>
-                    <CatIcon name="contas" size={13} />
+                  <span className="fc-env-icon fc-env-icon-sm" style={{ "--cat": CATS[0].color }}>
+                    <CatIcon name="contas" size={17} />
                   </span>
                   Contas da casa
                 </span>
@@ -1956,8 +1968,8 @@ export default function FinancasCasa() {
             <div className="fc-fixas-card">
               <div className="fc-section-title">
                 <span className="fc-section-title-with-icon">
-                  <span className="fc-env-icon fc-env-icon-sm" style={{ "--cat": "#415A77" }}>
-                    <CatIcon name="servicos" size={13} />
+                  <span className="fc-env-icon fc-env-icon-sm" style={{ "--cat": CATS[1].color }}>
+                    <CatIcon name="servicos" size={17} />
                   </span>
                   Serviços &amp; assinaturas
                 </span>
