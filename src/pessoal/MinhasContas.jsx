@@ -76,8 +76,8 @@ export default function MinhasContas({ chave, ativo = true, larga: largaProp }) 
     return () => document.removeEventListener("click", fechar);
   }, [obsAberta]);
   const [estado, setEstado] = useState("todas"); // todas | apagar | pagas
-  const [catFiltro, setCatFiltro] = useState(null);
-  const [filtrosRef, pilulaFiltros] = usePilula([estado, busca, catFiltro, selecionando, ativo, larga, nv.carregado]);
+  const [catsFiltro, setCatsFiltro] = useState(() => new Set());
+  const [filtrosRef, pilulaFiltros] = usePilula([estado, busca, [...catsFiltro].join(), selecionando, ativo, larga, nv.carregado]);
   const [escolhendoFiltro, setEscolhendoFiltro] = useState(false);
   const [painel, setPainel] = useState(null); // {modo:'novo'} | {modo:'editar', id}
   const [perguntaProximas, setPerguntaProximas] = useState(null); // item editado
@@ -110,11 +110,23 @@ export default function MinhasContas({ chave, ativo = true, larga: largaProp }) 
   const visiveis = useMemo(
     () => doMesTodos.filter((l) =>
       (estado === "todas" || (estado === "receitas" ? l.tipo === "receita" : estado === "pagas" ? l.pago : !l.pago)) &&
-      (!catFiltro || l.catId === catFiltro)),
-    [doMesTodos, estado, catFiltro]
+      (!catsFiltro.size || catsFiltro.has(l.catId))),
+    [doMesTodos, estado, catsFiltro]
   );
-  const filtrando = estado !== "todas" || !!catFiltro;
+  const filtrando = estado !== "todas" || catsFiltro.size > 0;
   const totFiltro = useMemo(() => totais(visiveis), [visiveis]);
+  const catsEscolhidas = [...catsFiltro].map((id) => catPorId[id]).filter(Boolean);
+  // soma das categorias escolhidas no filtro (com o quanto já foi pago e o que falta)
+  const somaCats = useMemo(() => {
+    if (!catsFiltro.size) return null;
+    return {
+      total: totFiltro.resultado,
+      pago: totais(visiveis.filter((l) => l.pago)).resultado,
+      apagar: totais(visiveis.filter((l) => !l.pago)).resultado,
+    };
+  }, [catsFiltro, visiveis, totFiltro]);
+  const rotSoma = catsEscolhidas.length === 1 ? `Soma de ${catsEscolhidas[0].nome}` : `Soma das ${catsFiltro.size} categorias`;
+  const abrirFiltroCat = () => { setBusca(null); setEscolhendoFiltro(true); };
 
   const grupos = useMemo(() => {
     const g = [];
@@ -359,7 +371,19 @@ export default function MinhasContas({ chave, ativo = true, larga: largaProp }) 
     ? (res < 0 ? "Faltam pra fechar o mês" : "Sobra no mês")
     : (res < 0 ? "Faltam no período" : "Sobra no período");
   const [inteiro, centavos] = fmtValor(Math.abs(res)).split(",");
-  const hero = (
+  const comSinal = (n) => (n < 0 ? "−" : n > 0 ? "+" : "") + v(Math.abs(n));
+  const [sInteiro, sCentavos] = fmtValor(Math.abs(somaCats ? somaCats.total : 0)).split(",");
+  const hero = larga && somaCats ? (
+    <div className="mc-hero mc-hero-card vidro">
+      <span className="mc-hero-ic"><IconeOink size={70} moedaCaindo={moedaCaindo > 0} key={moedaCaindo} /></span>
+      <div className="mc-hero-rot">{rotSoma}</div>
+      <div className="mc-hero-num">{oculto ? "R$ ••••" : <>R$ {somaCats.total < 0 ? "−" : ""}{sInteiro}<small>,{sCentavos}</small></>}</div>
+      <div className="mc-hero-pills">
+        <span className="mc-pill-e">Pago {comSinal(somaCats.pago)}</span>
+        <span className="mc-pill-s">A pagar {comSinal(somaCats.apagar)}</span>
+      </div>
+    </div>
+  ) : (
     <div className={"mc-hero" + (larga ? " mc-hero-card vidro" : "")}>
       {larga && <span className="mc-hero-ic"><IconeOink size={70} moedaCaindo={moedaCaindo > 0} key={moedaCaindo} /></span>}
       <div className="mc-hero-rot">{rotHero}</div>
@@ -536,12 +560,21 @@ export default function MinhasContas({ chave, ativo = true, larga: largaProp }) 
                 {[["todas", "Todas"], ["apagar", "A pagar"], ["pagas", "Pagas"], ["receitas", "Receitas"]].map(([k, t]) => (
                   <button key={k} className={"mc-chip" + (estado === k && busca === null ? " on" : "")} data-on={estado === k && busca === null ? "1" : undefined} onClick={() => { setBusca(null); setEstado(k); }}>{t}</button>
                 ))}
-                {catFiltro && catPorId[catFiltro] ? (
-                  <button className="mc-chip on" onClick={() => setCatFiltro(null)}>
-                    <CatIcone cat={catPorId[catFiltro]} size={18} /> {catPorId[catFiltro].nome} <X size={14} />
-                  </button>
+                {catsEscolhidas.length === 0 ? (
+                  <button className="mc-chip" onClick={abrirFiltroCat}><Filter size={14} /> Categoria</button>
+                ) : catsEscolhidas.length === 1 ? (
+                  <span className="mc-chip on mc-chip-cat">
+                    <button className="mc-chip-cat-nome" title="Mudar as categorias do filtro" onClick={abrirFiltroCat}><CatIcone cat={catsEscolhidas[0]} size={18} /> {catsEscolhidas[0].nome}</button>
+                    <button className="mc-chip-cat-x" aria-label={`Tirar ${catsEscolhidas[0].nome} do filtro`} onClick={() => setCatsFiltro(new Set())}><X size={14} /></button>
+                  </span>
                 ) : (
-                  <button className="mc-chip" onClick={() => { setBusca(null); setEscolhendoFiltro(true); }}><Filter size={14} /> Categoria</button>
+                  <span className="mc-chip on mc-chip-cat">
+                    <button className="mc-chip-cat-nome" title="Mudar as categorias do filtro" onClick={abrirFiltroCat}>
+                      <span className="mc-pilhas">{catsEscolhidas.slice(0, 3).map((c) => <CatIcone key={c.id} cat={c} size={18} />)}</span>
+                      {catsEscolhidas.length} categorias
+                    </button>
+                    <button className="mc-chip-cat-x" aria-label="Limpar o filtro de categorias" onClick={() => setCatsFiltro(new Set())}><X size={14} /></button>
+                  </span>
                 )}
                 <button className="mc-chip mc-chip-sel" onClick={() => { setBusca(null); setSelecionando(true); }}><CheckSquare size={14} /> Selecionar</button>
               </div>
@@ -585,7 +618,13 @@ export default function MinhasContas({ chave, ativo = true, larga: largaProp }) 
             </div>
           ) : (
             <div className="mc-lista-anim" key={periodo.tipo + periodo.de}>
-              {filtrando && visiveis.length > 0 && (
+              {somaCats && !larga && visiveis.length > 0 && (
+                <div className="mc-soma-cats">
+                  <span>{rotSoma}</span>
+                  <b>{oculto ? "R$ ••••" : `R$ ${comSinal(somaCats.total)}`}</b>
+                </div>
+              )}
+              {filtrando && !somaCats && visiveis.length > 0 && (
                 <div className="mc-filtro-tot">
                   Neste filtro: <b>{totFiltro.saidas ? `−${v(totFiltro.saidas)}` : ""}{totFiltro.saidas && totFiltro.entradas ? " · " : ""}{totFiltro.entradas ? `+${v(totFiltro.entradas)}` : ""}</b>
                 </div>
@@ -644,7 +683,9 @@ export default function MinhasContas({ chave, ativo = true, larga: largaProp }) 
         <EscolherCategoria
           cats={cats.filter((c) => !c.arquivada)}
           titulo="Filtrar por categoria"
-          onEscolher={(c) => { setCatFiltro(c.id); setEscolhendoFiltro(false); }}
+          multi
+          escolhidas={catsFiltro}
+          onAplicar={(ids) => { setCatsFiltro(new Set(ids)); setEscolhendoFiltro(false); }}
           onFechar={() => setEscolhendoFiltro(false)}
         />
       )}
@@ -977,12 +1018,55 @@ function FormLancamento({
 
 /* ------------------------------------------------------------------ */
 
-function EscolherCategoria({ cats, titulo, onEscolher, onFechar }) {
+// `multi`: dá pra marcar várias (filtro); sem ele, um toque escolhe e fecha.
+function EscolherCategoria({ cats, titulo, onEscolher, onFechar, multi, escolhidas, onAplicar }) {
   const [busca, setBusca] = useState("");
+  const [marcadas, setMarcadas] = useState(() => new Set(escolhidas || []));
+  // as que já estavam no filtro ficam no topo; o grupo não muda enquanto marca, pra lista não pular
+  const [noTopo] = useState(() => new Set(escolhidas || []));
   const tiraAcento = (s) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
   const lista = cats
     .filter((c) => tiraAcento(c.nome).includes(tiraAcento(busca)))
     .sort((a, b) => (a.tipo === b.tipo ? a.nome.localeCompare(b.nome, "pt-BR") : a.tipo === "despesa" ? -1 : 1));
+  const alternar = (id) => setMarcadas((o) => { const n = new Set(o); if (n.has(id)) n.delete(id); else n.add(id); return n; });
+  const item = (c) => (
+    <button key={c.id} className={"mc-cat-item" + (multi && marcadas.has(c.id) ? " on" : "")}
+      aria-pressed={multi ? marcadas.has(c.id) : undefined}
+      onClick={() => (multi ? alternar(c.id) : onEscolher(c))}>
+      <CatIcone cat={c} size={34} /><span>{c.nome}</span>
+      {c.tipo === "receita" && <small className="mc-pos">receita</small>}
+      {multi && <i className="mc-cat-marca">{marcadas.has(c.id) && <Check size={16} strokeWidth={3.2} />}</i>}
+    </button>
+  );
+  if (multi) {
+    const topo = lista.filter((c) => noTopo.has(c.id));
+    const resto = lista.filter((c) => !noTopo.has(c.id));
+    const n = marcadas.size;
+    return (
+      <div className="mc-modal-fundo" onClick={onFechar}>
+        <div className="mc-modal mc-modal-lista" onClick={(e) => e.stopPropagation()} role="dialog" aria-label={titulo}>
+          <div className="mc-form-topo">
+            <div className="mc-form-tit">{titulo}</div>
+            <button className="mc-ib mc-ib-plano" aria-label="Fechar" onClick={onFechar}><X size={18} /></button>
+          </div>
+          <label className="mc-busca"><Search size={16} /><input value={busca} placeholder="Buscar…" onChange={(e) => setBusca(e.target.value)} /></label>
+          <div className="mc-cat-lista">
+            {topo.length > 0 && <div className="mc-cat-grupo">Escolhidas ({topo.length})</div>}
+            {topo.map(item)}
+            {topo.length > 0 && resto.length > 0 && <div className="mc-cat-grupo">Todas</div>}
+            {resto.map(item)}
+            {lista.length === 0 && <div className="mc-vazio">Nenhuma categoria com esse nome.</div>}
+          </div>
+          <div className="mc-cat-acoes">
+            <button className="mc-btn-s" onClick={() => onAplicar([])}>Limpar</button>
+            <button className="mc-btn-rosa" onClick={() => onAplicar([...marcadas])}>
+              {n === 0 ? "Mostrar todas" : n === 1 ? "Mostrar 1 categoria" : `Mostrar ${n} categorias`}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
   return (
     <div className="mc-modal-fundo" onClick={onFechar}>
       <div className="mc-modal mc-modal-lista" onClick={(e) => e.stopPropagation()} role="dialog" aria-label={titulo}>
