@@ -28,7 +28,10 @@ export function usePilula(deps) {
     primeira.current = false;
   }, deps); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
-    const f = () => medir(false);
+    // só quando a janela muda de tamanho de verdade: a aba Casa dispara um
+    // "resize" de mentira ao aparecer (pra medir as pílulas dela), e isso
+    // fazia a pílula da barra lateral pular em vez de deslizar
+    const f = (e) => { if (e && e.isTrusted === false) return; medir(false); };
     window.addEventListener("resize", f);
     if (document.fonts && document.fonts.ready) document.fonts.ready.then(f);
     return () => window.removeEventListener("resize", f);
@@ -116,6 +119,8 @@ html[data-tema="claro"]{
 }
 html,body{background:var(--o-bg)!important;color:var(--o-ink)}
 body{font-family:'Nunito',sans-serif}
+/* Android: tira o "vulto" escuro que o Chrome pinta por cima de tudo que é tocado */
+*{-webkit-tap-highlight-color:transparent}
 
 /* aba "Minhas contas": as variáveis dela passam a vir do tema */
 html[data-tema] .mc-wrap{
