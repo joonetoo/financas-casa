@@ -254,6 +254,9 @@ html[data-tema] .fc-section-title-with-icon{gap:12px!important}
 html[data-tema] .fc-section-title .fc-icon-btn{min-width:40px;min-height:40px;border-radius:14px!important;color:var(--o-ink)!important}
 html[data-tema] .fc-hint{font-size:13px!important;font-weight:700!important;line-height:1.4}
 html[data-tema] .fc-cat-name{display:flex;align-items:center;gap:12px;font-weight:700}
+.fc-ocultas{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:14px 2px 8px}
+.fc-ocultas > span{width:100%;font-size:13px;font-weight:700;color:var(--o-faint)}
+.fc-ocultas .fc-chip{border-style:dashed!important;padding:0 14px!important;gap:6px!important}
 /* no claro, o "no limite" das barras fica dourado (o texto continua no tom mais escuro, pra ler bem) */
 html[data-tema="claro"] .fc-env-gauge, html[data-tema="claro"] .fc-hero-barra, html[data-tema="claro"] .fc-progress-track{--warn:#F2B632}
 @media (prefers-reduced-motion:reduce){html[data-tema] .fc-hero::after{display:none}}

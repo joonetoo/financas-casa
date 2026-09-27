@@ -1190,9 +1190,28 @@ export default function FinancasCasa() {
   const antonioValor = Number(month.antonio) || 0;
   const joelCalculado = totalPrevisto - antonioValor;
   const diferenca = totalPrevisto - totalGasto;
+  // Categorias escondidas pelo Joel (lixeira em "Orçamentos do mês"). Esconder
+  // não apaga nada: num mês em que a categoria tem algum valor ela continua
+  // aparecendo, pra nunca existir dinheiro contando no total sem estar na tela.
+  const ocultas = data.catsOcultas || [];
+  const temValor = (m, key) => plannedTotal(m, key) !== 0 || categoryTotal(m, key) !== 0;
+  const visivel = (c) => !ocultas.includes(c.key) || temValor(month, c.key);
   const semOrcamento = CATS.filter(
-    (c) => plannedTotal(month, c.key) === 0 && categoryTotal(month, c.key) === 0
+    (c) => visivel(c) && plannedTotal(month, c.key) === 0 && categoryTotal(month, c.key) === 0
   ).length;
+  const esconderCat = (c) => {
+    if (temValor(month, c.key)) {
+      showToast(`"${c.label}" tem valores em ${month.label}. Zere o orçamento e apague os lançamentos dela antes de esconder.`);
+      return;
+    }
+    setData((prev) => ({ ...prev, catsOcultas: [...(prev.catsOcultas || []).filter((k) => k !== c.key), c.key] }));
+    if (activeCat === c.key) setActiveCat("mercado" === c.key ? "contasCasa" : "mercado");
+    showToast(`"${c.label}" foi escondida.`, () =>
+      setData((prev) => ({ ...prev, catsOcultas: (prev.catsOcultas || []).filter((k) => k !== c.key) }))
+    );
+  };
+  const mostrarCat = (key) =>
+    setData((prev) => ({ ...prev, catsOcultas: (prev.catsOcultas || []).filter((k) => k !== key) }));
 
   // As setas andam mês a mês e atravessam a virada do ano: no primeiro mês de
   // 2026, voltar cai no último mês de 2025, se ele existir.
@@ -1758,7 +1777,7 @@ export default function FinancasCasa() {
           <div className="fc-tab-content">
             <div className="fc-cat-chips">
               <div className="fc-slide-pill" style={chipSlider.style} />
-              {VAR_CATS.map((c) => (
+              {VAR_CATS.filter((c) => visivel(c) || activeCat === c.key).map((c) => (
                 <button
                   key={c.key}
                   ref={chipSlider.registerItem(c.key)}
@@ -2022,7 +2041,7 @@ export default function FinancasCasa() {
                 automaticamente em Lançamentos, junto com o que já foi gasto.
               </p>
               <div className="fc-ledger">
-                {VAR_CATS.filter((c) => !c.catalog).map((c) => (
+                {VAR_CATS.filter((c) => !c.catalog && visivel(c)).map((c) => (
                   <div className="fc-row fc-ledger-row" key={c.key} style={{ "--cat": c.color }}>
                     <span className="fc-cat-name">
                       <span className="fc-env-icon fc-env-icon-sm">
@@ -2036,10 +2055,28 @@ export default function FinancasCasa() {
                         onCommit={(v) => setOrcamento(c.key, v)}
                         mask={hideValues}
                       />
+                      <button
+                        className="fc-icon-btn fc-icon-btn-trash"
+                        title="Esconder esta categoria"
+                        aria-label={`Esconder a categoria ${c.label}`}
+                        onClick={() => esconderCat(c)}
+                      >
+                        <Trash2 size={16} />
+                      </button>
                     </span>
                   </div>
                 ))}
               </div>
+              {VAR_CATS.some((c) => !c.catalog && !visivel(c)) && (
+                <div className="fc-ocultas">
+                  <span>Escondidas (toque pra mostrar de novo):</span>
+                  {VAR_CATS.filter((c) => !c.catalog && !visivel(c)).map((c) => (
+                    <button key={c.key} className="fc-chip" style={{ "--cat": c.color }} onClick={() => mostrarCat(c.key)}>
+                      <Plus size={13} /> {c.label}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
           </div>
@@ -2072,7 +2109,7 @@ export default function FinancasCasa() {
                     iconSize={9}
                     formatter={(v) => <span style={{ color: "var(--ink-soft)" }}>{v}</span>}
                   />
-                  {CATS.map((c) => (
+                  {CATS.filter((c) => !ocultas.includes(c.key) || data.anos.some((a) => a.months.some((m) => temValor(m, c.key)))).map((c) => (
                     <Bar
                       key={c.key}
                       dataKey={c.label}
