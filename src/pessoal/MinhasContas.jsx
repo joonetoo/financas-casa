@@ -299,7 +299,7 @@ export default function MinhasContas({ chave, ativo = true }) {
           <div className={"mc-res-rot " + (tot.resultado < 0 ? "mc-falta" : "mc-sobra")}>
             {tot.resultado < 0 ? "Falta ganhar" : "Sobra"}
           </div>
-          <div className={"mc-res-num " + (tot.resultado < 0 ? "mc-neg" : "mc-pos")}>{vR(Math.abs(tot.resultado))}</div>
+          <div className="mc-res-num">{vR(Math.abs(tot.resultado))}</div>
         </div>
         {!larga && (
           <button className="mc-fab" aria-label="Novo lançamento" onClick={() => setPainel({ modo: "novo", n: 1 })}>

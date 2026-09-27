@@ -90,7 +90,7 @@ export function MCStyles() {
 .mc-fab{width:60px;height:60px;border-radius:20px;border:none;background:var(--ac);color:var(--ac-deep);display:flex;align-items:center;justify-content:center;box-shadow:0 10px 24px -8px rgba(76,195,138,.6);flex-shrink:0}
 .mc-fab:active{transform:scale(.94)}
 
-.mc-btn-p,.mc-btn-s,.mc-btn-perigo,.mc-btn-fraco{height:52px;border-radius:16px;font-size:15px;font-weight:800;display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:0 18px}
+.mc-btn-p,.mc-btn-s,.mc-btn-perigo,.mc-btn-fraco,.mc-btn-verm{height:52px;border-radius:16px;font-size:15px;font-weight:800;display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:0 18px}
 .mc-btn-p{border:none;background:var(--ac);color:var(--ac-deep)!important}
 .mc-btn-p:disabled{opacity:.5}
 .mc-btn-s{border:1px solid var(--line);background:transparent}
