@@ -1,4 +1,5 @@
-import React, { useState, useMemo, useEffect, useCallback, useRef } from "react";
+import React, { useState, useMemo, useEffect, useLayoutEffect, useCallback, useRef } from "react";
+import { createPortal } from "react-dom";
 import {
   ChevronLeft, ChevronRight, ChevronDown, Plus, X, Eye, EyeOff, ThumbsUp, MessageSquare, Repeat,
   Filter, Tags, History, Trash2, Copy, ArrowRight, Check, Undo2, Search, Pencil, ShieldCheck,
@@ -30,6 +31,67 @@ function useLarga() {
     return () => m.removeEventListener("change", f);
   }, []);
   return larga;
+}
+
+/* Balãozinho da observação. Fica "por cima de tudo" (no fim da página) e é
+   posicionado pela conta: assim nunca é cortado na borda da tela nem fica por
+   baixo de outra linha/dia da lista. Abre por toque (celular) ou passando o
+   mouse (Mac). */
+function BalaoObs({ texto, aberto, onAlternar }) {
+  const iconeRef = useRef(null);
+  const balaoRef = useRef(null);
+  const [mouse, setMouse] = useState(false);
+  const [pos, setPos] = useState(null);
+  const mostrar = aberto || mouse;
+  const medir = useCallback(() => {
+    const ic = iconeRef.current, b = balaoRef.current;
+    if (!ic || !b) return;
+    const r = ic.getBoundingClientRect();
+    const vw = document.documentElement.clientWidth, vh = window.innerHeight;
+    const w = b.offsetWidth, h = b.offsetHeight, m = 12;
+    // preferência: embaixo do ícone, com a ponta do lado direito (como antes)
+    let left = Math.min(Math.max(m, r.right + 6 - w), vw - m - w);
+    const cabeEmbaixo = r.bottom + 10 + h <= vh - 96; // 96 = abas de baixo do celular
+    const top = cabeEmbaixo ? r.bottom + 10 : Math.max(m, r.top - 10 - h);
+    const seta = Math.min(Math.max(16, r.left + r.width / 2 - left), w - 16);
+    const cs = getComputedStyle(ic);
+    setPos({
+      left, top, seta, embaixo: cabeEmbaixo,
+      cores: { background: cs.getPropertyValue("--ink"), color: cs.getPropertyValue("--bg"), fontFamily: cs.fontFamily },
+    });
+  }, []);
+  useLayoutEffect(() => {
+    if (!mostrar) { setPos(null); return undefined; }
+    medir();
+    window.addEventListener("scroll", medir, true);
+    window.addEventListener("resize", medir);
+    return () => { window.removeEventListener("scroll", medir, true); window.removeEventListener("resize", medir); };
+  }, [mostrar, medir]);
+  const temMouse = typeof window !== "undefined" && window.matchMedia && window.matchMedia("(hover:hover)").matches;
+  return (
+    <span
+      ref={iconeRef}
+      className={"mc-obs" + (mostrar ? " aberta" : "")}
+      aria-label={"Observação: " + texto}
+      onClick={(e) => { e.stopPropagation(); onAlternar(); }}
+      onMouseEnter={temMouse ? () => setMouse(true) : undefined}
+      onMouseLeave={temMouse ? () => setMouse(false) : undefined}
+    >
+      <MessageSquare size={17} />
+      {mostrar && createPortal(
+        <span
+          ref={balaoRef}
+          className={"mc-balao" + (pos ? " on" : "") + (pos && !pos.embaixo ? " em-cima" : "")}
+          role="tooltip"
+          onClick={(e) => e.stopPropagation()}
+          style={pos ? { left: pos.left, top: pos.top, "--seta": pos.seta + "px", ...pos.cores } : { left: 0, top: 0 }}
+        >
+          <small>OBSERVAÇÃO</small>{texto}
+        </span>,
+        document.body
+      )}
+    </span>
+  );
 }
 
 export function CatIcone({ cat, size = 38 }) {
@@ -449,14 +511,11 @@ export default function MinhasContas({ chave, ativo = true, larga: largaProp }) 
           {(l.obs || l.serie?.tipo === "fixo") && (
             <span className="mc-icones">
               {l.obs && (
-                <span
-                  className={"mc-obs" + (obsAberta === l.id ? " aberta" : "")}
-                  aria-label={"Observação: " + l.obs}
-                  onClick={(e) => { e.stopPropagation(); setObsAberta((o) => (o === l.id ? null : l.id)); }}
-                >
-                  <MessageSquare size={17} />
-                  <span className="mc-tip" role="tooltip"><small>OBSERVAÇÃO</small>{l.obs}</span>
-                </span>
+                <BalaoObs
+                  texto={l.obs}
+                  aberto={obsAberta === l.id}
+                  onAlternar={() => setObsAberta((o) => (o === l.id ? null : l.id))}
+                />
               )}
               {l.serie?.tipo === "fixo" && <Repeat size={16} aria-label="repete todo mês" />}
             </span>

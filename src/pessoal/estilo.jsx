@@ -73,14 +73,15 @@ export function MCStyles() {
 .mc-icones{display:flex;align-items:center;gap:2px;color:var(--faint);flex-shrink:0}
 .mc-obs{position:relative;display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;border-radius:10px;cursor:pointer}
 .mc-obs:hover,.mc-obs.aberta{color:var(--ink);background:var(--sf2)}
-.mc-tip{position:absolute;top:calc(100% + 10px);right:-6px;z-index:20;width:max-content;min-width:180px;max-width:min(280px,78vw);padding:12px 14px;border-radius:16px;
-  background:var(--ink);color:var(--bg);font-size:14px;font-weight:700;line-height:1.4;text-align:left;white-space:normal;overflow-wrap:anywhere;cursor:auto;
-  box-shadow:0 18px 40px -12px rgba(0,0,0,.55);opacity:0;pointer-events:none;transform:translateY(6px) scale(.96);transform-origin:top right;
+.mc-balao{position:fixed;z-index:1000;width:max-content;min-width:180px;max-width:min(280px,calc(100vw - 24px));padding:12px 14px;border-radius:16px;
+  background:#EAF2EC;color:#0D1512;font-size:14px;font-weight:700;line-height:1.4;text-align:left;white-space:normal;overflow-wrap:anywhere;cursor:auto;
+  box-shadow:0 18px 40px -12px rgba(0,0,0,.55);visibility:hidden;opacity:0;transform:translateY(6px) scale(.96);
   transition:opacity .18s,transform .22s cubic-bezier(.34,1.56,.64,1)}
-.mc-tip::before{content:"";position:absolute;top:-6px;right:15px;width:14px;height:14px;border-radius:3px;background:var(--ink);transform:rotate(45deg)}
-.mc-tip small{display:block;font-size:11px;font-weight:900;letter-spacing:.06em;opacity:.6;margin-bottom:3px}
-.mc-obs.aberta .mc-tip{opacity:1;transform:none;pointer-events:auto}
-@media (hover:hover){.mc-obs:hover .mc-tip{opacity:1;transform:none}}
+.mc-balao.on{visibility:visible;opacity:1;transform:none}
+.mc-balao::before{content:"";position:absolute;top:-6px;left:var(--seta,50%);margin-left:-7px;width:14px;height:14px;border-radius:3px;background:inherit;transform:rotate(45deg)}
+.mc-balao.em-cima::before{top:auto;bottom:-6px}
+.mc-balao small{display:block;font-size:11px;font-weight:900;letter-spacing:.06em;opacity:.6;margin-bottom:3px}
+@media (prefers-reduced-motion:reduce){.mc-balao{transition:none}}
 .mc-chip{height:36px;padding:0 14px;border-radius:999px;border:1px solid var(--line);background:transparent;color:var(--soft);font-size:13px;font-weight:700;display:inline-flex;align-items:center;gap:6px;white-space:nowrap;flex-shrink:0}
 .mc-chip.on{background:var(--ink);color:var(--bg);border-color:var(--ink)}
 .mc-chip .mc-ic{border:1.5px solid var(--bg)}
