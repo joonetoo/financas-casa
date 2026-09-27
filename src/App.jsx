@@ -700,7 +700,7 @@ function AnoSwitcher({
 /* App principal                                                       */
 /* ------------------------------------------------------------------ */
 
-export default function FinancasCasa() {
+export default function FinancasCasa({ ativo = true }) {
   const [data, setData] = useState(null);
   const [loaded, setLoaded] = useState(false);
   const [loadError, setLoadError] = useState(false);
@@ -785,6 +785,12 @@ export default function FinancasCasa() {
   // sem animação por cima do deslize — por isso o deslize tinha sumido.
   const resyncRef = useRef(resyncSliders);
   resyncRef.current = resyncSliders;
+  // na primeira abertura as pílulas são medidas ainda na tela de "carregando"
+  // (sem abas na tela); mede de novo assim que os dados chegam
+  // ...e de novo quando a aba Casa volta a aparecer (escondida, tudo mede 0)
+  useLayoutEffect(() => {
+    if (loaded && ativo) resyncRef.current(false);
+  }, [loaded, ativo]);
   useEffect(() => {
     const aoRedimensionar = () => resyncRef.current(false);
     window.addEventListener("resize", aoRedimensionar);

@@ -124,7 +124,7 @@ export default function Shell() {
 
         <div className="sh-conteudo">
           {BETA && <div className="sh-beta">VERSÃO DE TESTE · os dados daqui são uma cópia</div>}
-          <div style={{ display: aba === "casa" ? "block" : "none" }}><FinancasCasa /></div>
+          <div style={{ display: aba === "casa" ? "block" : "none" }}><FinancasCasa ativo={aba === "casa"} /></div>
           <div style={{ display: aba === "pessoal" ? "block" : "none" }}>
             <MinhasContas chave={CHAVE_PESSOAL} ativo={aba === "pessoal"} larga={larga} />
           </div>
