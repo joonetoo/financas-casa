@@ -144,13 +144,13 @@ html[data-plat="mac"] body{
   background-attachment:fixed!important;
 }
 html[data-plat="mac"] .vidro{
-  background:color-mix(in srgb, var(--o-sf) 55%, transparent)!important;
-  backdrop-filter:blur(28px) saturate(170%);-webkit-backdrop-filter:blur(28px) saturate(170%);
+  background:color-mix(in srgb, var(--o-sf) 80%, transparent)!important;
+  backdrop-filter:blur(40px) saturate(160%);-webkit-backdrop-filter:blur(40px) saturate(160%);
   border:1px solid color-mix(in srgb, #FFFFFF 22%, transparent)!important;
   box-shadow:inset 0 1px 0 color-mix(in srgb, #FFFFFF 35%, transparent),0 20px 50px -22px var(--o-sombra)!important;
 }
-html[data-plat="mac"][data-tema="claro"] .vidro{background:color-mix(in srgb, #FFFFFF 55%, transparent)!important;border-color:rgba(255,255,255,.85)!important}
-html[data-plat="mac"] .mc-hero-card.vidro{background:linear-gradient(160deg, color-mix(in srgb, #2FA876 60%, transparent), color-mix(in srgb, var(--o-sf) 40%, transparent))!important}
+html[data-plat="mac"][data-tema="claro"] .vidro{background:color-mix(in srgb, #FFFFFF 80%, transparent)!important;border-color:rgba(255,255,255,.85)!important}
+html[data-plat="mac"] .mc-hero-card.vidro{background:linear-gradient(160deg, color-mix(in srgb, #2FA876 75%, var(--o-sf)), color-mix(in srgb, var(--o-sf) 82%, transparent))!important}
 html[data-plat="mac"] .fc-wrap .fc-card, html[data-plat="mac"] .fc-wrap .fc-hero{backdrop-filter:blur(24px) saturate(160%)}
     `}</style>
   );

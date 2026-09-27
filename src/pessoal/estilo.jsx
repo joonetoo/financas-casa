@@ -244,7 +244,7 @@ export function MCStyles() {
 .mc-per-bt.on{background:var(--ink);color:var(--bg)}
 .mc-per-centro small{font-size:12px;color:var(--faint);font-weight:700;margin-top:3px}
 .mc-menu-fundo{position:fixed;inset:0;z-index:44}
-.mc-menu{position:absolute;top:50px;left:50%;transform:translateX(-50%);z-index:45;width:260px;padding:8px;border-radius:22px;
+.mc-menu{position:absolute;top:50px;left:50%;margin-left:-130px;z-index:45;width:260px;padding:8px;border-radius:22px;
   background:var(--sf2);border:1px solid var(--line);box-shadow:0 24px 50px -12px rgba(0,0,0,.55);display:flex;flex-direction:column;gap:2px;
   animation:oink-sobe .22s cubic-bezier(.22,.9,.32,1)}
 .mc-menu button{display:flex;justify-content:space-between;align-items:center;height:46px;padding:0 14px;border:none;border-radius:14px;background:transparent;

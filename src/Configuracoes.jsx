@@ -245,7 +245,7 @@ export default function Configuracoes({ chaveCasa, chavePessoal, larga, onFechar
     <div className={"cf-tela" + (larga ? " cf-larga" : "")}>
       <style>{`
         .cf-tela{position:fixed;inset:0;z-index:55;background:var(--o-bg);overflow-y:auto;font-family:'Nunito',sans-serif;color:var(--o-ink);animation:oink-sobe .25s cubic-bezier(.22,.9,.32,1)}
-        html[data-plat="mac"] .cf-tela{background:transparent;backdrop-filter:blur(30px) saturate(160%);-webkit-backdrop-filter:blur(30px) saturate(160%)}
+        html[data-plat="mac"] .cf-tela{background:color-mix(in srgb, var(--o-bg) 78%, transparent);backdrop-filter:blur(40px) saturate(150%);-webkit-backdrop-filter:blur(40px) saturate(150%)}
         .cf-larga{left:276px}
         .cf-in{max-width:980px;margin:0 auto;padding:18px 16px 60px}
         .cf-topo{display:flex;align-items:center;gap:12px;padding:6px 0 8px}
