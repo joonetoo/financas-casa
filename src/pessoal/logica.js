@@ -183,3 +183,74 @@ export function lerValor(txt) {
   const n = Number(s);
   return Number.isFinite(n) ? n : NaN;
 }
+
+/* ---------------- períodos (Hoje / Semana / Mês / Escolher) ---------------- */
+// periodo = { tipo: "dia"|"semana"|"mes"|"intervalo", de: "AAAA-MM-DD", ate: "AAAA-MM-DD" }
+// A semana vai de segunda a domingo (igual ao app MEI).
+
+export function somaDias(iso, n) {
+  const [a, m, d] = iso.split("-").map(Number);
+  return hojeISO(new Date(a, m - 1, d + n));
+}
+const diaDaSemana = (iso) => {
+  const [a, m, d] = iso.split("-").map(Number);
+  return new Date(a, m - 1, d).getDay(); // 0 = domingo
+};
+const diasEntre = (de, ate) => {
+  const [a1, m1, d1] = de.split("-").map(Number);
+  const [a2, m2, d2] = ate.split("-").map(Number);
+  return Math.round((new Date(a2, m2 - 1, d2) - new Date(a1, m1 - 1, d1)) / 864e5);
+};
+
+export function periodoCom(tipo, iso = hojeISO()) {
+  if (tipo === "dia") return { tipo, de: iso, ate: iso };
+  if (tipo === "semana") {
+    const seg = somaDias(iso, -((diaDaSemana(iso) + 6) % 7));
+    return { tipo, de: seg, ate: somaDias(seg, 6) };
+  }
+  const ym = iso.slice(0, 7);
+  const [a, m] = ym.split("-").map(Number);
+  return { tipo: "mes", de: `${ym}-01`, ate: `${ym}-${p2(diasNoMes(a, m))}` };
+}
+
+export function andarPeriodo(p, n) {
+  if (p.tipo === "mes") return periodoCom("mes", `${somaYm(p.de.slice(0, 7), n)}-01`);
+  if (p.tipo === "semana") return periodoCom("semana", somaDias(p.de, 7 * n));
+  if (p.tipo === "dia") return periodoCom("dia", somaDias(p.de, n));
+  const tam = diasEntre(p.de, p.ate) + 1;
+  return { tipo: "intervalo", de: somaDias(p.de, tam * n), ate: somaDias(p.ate, tam * n) };
+}
+
+const mesCurto = (m) => MESES[m - 1].slice(0, 3).toLowerCase();
+export function nomePeriodo(p) {
+  const [a1, m1, d1] = p.de.split("-").map(Number);
+  const [a2, m2, d2] = p.ate.split("-").map(Number);
+  if (p.tipo === "mes") return `${MESES[m1 - 1].toLowerCase()} ${a1}`;
+  if (p.tipo === "dia") return `${DIAS_SEMANA[diaDaSemana(p.de)].toLowerCase()}, ${d1} ${mesCurto(m1)}`;
+  const ano = a1 !== a2 || a1 !== new Date().getFullYear() ? ` ${a2}` : "";
+  return m1 === m2 && a1 === a2 ? `${d1}–${d2} ${mesCurto(m1)}${ano}` : `${d1} ${mesCurto(m1)} – ${d2} ${mesCurto(m2)}${ano}`;
+}
+
+export const dentroDo = (p, iso) => iso >= p.de && iso <= p.ate;
+
+// lançamentos do período, na ordem escolhida (crescente = dia 05 antes do 10)
+export function doPeriodo(lancs, p, ordem = "crescente") {
+  const r = lancs
+    .map((l, i) => [l, i])
+    .filter(([l]) => l.data >= p.de && l.data <= p.ate)
+    .sort(([a, ia], [b, ib]) =>
+      a.data < b.data ? -1 : a.data > b.data ? 1 :
+      a.tipo !== b.tipo ? (a.tipo === "receita" ? -1 : 1) : ia - ib)
+    .map(([l]) => l);
+  if (ordem !== "decrescente") return r;
+  // decrescente: dias de trás pra frente, mas dentro do dia mantém a ordem
+  const dias = [];
+  for (const l of r) {
+    if (!dias.length || dias[dias.length - 1][0].data !== l.data) dias.push([]);
+    dias[dias.length - 1].push(l);
+  }
+  return dias.reverse().flat();
+}
+
+// busca sem ligar pra acento nem maiúscula
+export const semAcento = (s) => String(s || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().trim();

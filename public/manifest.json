@@ -1,14 +1,16 @@
 {
-  "name": "Contas da Casa",
-  "short_name": "Contas da Casa",
-  "description": "Finanças da casa de Joel & Antonio",
+  "name": "Oink — suas contas sem susto",
+  "short_name": "Oink",
+  "description": "Contas da casa e contas pessoais num app só.",
   "start_url": ".",
   "scope": ".",
   "display": "standalone",
-  "background_color": "#0D1512",
-  "theme_color": "#0D1512",
+  "background_color": "#0A1511",
+  "theme_color": "#0A1511",
   "icons": [
-    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
-    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" },
+    { "src": "icon-mac-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icon-mac-1024.png", "sizes": "1024x1024", "type": "image/png", "purpose": "any" }
   ]
 }

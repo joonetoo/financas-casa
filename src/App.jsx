@@ -543,7 +543,7 @@ const SEED_DATA = { anos: [{ id: "ano-2026", label: "2026", months: SEED_MONTHS 
 // VITE_STORAGE_KEY so vale no servidor de teste local (aponta pra uma COPIA
 // dos dados, "financas-casa-teste"); no app publicado e sempre a linha real.
 // No app BETA (build --mode beta) usa uma cópia própria, "financas-beta-casa".
-const STORAGE_KEY =
+export const STORAGE_KEY =
   (import.meta.env.DEV && import.meta.env.VITE_STORAGE_KEY) ||
   (import.meta.env.MODE === "beta" ? "financas-beta-casa" : "financas-casa-data-v3");
 const STORAGE_KEY_LEGACY = "financas-casa-data-v2";

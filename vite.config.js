@@ -9,16 +9,16 @@ function nomeBeta(mode) {
   return {
     name: "nome-beta",
     transformIndexHtml(html) {
-      return mode === "beta" ? html.replace(/<title>.*?<\/title>/, "<title>Finanças BETA</title>") : html;
+      return mode === "beta" ? html.replace(/<title>.*?<\/title>/, "<title>Oink BETA</title>") : html;
     },
     closeBundle() {
       if (mode !== "beta") return;
       const p = path.resolve("dist/manifest.json");
       if (!fs.existsSync(p)) return;
       const m = JSON.parse(fs.readFileSync(p, "utf8"));
-      m.name = "Finanças BETA";
-      m.short_name = "Finanças BETA";
-      m.description = "Versão de teste do app Finanças";
+      m.name = "Oink BETA";
+      m.short_name = "Oink BETA";
+      m.description = "Versão de teste do Oink";
       fs.writeFileSync(p, JSON.stringify(m, null, 2));
     },
   };

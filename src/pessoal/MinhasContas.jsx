@@ -2,15 +2,17 @@ import React, { useState, useMemo, useEffect, useCallback, useRef } from "react"
 import {
   ChevronLeft, ChevronRight, ChevronDown, Plus, X, Eye, EyeOff, ThumbsUp, MessageSquare, Repeat,
   Filter, Tags, History, Trash2, Copy, ArrowRight, Check, Undo2, Search, Pencil, ShieldCheck,
-  Archive, ArchiveRestore, Info,
+  Archive, ArchiveRestore, Info, Settings, CheckSquare,
 } from "lucide-react";
 import { useDocNuvem, registrar, lerHistorico } from "./nuvem.js";
 import { ICONES, CORES, CATEGORIAS_PADRAO } from "./categorias.js";
 import {
   uid, hojeISO, ymHoje, somaYm, criarLancamentos, doMes, totais, aplicarNasProximas,
   proximasDaSerie, proxMes, normalizar, nomeMes, nomeDia, fmtValor, fmtReais, lerValor, MESES, p2,
+  periodoCom, andarPeriodo, nomePeriodo, dentroDo, doPeriodo, semAcento,
 } from "./logica.js";
 import { MCStyles } from "./estilo.jsx";
+import { usePrefs, IconeOink, Carregando } from "../tema.jsx";
 
 const OLHO_KEY = "fc-hide-values";
 
@@ -45,12 +47,25 @@ export function CatIcone({ cat, size = 38 }) {
 const nomeCompleto = (l) =>
   l.desc + (l.serie?.tipo === "parcela" ? ` ${l.serie.n}/${l.serie.total}` : "");
 
-export default function MinhasContas({ chave, ativo = true }) {
+export default function MinhasContas({ chave, ativo = true, larga: largaProp }) {
   const nv = useDocNuvem(chave, { vazio, normalizar });
   const { doc, editar } = nv;
-  const larga = useLarga();
+  const largaInterna = useLarga();
+  const larga = largaProp ?? largaInterna;
+  const [prefs] = usePrefs();
 
-  const [ym, setYm] = useState(ymHoje());
+  // o app sempre abre no período de HOJE (mês, semana ou dia, conforme a preferência)
+  const [periodo, setPeriodo] = useState(() => periodoCom(prefs.periodo));
+  const ym = periodo.de.slice(0, 7);
+  const irPara = (iso) => setPeriodo((p) => (dentroDo(p, iso) ? p : periodoCom(p.tipo === "intervalo" ? "mes" : p.tipo, iso)));
+  const [menuPeriodo, setMenuPeriodo] = useState(false);
+  const [escolhendoIntervalo, setEscolhendoIntervalo] = useState(false);
+  const [busca, setBusca] = useState(null); // null = fechada; texto = buscando
+  const [selecionando, setSelecionando] = useState(false);
+  const [sel, setSel] = useState(() => new Set());
+  const [escolhendoCatSel, setEscolhendoCatSel] = useState(false);
+  const [moedaCaindo, setMoedaCaindo] = useState(0);
+  const [pulo, setPulo] = useState(null);
   const [estado, setEstado] = useState("todas"); // todas | apagar | pagas
   const [catFiltro, setCatFiltro] = useState(null);
   const [escolhendoFiltro, setEscolhendoFiltro] = useState(false);
@@ -80,7 +95,7 @@ export default function MinhasContas({ chave, ativo = true }) {
   const catPorId = useMemo(() => Object.fromEntries(cats.map((c) => [c.id, c])), [cats]);
   const lancs = doc?.lancamentos || [];
 
-  const doMesTodos = useMemo(() => doMes(lancs, ym), [lancs, ym]);
+  const doMesTodos = useMemo(() => doPeriodo(lancs, periodo, prefs.ordem), [lancs, periodo, prefs.ordem]);
   const tot = useMemo(() => totais(doMesTodos), [doMesTodos]);
   const visiveis = useMemo(
     () => doMesTodos.filter((l) =>
@@ -106,9 +121,18 @@ export default function MinhasContas({ chave, ativo = true }) {
     registrar(chave, { acao: `lanc:${acao}`, resumo, antes, depois });
 
   // desfaz trocando exatamente os itens "depois" pelos "antes"
+  // (quem continua existindo fica no MESMO lugar da lista; só os novos vão pro fim)
   const trocar = useCallback((tirar, por) => {
     const ids = new Set(tirar.map((l) => l.id));
-    editar((d) => ({ ...d, lancamentos: d.lancamentos.filter((l) => !ids.has(l.id)).concat(por) }));
+    const novos = new Map(por.map((l) => [l.id, l]));
+    editar((d) => {
+      const lista = [];
+      for (const l of d.lancamentos) {
+        if (novos.has(l.id)) { lista.push(novos.get(l.id)); novos.delete(l.id); }
+        else if (!ids.has(l.id)) lista.push(l);
+      }
+      return { ...d, lancamentos: lista.concat([...novos.values()]) };
+    });
   }, [editar]);
 
   const salvarNovo = (form) => {
@@ -118,7 +142,8 @@ export default function MinhasContas({ chave, ativo = true }) {
     const extra = p.serie?.tipo === "parcela" ? ` em ${novos.length}× de ${fmtReais(p.valor)}`
       : p.serie?.tipo === "fixo" ? " (todo mês)" : "";
     registrarLanc("lancou", `Você lançou ${p.desc}${extra}`, [], novos);
-    setYm(p.data.slice(0, 7));
+    irPara(p.data);
+    setMoedaCaindo((n) => n + 1);
     mostrarToast(`${p.desc} lançado`, () => {
       trocar(novos, []);
       registrarLanc("desfez", `Você desfez o lançamento de ${p.desc}`, novos, []);
@@ -142,7 +167,7 @@ export default function MinhasContas({ chave, ativo = true }) {
     if (!mudou) return;
     editar((d) => ({ ...d, lancamentos: d.lancamentos.map((l) => (l.id === antigo.id ? novo : l)) }));
     registrarLanc("mudou", `Você mudou ${nomeCompleto(antigo)}`, [antigo], [novo]);
-    if (novo.data.slice(0, 7) !== ym) setYm(novo.data.slice(0, 7));
+    irPara(novo.data);
     // só pergunta se mudou algo que faz sentido levar pras próximas
     const levaveis = ["tipo", "desc", "valor", "catId", "obs"].some((k) => novo[k] !== antigo[k]) ||
       novo.data.slice(8) !== antigo.data.slice(8);
@@ -181,6 +206,7 @@ export default function MinhasContas({ chave, ativo = true }) {
 
   const alternarPago = (item) => {
     const novo = { ...item, pago: !item.pago };
+    if (novo.pago) setPulo(item.id);
     editar((d) => ({ ...d, lancamentos: d.lancamentos.map((l) => (l.id === item.id ? novo : l)) }));
     const verbo = item.tipo === "receita" ? (novo.pago ? "marcou como recebido" : "desmarcou o recebido de")
       : (novo.pago ? "marcou como pago" : "desmarcou o pago de");
@@ -243,6 +269,35 @@ export default function MinhasContas({ chave, ativo = true }) {
       editar((d) => ({ ...d, categorias: d.categorias.concat([cat]) })));
   };
 
+  // busca: em TODOS os meses, sem ligar pra acento (nome, categoria ou observação)
+  const resultadosBusca = useMemo(() => {
+    const q = semAcento(busca);
+    if (!q) return { total: 0, grupos: [] };
+    const achados = lancs
+      .filter((l) => semAcento(l.desc).includes(q) || semAcento(catPorId[l.catId]?.nome).includes(q) || semAcento(l.obs).includes(q))
+      .sort((a, b) => (a.data < b.data ? 1 : -1));
+    const grupos = [];
+    for (const l of achados.slice(0, 300)) {
+      const g = l.data.slice(0, 7);
+      if (!grupos.length || grupos[grupos.length - 1].ym !== g) grupos.push({ ym: g, itens: [] });
+      grupos[grupos.length - 1].itens.push(l);
+    }
+    return { total: achados.length, grupos };
+  }, [busca, lancs, catPorId]);
+
+  // o "+" da barra de baixo (celular) e as Configurações conversam com esta aba por avisos
+  useEffect(() => {
+    if (!ativo) return undefined;
+    const novo = () => { setBusca(null); setSelecionando(false); setPainel({ modo: "novo", n: Date.now() }); };
+    window.addEventListener("oink-novo", novo);
+    return () => window.removeEventListener("oink-novo", novo);
+  }, [ativo]);
+  useEffect(() => {
+    const abrir = (e) => setTela(e.detail);
+    window.addEventListener("oink-abrir", abrir);
+    return () => window.removeEventListener("oink-abrir", abrir);
+  }, []);
+
   /* ---------------- telas de estado ---------------- */
 
   if (nv.erroCarregar) {
@@ -256,7 +311,7 @@ export default function MinhasContas({ chave, ativo = true }) {
     );
   }
   if (!nv.carregado || !doc) {
-    return <div className="mc-wrap mc-centro"><MCStyles />Carregando…</div>;
+    return <div className="mc-wrap"><MCStyles /><Carregando texto="Abrindo suas contas…" /></div>;
   }
 
   const editando = painel?.modo === "editar" ? lancs.find((l) => l.id === painel.id) : null;
@@ -289,147 +344,262 @@ export default function MinhasContas({ chave, ativo = true }) {
   );
 
   const hoje = hojeISO();
-  const resumo = (
-    <div className={"mc-resumo" + (larga ? " mc-resumo-card" : "")}>
-      <div className="mc-res-linha"><span>Entradas</span><b className="mc-pos">+{v(tot.entradas)}</b></div>
-      <div className="mc-res-linha"><span>Saídas</span><b className="mc-neg">−{v(tot.saidas)}</b></div>
-      <div className="mc-res-sep" />
-      <div className="mc-res-fim">
-        <div>
-          <div className={"mc-res-rot " + (tot.resultado < 0 ? "mc-falta" : "mc-sobra")}>
-            {tot.resultado < 0 ? "Falta ganhar" : "Sobra"}
-          </div>
-          <div className="mc-res-num">{vR(Math.abs(tot.resultado))}</div>
-        </div>
-        {!larga && (
-          <button className="mc-fab" aria-label="Novo lançamento" onClick={() => setPainel({ modo: "novo", n: 1 })}>
-            <Plus size={26} strokeWidth={2.6} />
-          </button>
-        )}
+  const res = tot.resultado;
+  const rotHero = periodo.tipo === "mes"
+    ? (res < 0 ? "Faltam pra fechar o mês" : "Sobra no mês")
+    : (res < 0 ? "Faltam no período" : "Sobra no período");
+  const [inteiro, centavos] = fmtValor(Math.abs(res)).split(",");
+  const hero = (
+    <div className={"mc-hero" + (larga ? " mc-hero-card vidro" : "")}>
+      {larga && <span className="mc-hero-ic"><IconeOink size={44} moedaCaindo={moedaCaindo > 0} key={moedaCaindo} /></span>}
+      <div className="mc-hero-rot">{rotHero}</div>
+      <div className="mc-hero-num">{oculto ? "R$ ••••" : <>R$ {inteiro}<small>,{centavos}</small></>}</div>
+      <div className="mc-hero-pills">
+        <span className="mc-pill-e">+{v(tot.entradas)} entrou</span>
+        <span className="mc-pill-s">−{v(tot.saidas)} saiu</span>
       </div>
     </div>
   );
+
+  const idsVisiveis = visiveis.map((l) => l.id);
+  const alternarSel = (id) => setSel((o) => {
+    const n = new Set(o);
+    if (n.has(id)) n.delete(id); else n.add(id);
+    return n;
+  });
+  const sairSelecao = () => { setSelecionando(false); setSel(new Set()); };
+
+  // ações em vários de uma vez: só nos marcados, sem mexer nos outros meses
+  const acaoSel = (tipo, catId) => {
+    const alvo = lancs.filter((l) => sel.has(l.id));
+    if (!alvo.length) return;
+    let depois;
+    if (tipo === "excluir") depois = [];
+    else if (tipo === "pagar") {
+      const todosPagos = alvo.every((l) => l.pago);
+      depois = alvo.map((l) => ({ ...l, pago: !todosPagos }));
+    } else if (tipo === "categoria") depois = alvo.map((l) => ({ ...l, catId }));
+    else depois = alvo.map((l) => proxMes(l));
+    trocar(alvo, depois);
+    const n = alvo.length;
+    const txt = { excluir: `apagou ${n} lançamentos`, pagar: depois[0]?.pago ? `marcou ${n} como pagos` : `desmarcou o pago de ${n}`,
+      categoria: `mudou a categoria de ${n} lançamentos`, prox: `passou ${n} lançamentos pro mês seguinte` }[tipo];
+    registrarLanc(tipo === "excluir" ? "apagou" : "mudou", `Você ${txt}`, alvo, depois);
+    mostrarToast(`Pronto: ${txt}`, () => {
+      trocar(depois, alvo);
+      registrarLanc("desfez", `Você desfez: ${txt}`, depois, alvo);
+    });
+    sairSelecao();
+  };
+
+
+  const linha = (l, comData) => {
+    const c = catPorId[l.catId];
+    const sele = sel.has(l.id);
+    const aoTocar = () => (selecionando ? alternarSel(l.id) : setPainel({ modo: "editar", id: l.id }));
+    return (
+      <div key={l.id} className={"mc-linha" + (l.pago ? " pago" : "") + (editando && editando.id === l.id ? " sel" : "") + (sele ? " marcada" : "")}>
+        {selecionando && (
+          <button className={"mc-caixa" + (sele ? " on" : "")} aria-label={sele ? "Desmarcar" : "Marcar"} aria-pressed={sele} onClick={() => alternarSel(l.id)}>
+            {sele && <Check size={16} strokeWidth={3.2} />}
+          </button>
+        )}
+        <button className="mc-linha-bt" onClick={aoTocar}>
+          <CatIcone cat={c} />
+          <span className="mc-nm">
+            <span className="mc-t">{l.desc}{l.serie?.tipo === "parcela" && <span className="mc-pc">{l.serie.n}/{l.serie.total}</span>}</span>
+            <span className="mc-s">
+              {comData ? `${l.data.split("-").reverse().join("/")} · ` : ""}{c ? c.nome : "Sem categoria"}
+              {l.obs && <MessageSquare size={13} aria-label="tem observação" />}
+              {l.serie?.tipo === "fixo" && <Repeat size={13} aria-label="repete todo mês" />}
+            </span>
+          </span>
+          <span className={"mc-val" + (l.tipo === "receita" ? " mc-pos" : "")}>
+            {l.tipo === "receita" ? "+" : "−"}{v(l.valor)}
+          </span>
+        </button>
+        {!selecionando && (
+          <button
+            className={"mc-moeda-bt" + (pulo === l.id ? " oink-pulo" : "")}
+            onAnimationEnd={() => setPulo(null)}
+            aria-label={l.pago ? (l.tipo === "receita" ? "Recebido" : "Pago") : (l.tipo === "receita" ? "Marcar como recebido" : "Marcar como pago")}
+            aria-pressed={l.pago}
+            onClick={() => alternarPago(l)}
+          >
+            {l.pago ? <MoedaOk /> : <span className="mc-moeda-vazia" />}
+          </button>
+        )}
+      </div>
+    );
+  };
+
+  const nomeOpcaoPeriodo = (tipo) => nomePeriodo(periodoCom(tipo));
 
   return (
     <div className={"mc-wrap" + (larga ? " mc-larga" : "")}>
       <MCStyles />
 
-      <header className="mc-topo">
-        <div className="mc-marca">
-          <span className="mc-marca-ic"><Tags size={17} /></span>
-          <div>
-            <div className="mc-marca-nome">Minhas contas</div>
-            <div className="mc-marca-sub">Joel</div>
+      {busca === null && !selecionando && (
+        <header className="mc-topo">
+          {larga ? (
+            <div className="mc-titulo-aba">Minhas contas</div>
+          ) : (
+            <div className="mc-marca"><IconeOink size={36} moedaCaindo={moedaCaindo > 0} key={moedaCaindo} /><span className="oink-logo">oink<i>.</i></span></div>
+          )}
+          <div className="mc-topo-bts">
+            <button className="mc-ib" title="Buscar" aria-label="Buscar" onClick={() => setBusca("")}><Search size={19} /></button>
+            <button className="mc-ib" title={oculto ? "Mostrar valores" : "Esconder valores"} aria-label="Esconder valores" onClick={() => setOculto((o) => !o)}>
+              {oculto ? <EyeOff size={19} /> : <Eye size={19} />}
+            </button>
+            {!larga && <button className="mc-ib" title="Configurações" aria-label="Configurações" onClick={() => window.dispatchEvent(new Event("oink-config"))}><Settings size={19} /></button>}
           </div>
+        </header>
+      )}
+
+      {busca !== null && (
+        <div className="mc-busca-topo">
+          <label className="mc-busca mc-busca-grande">
+            <Search size={19} />
+            <input autoFocus value={busca} placeholder="Buscar em todos os meses…" onChange={(e) => setBusca(e.target.value)} aria-label="Buscar lançamentos" />
+          </label>
+          <button className="mc-link" onClick={() => setBusca(null)}>Cancelar</button>
         </div>
-        <div className="mc-topo-bts">
-          <button className="mc-ib" title="Registro de atividades" aria-label="Registro de atividades" onClick={() => setTela("atividades")}><History size={19} /></button>
-          <button className="mc-ib" title="Categorias" aria-label="Categorias" onClick={() => setTela("categorias")}><Tags size={19} /></button>
-          <button className="mc-ib" title={oculto ? "Mostrar valores" : "Esconder valores"} aria-label="Esconder valores" onClick={() => setOculto((o) => !o)}>
-            {oculto ? <EyeOff size={19} /> : <Eye size={19} />}
+      )}
+
+      {selecionando && (
+        <div className="mc-sel-topo">
+          <button className="mc-link" onClick={sairSelecao}>Cancelar</button>
+          <b>{sel.size} {sel.size === 1 ? "selecionado" : "selecionados"}</b>
+          <button className="mc-link" onClick={() => setSel(sel.size === idsVisiveis.length ? new Set() : new Set(idsVisiveis))}>
+            {sel.size === idsVisiveis.length && sel.size ? "Nenhum" : "Todos"}
           </button>
         </div>
-      </header>
+      )}
+
+      {!larga && busca === null && !selecionando && hero}
 
       <div className="mc-corpo">
-        <section className="mc-lista-card">
-          <div className="mc-mes">
-            {larga && (
-              <button className="mc-btn-p mc-btn-lanc" onClick={() => setPainel({ modo: "novo", n: 1 })}>
-                <Plus size={18} strokeWidth={2.6} /> Lançamento
-              </button>
-            )}
-            <div className="mc-mes-nav">
-              <button className="mc-ib" aria-label="Mês anterior" onClick={() => setYm(somaYm(ym, -1))}><ChevronLeft size={20} /></button>
-              <button className="mc-mes-nome" onClick={() => setYm(ymHoje())} title="Voltar para o mês atual">
-                <span>{nomeMes(ym)}</span>
-                <small>{doMesTodos.length} {doMesTodos.length === 1 ? "lançamento" : "lançamentos"}{ym !== ymHoje() ? " · toque p/ hoje" : ""}</small>
-              </button>
-              <button className="mc-ib" aria-label="Próximo mês" onClick={() => setYm(somaYm(ym, 1))}><ChevronRight size={20} /></button>
-            </div>
-          </div>
-
-          <div className="mc-chips">
-            {[["todas", "Todas"], ["apagar", "A pagar"], ["pagas", "Pagas"], ["receitas", "Receitas"]].map(([k, t]) => (
-              <button key={k} className={"mc-chip" + (estado === k ? " on" : "")} onClick={() => setEstado(k)}>{t}</button>
-            ))}
-            {catFiltro && catPorId[catFiltro] ? (
-              <button className="mc-chip on" onClick={() => setCatFiltro(null)}>
-                <CatIcone cat={catPorId[catFiltro]} size={18} /> {catPorId[catFiltro].nome} <X size={14} />
-              </button>
-            ) : (
-              <button className="mc-chip" onClick={() => setEscolhendoFiltro(true)}><Filter size={14} /> Categoria</button>
-            )}
-          </div>
-
-          {filtrando && visiveis.length > 0 && (
-            <div className="mc-filtro-tot">
-              Neste filtro: <b>{totFiltro.saidas ? `−${v(totFiltro.saidas)}` : ""}{totFiltro.saidas && totFiltro.entradas ? " · " : ""}{totFiltro.entradas ? `+${v(totFiltro.entradas)}` : ""}</b>
-            </div>
-          )}
-
-          {grupos.length === 0 && (
-            <div className="mc-vazio">
-              {doMesTodos.length === 0
-                ? <>Nada lançado em {nomeMes(ym).toLowerCase()}.<br />Toque no <b>+</b> pra lançar.</>
-                : <>Nenhum lançamento neste filtro.</>}
-            </div>
-          )}
-
-          {grupos.map((g) => {
-            const tg = totais(g.itens);
-            return (
-              <div key={g.data}>
-                <div className={"mc-dia" + (g.data === hoje ? " mc-dia-hoje" : "")}>
-                  <span>{g.data === hoje ? "Hoje · " : ""}{nomeDia(g.data)}</span>
-                  <span>{tg.resultado < 0 ? "−" : "+"}{v(Math.abs(tg.resultado))}</span>
-                </div>
-                {g.itens.map((l) => {
-                  const c = catPorId[l.catId];
-                  const sel = editando && editando.id === l.id;
-                  return (
-                    <div key={l.id} className={"mc-linha" + (l.pago ? " pago" : "") + (sel ? " sel" : "")}>
-                      <button className="mc-linha-bt" onClick={() => setPainel({ modo: "editar", id: l.id })}>
-                        <CatIcone cat={c} />
-                        <span className="mc-nm">
-                          <span className="mc-t">{l.desc}{l.serie?.tipo === "parcela" && <span className="mc-pc">{l.serie.n}/{l.serie.total}</span>}</span>
-                          <span className="mc-s">
-                            {c ? c.nome : "Sem categoria"}
-                            {l.obs && <MessageSquare size={13} aria-label="tem observação" />}
-                            {l.serie?.tipo === "fixo" && <Repeat size={13} aria-label="repete todo mês" />}
-                          </span>
-                        </span>
-                        <span className={"mc-val" + (l.tipo === "receita" ? " mc-pos" : "")}>
-                          {l.tipo === "receita" ? "+" : "−"}{v(l.valor)}
-                        </span>
-                      </button>
-                      <button
-                        className={"mc-th" + (l.pago ? " on" : "")}
-                        aria-label={l.pago ? (l.tipo === "receita" ? "Recebido" : "Pago") : (l.tipo === "receita" ? "Marcar como recebido" : "Marcar como pago")}
-                        aria-pressed={l.pago}
-                        onClick={() => alternarPago(l)}
-                      >
-                        <ThumbsUp size={19} />
+        <section className={"mc-lista-card" + (larga ? " vidro" : "")}>
+          {busca === null && (
+            <div className="mc-periodo">
+              <button className="mc-ib" aria-label="Período anterior" onClick={() => setPeriodo(andarPeriodo(periodo, -1))}><ChevronLeft size={20} /></button>
+              <div className="mc-per-centro">
+                <button className={"mc-per-bt" + (menuPeriodo ? " on" : "")} aria-expanded={menuPeriodo} onClick={() => setMenuPeriodo((o) => !o)}>
+                  {nomePeriodo(periodo)} <ChevronDown size={16} />
+                </button>
+                <small>{doMesTodos.length} {doMesTodos.length === 1 ? "lançamento" : "lançamentos"}</small>
+                {menuPeriodo && (
+                  <>
+                    <div className="mc-menu-fundo" onClick={() => setMenuPeriodo(false)} />
+                    <div className="mc-menu vidro" role="menu">
+                      {[["dia", "Hoje"], ["semana", "Esta semana"], ["mes", "Este mês"]].map(([k, t]) => (
+                        <button key={k} role="menuitem" className={periodo.tipo === k && dentroDo(periodo, hoje) ? "on" : ""}
+                          onClick={() => { setPeriodo(periodoCom(k)); setMenuPeriodo(false); }}>
+                          {t}<span>{nomeOpcaoPeriodo(k)}</span>
+                        </button>
+                      ))}
+                      <button role="menuitem" className={periodo.tipo === "intervalo" ? "on" : ""} onClick={() => { setMenuPeriodo(false); setEscolhendoIntervalo(true); }}>
+                        Escolher período<span className="mc-rosa">De / Até</span>
                       </button>
                     </div>
-                  );
-                })}
+                  </>
+                )}
               </div>
-            );
-          })}
-          {!larga && <div style={{ height: 210 }} />}
+              <button className="mc-ib" aria-label="Próximo período" onClick={() => setPeriodo(andarPeriodo(periodo, 1))}><ChevronRight size={20} /></button>
+              {larga && (
+                <button className="mc-btn-rosa" onClick={() => setPainel({ modo: "novo", n: Date.now() })}><Plus size={18} strokeWidth={2.8} /> Lançar</button>
+              )}
+            </div>
+          )}
+
+          {busca === null && !selecionando && (
+            <div className="mc-chips">
+              {[["todas", "Todas"], ["apagar", "A pagar"], ["pagas", "Pagas"], ["receitas", "Receitas"]].map(([k, t]) => (
+                <button key={k} className={"mc-chip" + (estado === k ? " on" : "")} onClick={() => setEstado(k)}>{t}</button>
+              ))}
+              {catFiltro && catPorId[catFiltro] ? (
+                <button className="mc-chip on" onClick={() => setCatFiltro(null)}>
+                  <CatIcone cat={catPorId[catFiltro]} size={18} /> {catPorId[catFiltro].nome} <X size={14} />
+                </button>
+              ) : (
+                <button className="mc-chip" onClick={() => setEscolhendoFiltro(true)}><Filter size={14} /> Categoria</button>
+              )}
+              <button className="mc-chip mc-chip-sel" onClick={() => setSelecionando(true)}><CheckSquare size={14} /> Selecionar</button>
+            </div>
+          )}
+
+          {selecionando && <div className="mc-sel-aviso">Só no período que está na tela: nada muda nos outros meses.</div>}
+
+          {busca !== null ? (
+            <div className="mc-lista-anim">
+              {busca.trim() && (
+                <div className="mc-sel-aviso">
+                  {resultadosBusca.total === 0 ? "Nada encontrado." : `Achei ${resultadosBusca.total} em todos os meses · sem ligar pra acento`}
+                </div>
+              )}
+              {resultadosBusca.grupos.map((g) => (
+                <div key={g.ym}>
+                  <div className="mc-dia"><span>{nomeMes(g.ym)}</span><span>{g.itens.length}</span></div>
+                  {g.itens.map((l) => linha(l, true))}
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="mc-lista-anim" key={periodo.tipo + periodo.de}>
+              {filtrando && visiveis.length > 0 && (
+                <div className="mc-filtro-tot">
+                  Neste filtro: <b>{totFiltro.saidas ? `−${v(totFiltro.saidas)}` : ""}{totFiltro.saidas && totFiltro.entradas ? " · " : ""}{totFiltro.entradas ? `+${v(totFiltro.entradas)}` : ""}</b>
+                </div>
+              )}
+              {grupos.length === 0 && (
+                <div className="mc-vazio">
+                  {doMesTodos.length === 0
+                    ? <>Nada lançado em {nomePeriodo(periodo)}.<br />Toque no <b>+</b> pra lançar.</>
+                    : <>Nenhum lançamento neste filtro.</>}
+                </div>
+              )}
+              {grupos.map((g) => {
+                const tg = totais(g.itens);
+                return (
+                  <div key={g.data}>
+                    <div className={"mc-dia" + (g.data === hoje ? " mc-dia-hoje" : "")}>
+                      <span>{g.data === hoje ? "Hoje · " : ""}{nomeDia(g.data)}</span>
+                      <span>{tg.resultado < 0 ? "−" : "+"}{v(Math.abs(tg.resultado))}</span>
+                    </div>
+                    {g.itens.map((l) => linha(l, false))}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {selecionando && (
+            <div className={"mc-sel-barra" + (larga ? "" : " fixa") + " vidro"}>
+              <button disabled={!sel.size} onClick={() => acaoSel("pagar")}><MoedaOk size={22} /> Pagar</button>
+              <button disabled={!sel.size} onClick={() => setEscolhendoCatSel(true)}><Tags size={18} /> Categoria</button>
+              <button disabled={!sel.size} onClick={() => acaoSel("prox")}><ArrowRight size={18} /> Próx. mês</button>
+              <button disabled={!sel.size} className="mc-perigo" onClick={() => acaoSel("excluir")}><Trash2 size={18} /> Excluir</button>
+            </div>
+          )}
         </section>
 
         {larga && (
           <aside className="mc-lado">
-            {resumo}
-            {form || <div className="mc-lado-dica">Toque num lançamento pra ver, mudar ou apagar.</div>}
+            {hero}
+            {form || <div className="mc-lado-dica vidro">Toque num lançamento pra ver, mudar ou apagar.</div>}
           </aside>
         )}
       </div>
 
-      {!larga && ativo && <div className="mc-rodape">{resumo}</div>}
       {!larga && form && <div className="mc-folha-fundo" onClick={() => setPainel(null)}><div className="mc-folha" onClick={(e) => e.stopPropagation()}>{form}</div></div>}
+
+      {escolhendoIntervalo && (
+        <EscolherIntervalo
+          inicial={periodo}
+          onEscolher={(de, ate) => { setPeriodo({ tipo: "intervalo", de, ate }); setEscolhendoIntervalo(false); }}
+          onFechar={() => setEscolhendoIntervalo(false)}
+        />
+      )}
 
       {escolhendoFiltro && (
         <EscolherCategoria
@@ -437,6 +607,14 @@ export default function MinhasContas({ chave, ativo = true }) {
           titulo="Filtrar por categoria"
           onEscolher={(c) => { setCatFiltro(c.id); setEscolhendoFiltro(false); }}
           onFechar={() => setEscolhendoFiltro(false)}
+        />
+      )}
+      {escolhendoCatSel && (
+        <EscolherCategoria
+          cats={cats.filter((c) => !c.arquivada)}
+          titulo={`Categoria dos ${sel.size} selecionados`}
+          onEscolher={(c) => { setEscolhendoCatSel(false); acaoSel("categoria", c.id); }}
+          onFechar={() => setEscolhendoCatSel(false)}
         />
       )}
 
@@ -491,6 +669,39 @@ export default function MinhasContas({ chave, ativo = true }) {
           {toast.desfazer && <button onClick={() => { toast.desfazer(); setToast(null); }}>Desfazer</button>}
         </div>
       )}
+    </div>
+  );
+}
+
+function MoedaOk({ size = 28 }) {
+  return (
+    <svg viewBox="0 0 40 40" width={size} height={size} aria-hidden="true">
+      <circle cx="20" cy="20" r="18" fill="#C98714" /><circle cx="20" cy="19" r="17" fill="#FFC94D" />
+      <path d="M13 20l5 5 9-10" stroke="#7A4E00" strokeWidth="3.5" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function EscolherIntervalo({ inicial, onEscolher, onFechar }) {
+  const [de, setDe] = useState(inicial.de);
+  const [ate, setAte] = useState(inicial.ate);
+  const ok = de && ate && de <= ate;
+  return (
+    <div className="mc-modal-fundo" onClick={onFechar}>
+      <div className="mc-modal" onClick={(e) => e.stopPropagation()} role="dialog" aria-label="Escolher período">
+        <div className="mc-form-topo">
+          <div className="mc-form-tit">Escolher período</div>
+          <button className="mc-ib mc-ib-plano" aria-label="Fechar" onClick={onFechar}><X size={18} /></button>
+        </div>
+        <div className="mc-2col">
+          <label className="mc-campo"><span className="mc-rot">De</span><input className="mc-inp" type="date" value={de} onChange={(e) => setDe(e.target.value)} /></label>
+          <label className="mc-campo"><span className="mc-rot">Até</span><input className="mc-inp" type="date" value={ate} onChange={(e) => setAte(e.target.value)} /></label>
+        </div>
+        {!ok && <div className="mc-erro">A data "até" precisa ser depois da data "de".</div>}
+        <div className="mc-form-bts">
+          <button className="mc-btn-p" disabled={!ok} onClick={() => onEscolher(de, ate)}><Check size={18} /> Ver esse período</button>
+        </div>
+      </div>
     </div>
   );
 }
