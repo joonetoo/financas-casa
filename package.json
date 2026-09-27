@@ -7,7 +7,8 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "deploy": "vite build && gh-pages -d dist"
+    "deploy": "vite build && gh-pages -d dist",
+    "deploy-beta": "vite build --mode beta && gh-pages -d dist -r https://github.com/joonetoo/financas-beta.git"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.116.0",
