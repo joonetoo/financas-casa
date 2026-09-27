@@ -117,6 +117,35 @@ html[data-tema] .fc-tab-active::after{display:none!important}
   html[data-tema] .fc-main{padding-bottom:110px!important}
 }
 
+/* casa: mês no centro, conteúdo dentro de um quadro (igual à Minhas contas), sem o backup antigo (agora em Configurações) */
+html[data-tema] .fc-period{justify-content:center}
+html[data-tema] .fc-quadro{background:var(--o-sf);border:1px solid var(--o-line);border-radius:28px;padding:18px;margin-bottom:18px;
+  animation:oink-sobe .4s cubic-bezier(.22,.9,.32,1)}
+@media (max-width:820px){ html[data-tema] .fc-quadro{padding:10px;border-radius:24px} }
+html[data-tema] .fc-quadro .fc-tabs{background:var(--o-sf2)!important}
+html[data-tema] .fc-data-zone > *:not(.fc-danger-link):not(.fc-confirm-inline){display:none!important}
+html[data-tema] .fc-data-zone{border:none!important;padding-top:4px!important;margin-top:0!important}
+html[data-tema="claro"][data-plat="mac"] body{background:
+    radial-gradient(60% 70% at 12% 15%, rgba(30,138,94,.28) 0%, transparent 60%),
+    radial-gradient(50% 60% at 90% 25%, rgba(255,126,166,.22) 0%, transparent 60%),
+    radial-gradient(60% 70% at 60% 105%, rgba(106,92,255,.16) 0%, transparent 60%),
+    var(--o-bg)!important;background-attachment:fixed!important}
+
+/* cartão "Ainda dá pra gastar" da casa = mesmo cartão do valor da Minhas contas (vidro verde + brilho) */
+html[data-tema] .fc-hero{background:linear-gradient(160deg, color-mix(in srgb, #1E8A5E 70%, var(--o-sf)), var(--o-sf))!important;
+  border:1px solid var(--o-line);border-radius:26px!important;color:var(--o-ink)!important;box-shadow:none!important}
+html[data-tema] .fc-hero *{--hero-ink:var(--o-ink);--hero-sub:var(--o-soft)}
+html[data-tema] .fc-hero::after{content:"";position:absolute;inset:0;pointer-events:none;
+  background:linear-gradient(105deg,transparent 38%,rgba(255,255,255,.20) 50%,transparent 62%);
+  transform:translateX(-100%);animation:oink-brilho-cartao 5s ease-in-out infinite}
+@keyframes oink-brilho-cartao{0%{transform:translateX(-100%)}55%,100%{transform:translateX(100%)}}
+html[data-plat="mac"] .fc-hero{backdrop-filter:blur(40px) saturate(160%);-webkit-backdrop-filter:blur(40px) saturate(160%);
+  background:linear-gradient(160deg, color-mix(in srgb, #2FA876 75%, var(--o-sf)), color-mix(in srgb, var(--o-sf) 82%, transparent))!important}
+html[data-tema="claro"] .fc-hero-chip{background:rgba(255,255,255,.6)!important;border-color:rgba(19,38,29,.10)!important;color:var(--o-ink)!important}
+/* cartões das categorias: mesma "pele" dos cartões do app */
+html[data-tema] .fc-env-card{background:var(--o-sf2)!important;border:1px solid var(--o-line)!important;border-radius:22px!important;box-shadow:none!important}
+@media (prefers-reduced-motion:reduce){html[data-tema] .fc-hero::after{display:none}}
+
 /* ---------------- logo ---------------- */
 .oink-logo{font-family:'Fredoka',sans-serif!important;font-weight:600;letter-spacing:-.02em;line-height:1}
 .oink-logo i{font-style:normal;color:var(--o-rosa)}
@@ -150,6 +179,8 @@ html[data-plat="mac"] .vidro{
   box-shadow:inset 0 1px 0 color-mix(in srgb, #FFFFFF 35%, transparent),0 20px 50px -22px var(--o-sombra)!important;
 }
 html[data-plat="mac"][data-tema="claro"] .vidro{background:color-mix(in srgb, #FFFFFF 80%, transparent)!important;border-color:rgba(255,255,255,.85)!important}
+/* menus e calendário por cima de conteúdo: quase sólidos, pra não misturar com o que está atrás */
+html[data-plat="mac"] .mc-cal.vidro, html[data-plat="mac"] .mc-menu.vidro{background:color-mix(in srgb, var(--o-sf2) 96%, transparent)!important}
 html[data-plat="mac"] .mc-hero-card.vidro{background:linear-gradient(160deg, color-mix(in srgb, #2FA876 75%, var(--o-sf)), color-mix(in srgb, var(--o-sf) 82%, transparent))!important}
 html[data-plat="mac"] .fc-wrap .fc-card, html[data-plat="mac"] .fc-wrap .fc-hero{backdrop-filter:blur(24px) saturate(160%)}
     `}</style>

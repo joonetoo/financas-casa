@@ -439,7 +439,7 @@ export default function MinhasContas({ chave, ativo = true, larga: largaProp }) 
     <div className={"mc-wrap" + (larga ? " mc-larga" : "")}>
       <MCStyles />
 
-      {busca === null && !selecionando && (
+      {busca === null && (
         <header className="mc-topo">
           {larga ? (
             <div className="mc-titulo-aba">Minhas contas</div>
@@ -466,17 +466,8 @@ export default function MinhasContas({ chave, ativo = true, larga: largaProp }) 
         </div>
       )}
 
-      {selecionando && (
-        <div className="mc-sel-topo">
-          <button className="mc-link" onClick={sairSelecao}>Cancelar</button>
-          <b>{sel.size} {sel.size === 1 ? "selecionado" : "selecionados"}</b>
-          <button className="mc-link" onClick={() => setSel(sel.size === idsVisiveis.length ? new Set() : new Set(idsVisiveis))}>
-            {sel.size === idsVisiveis.length && sel.size ? "Nenhum" : "Todos"}
-          </button>
-        </div>
-      )}
 
-      {!larga && busca === null && !selecionando && hero}
+      {!larga && busca === null && hero}
 
       <div className="mc-corpo">
         <section className={"mc-lista-card" + (larga ? " vidro" : "")}>
@@ -512,6 +503,15 @@ export default function MinhasContas({ chave, ativo = true, larga: largaProp }) 
             </div>
           )}
 
+          {busca === null && selecionando && (
+            <div className="mc-chips">
+              <span className="mc-sel-conta">{sel.size} {sel.size === 1 ? "selecionado" : "selecionados"}</span>
+              <button className="mc-chip" onClick={() => setSel(sel.size === idsVisiveis.length && sel.size ? new Set() : new Set(idsVisiveis))}>
+                {sel.size === idsVisiveis.length && sel.size ? "Nenhum" : "Todos"}
+              </button>
+              <button className="mc-chip mc-chip-sel on" onClick={sairSelecao}><X size={14} /> Cancelar</button>
+            </div>
+          )}
           {busca === null && !selecionando && (
             <div className="mc-chips">
               {[["todas", "Todas"], ["apagar", "A pagar"], ["pagas", "Pagas"], ["receitas", "Receitas"]].map(([k, t]) => (
@@ -682,6 +682,52 @@ function MoedaOk({ size = 28 }) {
   );
 }
 
+// Calendário no estilo Oink (no lugar do calendário cinza do sistema)
+const SEMANA_CURTA = ["D", "S", "T", "Q", "Q", "S", "S"];
+function CampoData({ value, onChange, rotulo = "Data" }) {
+  const [aberto, setAberto] = useState(false);
+  const [ym, setYmCal] = useState((value || hojeISO()).slice(0, 7));
+  useEffect(() => { if (aberto) setYmCal((value || hojeISO()).slice(0, 7)); }, [aberto]);
+  const [a, m] = ym.split("-").map(Number);
+  const primeiro = new Date(a, m - 1, 1).getDay();
+  const total = new Date(a, m, 0).getDate();
+  const hoje = hojeISO();
+  const dias = [];
+  for (let i = 0; i < primeiro; i++) dias.push(null);
+  for (let d = 1; d <= total; d++) dias.push(`${ym}-${p2(d)}`);
+  const escolher = (iso) => { onChange(iso); setAberto(false); };
+  const txt = value ? value.split("-").reverse().join("/") : "Escolher";
+  return (
+    <div className="mc-data">
+      <button type="button" className="mc-inp mc-data-bt" aria-label={`${rotulo}: ${txt}`} aria-expanded={aberto} onClick={() => setAberto((o) => !o)}>
+        <span>{txt}</span>
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="3" /><path d="M3 10h18M8 3v4M16 3v4" /></svg>
+      </button>
+      {aberto && (
+        <>
+          <div className="mc-menu-fundo" onClick={() => setAberto(false)} />
+          <div className="mc-cal vidro" role="dialog" aria-label={rotulo}>
+            <div className="mc-cal-topo">
+              <button type="button" aria-label="Mês anterior" onClick={() => setYmCal(somaYm(ym, -1))}><ChevronLeft size={18} /></button>
+              <b>{MESES[m - 1]} {a}</b>
+              <button type="button" aria-label="Próximo mês" onClick={() => setYmCal(somaYm(ym, 1))}><ChevronRight size={18} /></button>
+            </div>
+            <div className="mc-cal-grade">
+              {SEMANA_CURTA.map((d, i) => <span key={i} className="mc-cal-sem">{d}</span>)}
+              {dias.map((iso, i) => iso ? (
+                <button type="button" key={iso} className={"mc-cal-dia" + (iso === value ? " on" : "") + (iso === hoje ? " hoje" : "")} onClick={() => escolher(iso)}>
+                  {Number(iso.slice(8))}
+                </button>
+              ) : <span key={"v" + i} />)}
+            </div>
+            <button type="button" className="mc-cal-hoje" onClick={() => escolher(hoje)}>Hoje</button>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 function EscolherIntervalo({ inicial, onEscolher, onFechar }) {
   const [de, setDe] = useState(inicial.de);
   const [ate, setAte] = useState(inicial.ate);
@@ -694,8 +740,8 @@ function EscolherIntervalo({ inicial, onEscolher, onFechar }) {
           <button className="mc-ib mc-ib-plano" aria-label="Fechar" onClick={onFechar}><X size={18} /></button>
         </div>
         <div className="mc-2col">
-          <label className="mc-campo"><span className="mc-rot">De</span><input className="mc-inp" type="date" value={de} onChange={(e) => setDe(e.target.value)} /></label>
-          <label className="mc-campo"><span className="mc-rot">Até</span><input className="mc-inp" type="date" value={ate} onChange={(e) => setAte(e.target.value)} /></label>
+          <div className="mc-campo"><span className="mc-rot">De</span><CampoData value={de} onChange={setDe} rotulo="Data inicial" /></div>
+          <div className="mc-campo"><span className="mc-rot">Até</span><CampoData value={ate} onChange={setAte} rotulo="Data final" /></div>
         </div>
         {!ok && <div className="mc-erro">A data "até" precisa ser depois da data "de".</div>}
         <div className="mc-form-bts">
@@ -793,10 +839,10 @@ function FormLancamento({
           <input className="mc-inp mc-inp-valor" inputMode="decimal" placeholder="0,00" value={f.valorTxt}
             onChange={(e) => set("valorTxt", e.target.value)} onFocus={(e) => e.target.select()} />
         </label>
-        <label className="mc-campo">
+        <div className="mc-campo">
           <span className="mc-rot">{f.repetir === "parcela" ? "1ª parcela" : "Data"}</span>
-          <input className="mc-inp" type="date" value={f.data} onChange={(e) => e.target.value && set("data", e.target.value)} />
-        </label>
+          <CampoData value={f.data} onChange={(v) => set("data", v)} rotulo={f.repetir === "parcela" ? "Data da 1ª parcela" : "Data"} />
+        </div>
       </div>
 
       <div className="mc-campo">

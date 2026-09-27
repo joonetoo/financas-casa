@@ -1602,6 +1602,8 @@ export default function FinancasCasa() {
         </div>
       )}
 
+      {/* quadro de vidro (visual Oink): sub-abas + conteúdo num cartão só, pra dar leitura */}
+      <div className="fc-quadro vidro">
       <nav className="fc-tabs">
         <div className="fc-slide-pill fc-slide-pill-tab" style={tabSlider.style} />
         <TabButton
@@ -2105,6 +2107,7 @@ export default function FinancasCasa() {
           </div>
         )}
       </main>
+      </div>
 
       <div className="fc-data-zone">
         <div className="fc-data-buttons">

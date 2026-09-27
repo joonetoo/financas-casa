@@ -285,6 +285,25 @@ export function MCStyles() {
 .mc-busca-grande{flex-grow:1;border:2px solid #FF7EA6!important;color:#FF7EA6}
 .mc-busca-grande input{color:var(--ink)}
 @media (max-width:999px){ .mc-toast{bottom:calc(96px + env(safe-area-inset-bottom))} }
+/* seleção: contagem no lugar dos filtros, Cancelar no lugar do Selecionar */
+.mc-sel-conta{display:inline-flex;align-items:center;height:36px;font-size:15px;font-weight:900;padding:0 6px}
+/* calendário Oink */
+.mc-data{position:relative}
+.mc-data-bt{display:flex;align-items:center;justify-content:space-between;gap:8px;cursor:pointer;text-align:left}
+.mc-data-bt svg{color:var(--faint)}
+.mc-cal{position:absolute;top:58px;right:0;z-index:46;width:292px;padding:12px;border-radius:22px;background:var(--sf2);border:1px solid var(--line);
+  box-shadow:0 24px 50px -12px rgba(0,0,0,.55);animation:oink-sobe .2s cubic-bezier(.22,.9,.32,1)}
+.mc-cal-topo{display:flex;align-items:center;justify-content:space-between;padding:2px 2px 8px}
+.mc-cal-topo b{font-size:16px;font-weight:900}
+.mc-cal-topo button{width:38px;height:38px;border:none;border-radius:12px;background:transparent;color:var(--ink);display:flex;align-items:center;justify-content:center;cursor:pointer}
+.mc-cal-topo button:hover{background:color-mix(in srgb, var(--ink) 8%, transparent)}
+.mc-cal-grade{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:2px}
+.mc-cal-sem{text-align:center;font-size:12px;font-weight:900;color:var(--faint);padding:4px 0}
+.mc-cal-dia{height:36px;border:none;border-radius:12px;background:transparent;color:var(--ink);font-size:14px;font-weight:800;cursor:pointer}
+.mc-cal-dia:hover{background:color-mix(in srgb, var(--ink) 8%, transparent)}
+.mc-cal-dia.hoje{color:#FF7EA6}
+.mc-cal-dia.on{background:var(--ink);color:var(--bg)}
+.mc-cal-hoje{width:100%;height:40px;margin-top:8px;border:none;border-radius:12px;background:color-mix(in srgb, var(--ink) 8%, transparent);color:var(--ink);font-size:14px;font-weight:900;cursor:pointer}
 @media (prefers-reduced-motion:reduce){.mc-wrap *,.mc-wrap *::before,.mc-wrap *::after{animation-duration:.001ms!important;transition-duration:.001ms!important}}
     `}</style>
   );
