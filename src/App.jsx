@@ -1745,7 +1745,15 @@ export default function FinancasCasa({ ativo = true }) {
                 .map(({ c, gasto, orcamento }) => {
                   const est = budgetState(orcamento, gasto);
                   return (
-                    <div className="fc-env-card" key={c.key} style={{ "--cat": c.color }}>
+                    <button
+                      className="fc-env-card"
+                      key={c.key}
+                      style={{ "--cat": c.color }}
+                      onClick={() => {
+                        setActiveCat(c.key);
+                        setActiveTab("lancamentos");
+                      }}
+                    >
                       <div className="fc-env-top">
                         <span className="fc-env-icon">
                           <CatIcon name={c.icon} />
@@ -1773,7 +1781,7 @@ export default function FinancasCasa({ ativo = true }) {
                           {money(gasto)} de {money(orcamento)}
                         </span>
                       </div>
-                    </div>
+                    </button>
                   );
                 })}
               {semOrcamento > 0 && (
@@ -2597,8 +2605,11 @@ function FcStyles() {
         display: flex; flex-direction: column; gap: 9px; min-height: 128px;
         transition: transform .22s var(--ease), box-shadow .22s var(--ease), border-color .22s var(--ease);
         opacity: 0; animation: fcFadeUp .65s var(--ease) forwards;
+        width: 100%; text-align: left; font: inherit; color: inherit; cursor: pointer;
       }
       .fc-env-card:hover { transform: translateY(-7px) scale(1.015); box-shadow: var(--shadow-md); border-color: transparent; }
+      .fc-env-card:active { transform: translateY(-3px) scale(1.005); }
+      .fc-env-card:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
       .fc-env-card:nth-child(1) { animation-delay: .03s; } .fc-env-card:nth-child(2) { animation-delay: .09s; }
       .fc-env-card:nth-child(3) { animation-delay: .15s; } .fc-env-card:nth-child(4) { animation-delay: .21s; }
       .fc-env-card:nth-child(5) { animation-delay: .27s; } .fc-env-card:nth-child(6) { animation-delay: .33s; }
