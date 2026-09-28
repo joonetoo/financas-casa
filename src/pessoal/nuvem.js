@@ -34,11 +34,18 @@ const hoje = () => {
   return `${d.getFullYear()}-${p2(d.getMonth() + 1)}-${p2(d.getDate())}`;
 };
 
+// Sem internet de verdade, o pedido pode demorar bem mais que uma falha
+// normal pra desistir sozinho (às vezes minutos) — trava a tela de
+// "carregando" sem nunca chegar no aviso. Limite de tempo: sem resposta em
+// 6s, trata como falha (nunca como "vazio").
+const comLimite = (prom, ms = 6000) => Promise.race([prom, new Promise((r) => setTimeout(() => r({ limite: true }), ms))]);
+
 export const nuvem = {
   async get(key) {
     try {
-      const { data, error } = await supabase
-        .from("app_data").select("data, updated_at").eq("id", key).maybeSingle();
+      const res = await comLimite(supabase.from("app_data").select("data, updated_at").eq("id", key).maybeSingle());
+      if (res.limite) return { failed: true };
+      const { data, error } = res;
       if (error) return { failed: true };
       if (!data) return { value: null };
       return { value: data.data, updatedAt: data.updated_at };
@@ -48,8 +55,9 @@ export const nuvem = {
   },
   async getStamp(key) {
     try {
-      const { data, error } = await supabase
-        .from("app_data").select("updated_at").eq("id", key).maybeSingle();
+      const res = await comLimite(supabase.from("app_data").select("updated_at").eq("id", key).maybeSingle());
+      if (res.limite) return { failed: true };
+      const { data, error } = res;
       if (error) return { failed: true };
       return { updatedAt: data ? data.updated_at : null };
     } catch (e) {
@@ -177,6 +185,13 @@ export function useDocNuvem(chave, { vazio, normalizar = (d) => d }) {
   useEffect(() => {
     let vivo = true;
     (async () => {
+      // Sem internet, já se sabe de cara — vai direto pro aviso, sem tentar
+      // a rede (senão a tela de "carregando" fica presa até as tentativas
+      // abaixo desistirem uma por uma).
+      if (typeof navigator !== "undefined" && navigator.onLine === false) {
+        setErroCarregar(true);
+        return;
+      }
       let res = await nuvem.get(chave);
       for (let t = 0; res.failed && t < 3; t++) {
         await new Promise((r) => setTimeout(r, 800 * (t + 1)));

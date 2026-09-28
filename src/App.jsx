@@ -34,6 +34,13 @@ const SUPABASE_ANON_KEY =
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
+// Sem internet de verdade (avião, sem sinal), o pedido pro Supabase pode
+// demorar bem mais que uma falha normal pra desistir sozinho (às vezes
+// minutos) — trava a tela de "carregando" sem nunca chegar no aviso. Isso
+// poe um limite de tempo: se não respondeu em 6s, trata como falha (nunca
+// como "vazio" — só entra no tri-state por cima de um resultado já pronto).
+const comLimite = (prom, ms = 6000) => Promise.race([prom, new Promise((r) => setTimeout(() => r({ limite: true }), ms))]);
+
 const storage = {
   // Importante: distingue "linha realmente não existe" (data null, sem error)
   // de "falha ao buscar" (error, ou exceção de rede) — os dois casos NÃO podem
@@ -41,11 +48,11 @@ const storage = {
   // acaba sobrescrevendo dados reais com a semente/vazio (já aconteceu).
   async get(key) {
     try {
-      const { data, error } = await supabase
-        .from("app_data")
-        .select("data, updated_at")
-        .eq("id", key)
-        .maybeSingle();
+      const res = await comLimite(
+        supabase.from("app_data").select("data, updated_at").eq("id", key).maybeSingle()
+      );
+      if (res.limite) return { failed: true };
+      const { data, error } = res;
       if (error) return { failed: true };
       if (!data) return { value: null };
       return { value: JSON.stringify(data.data), updatedAt: data.updated_at };
@@ -67,11 +74,9 @@ const storage = {
   // aparelho salvou algo desde a última vez que este leu
   async getStamp(key) {
     try {
-      const { data, error } = await supabase
-        .from("app_data")
-        .select("updated_at")
-        .eq("id", key)
-        .maybeSingle();
+      const res = await comLimite(supabase.from("app_data").select("updated_at").eq("id", key).maybeSingle());
+      if (res.limite) return { failed: true };
+      const { data, error } = res;
       if (error) return { failed: true };
       return { updatedAt: data ? data.updated_at : null };
     } catch (e) {
@@ -844,6 +849,13 @@ export default function FinancasCasa({ ativo = true }) {
   useEffect(() => {
     let alive = true;
     (async () => {
+      // Sem internet, já se sabe de cara — nem tenta a rede, vai direto pro
+      // aviso (senão a tela de "carregando" fica presa até as tentativas
+      // abaixo desistirem uma por uma).
+      if (typeof navigator !== "undefined" && navigator.onLine === false) {
+        setLoadError(true);
+        return;
+      }
       // busca com algumas tentativas: uma instabilidade passageira de rede
       // não pode ser confundida com "banco vazio" (ver storage.get acima).
       let res = await storage.get(STORAGE_KEY);
