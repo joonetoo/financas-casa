@@ -342,7 +342,21 @@ html[data-tema="claro"] .fc-env-gauge, html[data-tema="claro"] .fc-hero-barra, h
 .oink-focinho{display:inline-flex;align-items:center;justify-content:center;gap:12px;width:96px;height:62px;border-radius:34px;background:var(--o-rosa)}
 .oink-focinho span{width:14px;height:20px;border-radius:50%;background:#7A1F3C;animation:oink-narina 1.1s ease-in-out infinite}
 .oink-focinho span+span{animation-delay:.25s}
-@media (prefers-reduced-motion:reduce){.oink-moeda-cai,.oink-pulo,.oink-focinho span{animation:none!important}}
+
+/* ---------------- sem internet (Nível 1) ---------------- */
+@keyframes oink-shimmer{0%{background-position:-200px 0}100%{background-position:200px 0}}
+@keyframes oink-pulsa-x{0%,100%{transform:scale(1)}50%{transform:scale(1.08)}}
+.oink-sn-fundo{position:absolute;inset:0;overflow:hidden;padding:70px 16px;display:flex;flex-direction:column;gap:8px;opacity:.5;filter:blur(1px)}
+.oink-sn-skel{border-radius:14px;background:linear-gradient(90deg,var(--o-sf) 25%,var(--o-sf2) 37%,var(--o-sf) 63%);background-size:400px 100%;animation:oink-shimmer 1.6s linear infinite}
+.oink-sn-escurece{position:absolute;inset:0;background:rgba(5,10,8,.35)}
+.oink-sn-cartao{position:relative;z-index:1;max-width:340px;margin:auto;border-radius:28px;padding:30px 24px;background:var(--o-sf);border:1px solid var(--o-line);
+  box-shadow:0 30px 60px -20px rgba(0,0,0,.5);display:flex;flex-direction:column;align-items:center;gap:16px;text-align:center;animation:oink-sobe .4s cubic-bezier(.22,.9,.32,1)}
+.oink-sn-focinho{position:relative;width:96px;height:62px}
+.oink-sn-focinho .oink-focinho span{opacity:.55;animation:none}
+.oink-sn-x{position:absolute;right:-10px;bottom:-10px;animation:oink-pulsa-x 1.8s ease-in-out infinite;filter:drop-shadow(0 4px 10px rgba(0,0,0,.4))}
+.oink-sn-tit{font-family:'Fredoka',sans-serif;font-weight:600;font-size:19px;color:var(--o-ink)}
+.oink-sn-sub{font-size:14px;color:var(--o-faint);line-height:1.5}
+@media (prefers-reduced-motion:reduce){.oink-moeda-cai,.oink-pulo,.oink-focinho span,.oink-sn-skel,.oink-sn-x{animation:none!important}}
 
 /* ---------------- Mac: vidro (Liquid Glass) ---------------- */
 html[data-plat="mac"] body{
@@ -408,6 +422,47 @@ export function Carregando({ texto = "Carregando…" }) {
     <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 14, padding: "80px 16px", color: "var(--o-faint)", fontFamily: "Nunito, sans-serif", fontWeight: 700 }}>
       <span className="oink-focinho" aria-hidden="true"><span /><span /></span>
       {texto}
+    </div>
+  );
+}
+
+// Tela de "não deu pra carregar" (Nível 1 do offline): cartão flutuante sobre
+// uma lista de esqueleto, com o focinho + um X vermelho no estilo da moeda de
+// "pago". Nunca é mostrada por cima de dados — só quando o carregamento falhou
+// de verdade (ver zero-data-loss: o gate de "carregado" nunca é ligado aqui).
+export function SemInternet({ onTentar }) {
+  const offline = typeof navigator !== "undefined" && navigator.onLine === false;
+  const titulo = offline ? "Ops, sem internet" : "Não deu pra carregar agora";
+  const sub = offline
+    ? "Suas contas aparecem assim que a conexão voltar"
+    : "Verifique a internet e tente de novo — por segurança, nada será salvo até carregar direito";
+  return (
+    <div style={{ position: "relative", minHeight: "100vh" }}>
+      <div className="oink-sn-fundo" aria-hidden="true">
+        {[92, 78, 85, 70, 88, 74].map((w, i) => (
+          <div key={i} className="oink-sn-skel" style={{ height: 54, width: `${w}%`, flexShrink: 0 }} />
+        ))}
+      </div>
+      <div className="oink-sn-escurece" aria-hidden="true" />
+      <div style={{ position: "relative", zIndex: 1, minHeight: "100vh", display: "flex", padding: 24 }}>
+        <div className="oink-sn-cartao">
+          <div className="oink-sn-focinho">
+            <span className="oink-focinho" aria-hidden="true"><span /><span /></span>
+            <svg className="oink-sn-x" viewBox="0 0 40 40" width={42} height={42} aria-hidden="true">
+              <circle cx="20" cy="20" r="18" fill="#8F1E22" /><circle cx="20" cy="19" r="17" fill="#FF5A5F" />
+              <path d="M14 14l12 12M26 14L14 26" stroke="#fff" strokeWidth="3.6" fill="none" strokeLinecap="round" />
+            </svg>
+          </div>
+          <div>
+            <div className="oink-sn-tit">{titulo}</div>
+            <div className="oink-sn-sub" style={{ marginTop: 4 }}>{sub}</div>
+          </div>
+          <button className="mc-btn-s" style={{ height: 50, borderRadius: 18, padding: "0 26px", fontFamily: "Nunito, sans-serif", fontWeight: 800, fontSize: 15, border: "1px solid var(--o-line)", background: "transparent", color: "var(--o-ink)", display: "inline-flex", alignItems: "center", gap: 8 }} onClick={onTentar || (() => window.location.reload())}>
+            <svg viewBox="0 0 24 24" width={18} height={18} fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-3-6.7" /><path d="M21 4v5h-5" /></svg>
+            Tentar de novo
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

@@ -13,7 +13,7 @@ import {
   periodoCom, andarPeriodo, nomePeriodo, dentroDo, doPeriodo, semAcento,
 } from "./logica.js";
 import { MCStyles } from "./estilo.jsx";
-import { usePrefs, IconeOink, Carregando, usePilula } from "../tema.jsx";
+import { usePrefs, IconeOink, Carregando, SemInternet, usePilula } from "../tema.jsx";
 
 const OLHO_KEY = "fc-hide-values";
 
@@ -386,11 +386,9 @@ export default function MinhasContas({ chave, ativo = true, larga: largaProp }) 
 
   if (nv.erroCarregar) {
     return (
-      <div className="mc-wrap mc-centro">
+      <div className="mc-wrap">
         <MCStyles />
-        <p>Não foi possível carregar suas contas. Verifique a internet e tente de novo —
-          por segurança, nada será salvo até carregar direito.</p>
-        <button className="mc-btn-p" onClick={() => window.location.reload()}>Tentar de novo</button>
+        <SemInternet />
       </div>
     );
   }

@@ -8,3 +8,12 @@ ReactDOM.createRoot(document.getElementById("root")).render(
     <Shell />
   </React.StrictMode>
 );
+
+// Nível 1 do offline: guarda uma cópia do app (não dos dados) pra ele abrir
+// mesmo sem internet. Só em produção — no servidor de teste/dev isso só
+// atrapalharia (nunca quer cache velho enquanto se está editando o código).
+if (!import.meta.env.DEV && "serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("./sw.js").catch(() => {});
+  });
+}

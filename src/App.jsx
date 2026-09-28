@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useLayoutEffect, useMemo, useCallback, useRef } from "react";
+import { Carregando, SemInternet } from "./tema.jsx";
 import {
   ResponsiveContainer,
   BarChart,
@@ -1133,16 +1134,9 @@ export default function FinancasCasa({ ativo = true }) {
 
   if (loadError) {
     return (
-      <div className="fc-wrap fc-loading">
+      <div className="fc-wrap">
         <FcStyles />
-        Não foi possível carregar seus dados. Verifique sua internet e
-        recarregue a página — por segurança, nada será salvo até conseguir
-        carregar corretamente.
-        <div style={{ marginTop: 16 }}>
-          <button className="fc-btn-primary" onClick={() => window.location.reload()}>
-            Tentar de novo
-          </button>
-        </div>
+        <SemInternet />
       </div>
     );
   }
@@ -1151,7 +1145,7 @@ export default function FinancasCasa({ ativo = true }) {
     return (
       <div className="fc-wrap fc-loading">
         <FcStyles />
-        Carregando…
+        <Carregando texto="Abrindo suas contas…" />
       </div>
     );
   }
