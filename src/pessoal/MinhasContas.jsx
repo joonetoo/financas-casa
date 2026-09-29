@@ -9,7 +9,7 @@ import { useDocNuvem, registrar, lerHistorico } from "./nuvem.js";
 import { ICONES, CORES, CATEGORIAS_PADRAO } from "./categorias.js";
 import {
   uid, hojeISO, ymHoje, somaYm, criarLancamentos, doMes, totais, aplicarNasProximas,
-  proximasDaSerie, proxMes, normalizar, nomeMes, nomeDia, fmtValor, fmtReais, lerValor, MESES, p2,
+  proximasDaSerie, foraSomaNasProximas, proxMes, normalizar, nomeMes, nomeDia, fmtValor, fmtReais, lerValor, MESES, p2,
   periodoCom, andarPeriodo, nomePeriodo, dentroDo, doPeriodo, semAcento,
 } from "./logica.js";
 import { MCStyles } from "./estilo.jsx";
@@ -143,6 +143,7 @@ export default function MinhasContas({ chave, ativo = true, larga: largaProp }) 
   const [escolhendoFiltro, setEscolhendoFiltro] = useState(false);
   const [painel, setPainel] = useState(null); // {modo:'novo'} | {modo:'editar', id}
   const [perguntaProximas, setPerguntaProximas] = useState(null); // item editado
+  const [perguntaSoma, setPerguntaSoma] = useState(null); // item que entrou/saiu da soma (série)
   const [perguntaExcluir, setPerguntaExcluir] = useState(null); // item
   const [tela, setTela] = useState(null); // null | 'categorias' | 'atividades'
   const [toast, setToast] = useState(null);
@@ -247,15 +248,35 @@ export default function MinhasContas({ chave, ativo = true, larga: largaProp }) 
       registrarLanc("mudou", `Você passou ${novo.desc} a ${form.repetir === "fixo" ? "repetir todo mês" : `${serie.length} parcelas`}`, [antigo], serie);
       return;
     }
-    const mudou = ["tipo", "desc", "valor", "data", "catId", "pago", "obs"].some((k) => novo[k] !== antigo[k]);
+    // "fora da soma": campo novo, só existe quando ligado (dados antigos não mudam)
+    delete novo.foraSoma;
+    if (form.foraSoma) novo.foraSoma = true;
+    const mudouSoma = !!novo.foraSoma !== !!antigo.foraSoma;
+    const mudou = mudouSoma || ["tipo", "desc", "valor", "data", "catId", "pago", "obs"].some((k) => novo[k] !== antigo[k]);
     if (!mudou) return;
     editar((d) => ({ ...d, lancamentos: d.lancamentos.map((l) => (l.id === antigo.id ? novo : l)) }));
-    registrarLanc("mudou", `Você mudou ${nomeCompleto(antigo)}`, [antigo], [novo]);
-    irPara(novo.data);
     // só pergunta se mudou algo que faz sentido levar pras próximas
     const levaveis = ["tipo", "desc", "valor", "catId", "obs"].some((k) => novo[k] !== antigo[k]) ||
       novo.data.slice(8) !== antigo.data.slice(8);
-    if (antigo.serie && levaveis && proximasDaSerie(lancs, antigo).length) setPerguntaProximas(novo);
+    const txtSoma = novo.foraSoma ? `Você tirou ${nomeCompleto(antigo)} da soma` : `Você voltou a contar ${nomeCompleto(antigo)} na soma`;
+    registrarLanc("mudou", mudouSoma && !levaveis ? txtSoma : `Você mudou ${nomeCompleto(antigo)}`, [antigo], [novo]);
+    irPara(novo.data);
+    const temProximas = antigo.serie && proximasDaSerie(lancs, antigo).length;
+    if (temProximas && levaveis) setPerguntaProximas(novo);
+    else if (temProximas && mudouSoma) setPerguntaSoma(novo);
+  };
+
+  const somaProximas = (item) => {
+    const antes = proximasDaSerie(lancs, item);
+    const idsAntes = new Set(antes.map((l) => l.id));
+    const depois = foraSomaNasProximas(lancs, item, !!item.foraSoma).filter((l) => idsAntes.has(l.id));
+    editar((d) => ({ ...d, lancamentos: foraSomaNasProximas(d.lancamentos, item, !!item.foraSoma) }));
+    const acao = item.foraSoma ? "tirou da soma" : "voltou a contar na soma";
+    registrarLanc("mudou", `Você ${acao} os próximos de ${item.desc} (${antes.length})`, antes, depois);
+    mostrarToast(`${antes.length === 1 ? "O próximo" : `${antes.length} próximos`} ${item.foraSoma ? "fora da soma" : "de volta na soma"}`, () => {
+      trocar(depois, antes);
+      registrarLanc("desfez", `Você desfez a mudança na soma dos próximos de ${item.desc}`, depois, antes);
+    });
   };
 
   const aplicarProximas = (editado) => {
@@ -492,7 +513,7 @@ export default function MinhasContas({ chave, ativo = true, larga: largaProp }) 
     const sele = sel.has(l.id);
     const aoTocar = () => (selecionando ? alternarSel(l.id) : setPainel({ modo: "editar", id: l.id }));
     return (
-      <div key={l.id} className={"mc-linha" + (l.pago ? " pago" : "") + (editando && editando.id === l.id ? " sel" : "") + (sele ? " marcada" : "")}>
+      <div key={l.id} className={"mc-linha" + (l.pago ? " pago" : "") + (l.foraSoma ? " fora" : "") + (editando && editando.id === l.id ? " sel" : "") + (sele ? " marcada" : "")}>
         {selecionando && (
           <button className={"mc-caixa" + (sele ? " on" : "")} aria-label={sele ? "Desmarcar" : "Marcar"} aria-pressed={sele} onClick={() => alternarSel(l.id)}>
             {sele && <Check size={16} strokeWidth={3.2} />}
@@ -503,7 +524,8 @@ export default function MinhasContas({ chave, ativo = true, larga: largaProp }) 
           <span className="mc-nm">
             <span className="mc-t">{l.desc}{l.serie?.tipo === "parcela" && <span className="mc-pc">{l.serie.n}/{l.serie.total}</span>}</span>
             <span className="mc-s">
-              {comData ? `${l.data.split("-").reverse().join("/")} · ` : ""}{c ? c.nome : "Sem categoria"}
+              <span className="mc-s-txt">{comData ? `${l.data.split("-").reverse().join("/")} · ` : ""}{c ? c.nome : "Sem categoria"}</span>
+              {l.foraSoma && <span className="mc-fora-tag"><EyeOff size={11} /> fora da soma</span>}
             </span>
           </span>
           {(l.obs || l.serie?.tipo === "fixo") && (
@@ -705,6 +727,19 @@ export default function MinhasContas({ chave, ativo = true, larga: largaProp }) 
                   </div>
                 );
               })}
+              {(() => {
+                // lembrete no fim da lista: o que está fora da soma continua existindo
+                const fora = visiveis.filter((l) => l.foraSoma);
+                if (!fora.length) return null;
+                const soma = fora.reduce((t, l) => t + Math.round(l.valor * 100), 0) / 100;
+                return (
+                  <div className="mc-fora-roda">
+                    <EyeOff size={16} />
+                    <span>{fora.length === 1 ? "1 conta fora da soma" : `${fora.length} contas fora da soma`}</span>
+                    <b>{v(soma)}</b>
+                  </div>
+                );
+              })()}
             </div>
           )}
 
@@ -755,6 +790,18 @@ export default function MinhasContas({ chave, ativo = true, larga: largaProp }) 
         />
       )}
 
+      {perguntaSoma && (
+        <Dialogo
+          icone={<EyeOff size={24} />}
+          titulo={perguntaSoma.foraSoma ? "Tirar dos próximos também?" : "Voltar a contar nos próximos?"}
+          texto={`${perguntaSoma.desc} ${perguntaSoma.serie?.tipo === "parcela" ? "é parcelado" : "se repete todo mês"}. Quer ${perguntaSoma.foraSoma ? "deixar fora da soma" : "voltar a contar na soma"} também nos próximos (${proximasDaSerie(lancs, perguntaSoma).length})?`}
+          botoes={[
+            { txt: "Só este mês", onClick: () => setPerguntaSoma(null) },
+            { txt: `Este e os próximos (${proximasDaSerie(lancs, perguntaSoma).length + 1})`, principal: true, onClick: () => { somaProximas(perguntaSoma); setPerguntaSoma(null); } },
+          ]}
+          onFechar={() => setPerguntaSoma(null)}
+        />
+      )}
       {perguntaProximas && (
         <Dialogo
           icone={<Repeat size={24} />}
@@ -900,7 +947,7 @@ function FormLancamento({
   const dataPadrao = ymPadrao === ymHoje() ? hojeISO() : `${ymPadrao}-01`;
   const [f, setF] = useState(() => item ? {
     tipo: item.tipo, desc: item.desc, valorTxt: fmtValor(item.valor), data: item.data, catId: item.catId,
-    pago: !!item.pago, obs: item.obs || "", repetir: null, parcelas: 2, modoValor: "total",
+    pago: !!item.pago, obs: item.obs || "", repetir: null, parcelas: 2, modoValor: "total", foraSoma: !!item.foraSoma,
   } : {
     tipo: "despesa", desc: "", valorTxt: "", data: dataPadrao, catId: null, pago: false, obs: "",
     repetir: null, parcelas: 2, modoValor: "total",
@@ -995,6 +1042,14 @@ function FormLancamento({
         <input type="checkbox" checked={f.pago} onChange={(e) => set("pago", e.target.checked)} />
         <span className="mc-chave-trilho" aria-hidden="true"><span /></span>
       </label>
+
+      {modo === "editar" && (
+        <label className={"mc-chave" + (f.foraSoma ? " mc-chave-fora" : "")}>
+          <span>Contar na soma<small>{f.foraSoma ? "Desligado: fica na lista, mas não entra nos totais" : "Entra nos totais do mês"}</small></span>
+          <input type="checkbox" checked={!f.foraSoma} onChange={(e) => set("foraSoma", !e.target.checked)} />
+          <span className="mc-chave-trilho" aria-hidden="true"><span /></span>
+        </label>
+      )}
 
       <div className="mc-2bts">
         {(modo === "novo" || !item?.serie) && (

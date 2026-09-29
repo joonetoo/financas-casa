@@ -119,6 +119,15 @@ export function MCStyles() {
 .mc-pc{font-size:11px;font-weight:800;color:var(--soft);background:var(--sf2);border-radius:6px;padding:1px 6px;margin-left:6px;vertical-align:2px}
 .mc-s{font-size:12px;color:var(--faint);display:flex;align-items:center;gap:6px;margin-top:2px;white-space:nowrap;overflow:hidden}
 .mc-val{font-size:15px;font-weight:700;white-space:nowrap}
+.mc-linha.fora .mc-ic,.mc-linha.fora .mc-t,.mc-linha.fora .mc-s-txt,.mc-linha.fora .mc-val,.mc-linha.fora .mc-icones{opacity:.5}
+.mc-s-txt{min-width:0;overflow:hidden;text-overflow:ellipsis}
+.mc-linha.fora .mc-val{text-decoration:line-through;text-decoration-thickness:2px}
+.mc-fora-tag{display:inline-flex;align-items:center;gap:3px;height:19px;padding:0 7px;border-radius:99px;font-size:10.5px;font-weight:900;flex-shrink:0;
+  background:color-mix(in srgb, var(--o-moeda,#FFC94D) 18%, transparent);color:var(--o-warn,#FFC94D)}
+.mc-fora-roda{display:flex;align-items:center;gap:10px;margin:14px 0 4px;padding:12px 14px;border-radius:18px;border:1px dashed var(--line);color:var(--faint);font-size:13px;font-weight:800}
+.mc-fora-roda b{margin-left:auto;color:var(--soft)}
+.mc-chave small{display:block;font-size:12px;font-weight:600;color:var(--faint);margin-top:2px}
+.mc-chave-fora{padding:8px 12px;margin:0 -12px;border-radius:14px;background:color-mix(in srgb, var(--o-moeda,#FFC94D) 10%, transparent)}
 .mc-th{width:44px;height:44px;border-radius:12px;border:none;display:flex;align-items:center;justify-content:center;background:#18221D;color:#6F8177;flex-shrink:0;transition:background .2s var(--ease),transform .15s var(--ease)}
 .mc-th:active{transform:scale(.9)}
 .mc-th.on{background:#12402C;color:var(--ac)}
@@ -314,7 +323,7 @@ export function MCStyles() {
 .mc-lista-anim > div:nth-child(4){animation-delay:.12s}.mc-lista-anim > div:nth-child(n+5){animation-delay:.16s}
 .mc-moeda-bt{width:44px;height:44px;border:none;background:transparent;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;cursor:pointer}
 .mc-moeda-vazia{width:28px;height:28px;border-radius:50%;border:2.5px dashed color-mix(in srgb, var(--faint) 70%, transparent)}
-.mc-moeda-bt:hover .mc-moeda-vazia{border-color:var(--o-moeda,#FFC94D)}
+.mc-moeda-bt:hover .mc-moeda-vazia{border-color:var(--o-warn,#FFC94D)}
 .mc-caixa{width:28px;height:28px;border-radius:9px;border:2px solid color-mix(in srgb, var(--faint) 80%, transparent);background:transparent;flex-shrink:0;
   display:flex;align-items:center;justify-content:center;color:#3A0A1D;cursor:pointer}
 .mc-caixa.on{background:#FF7EA6;border-color:#FF7EA6}

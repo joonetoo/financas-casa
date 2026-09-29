@@ -102,9 +102,12 @@ export function doMes(lancs, ym) {
     .map(([l]) => l);
 }
 
+// Contas marcadas "fora da soma" (foraSoma: true) ficam na lista mas não
+// entram em nenhum total.
 export function totais(itens) {
   let e = 0, s = 0;
   for (const l of itens) {
+    if (l.foraSoma) continue;
     if (l.tipo === "receita") e += cent(l.valor);
     else s += cent(l.valor);
   }
@@ -139,9 +142,21 @@ export function aplicarNasProximas(lancs, editado) {
       catId: editado.catId,
       obs: editado.obs,
       tipo: editado.tipo,
+      foraSoma: editado.foraSoma ? true : undefined,
       data: `${a}-${p2(m)}-${p2(Math.min(dia, diasNoMes(a, m)))}`,
       serie: { ...l.serie, dia },
     };
+  });
+}
+
+// Tira (ou devolve) da soma só as PRÓXIMAS da série — não mexe em mais nada
+// delas (valor, nome, dia ficam como estão).
+export function foraSomaNasProximas(lancs, item, fora) {
+  if (!item.serie) return lancs;
+  return lancs.map((l) => {
+    if (!(l.serie && l.serie.id === item.serie.id && l.data > item.data)) return l;
+    const { foraSoma, ...resto } = l;
+    return fora ? { ...resto, foraSoma: true } : resto;
   });
 }
 
