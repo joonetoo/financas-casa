@@ -868,7 +868,7 @@ function MoedaOk({ size = 28 }) {
 
 // Calendário no estilo Oink (no lugar do calendário cinza do sistema)
 const SEMANA_CURTA = ["D", "S", "T", "Q", "Q", "S", "S"];
-function CampoData({ value, onChange, rotulo = "Data" }) {
+export function CampoData({ value, onChange, rotulo = "Data" }) {
   const [aberto, setAberto] = useState(false);
   const [ym, setYmCal] = useState((value || hojeISO()).slice(0, 7));
   useEffect(() => { if (aberto) setYmCal((value || hojeISO()).slice(0, 7)); }, [aberto]);

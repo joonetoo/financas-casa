@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Home, PiggyBank, TrendingUp, Settings, Plus } from "lucide-react";
 import FinancasCasa, { STORAGE_KEY as CHAVE_CASA } from "./App.jsx";
 import MinhasContas from "./pessoal/MinhasContas.jsx";
+import Investimentos from "./invest/Investimentos.jsx";
 import Configuracoes, { AvisoDesfazerGeral } from "./Configuracoes.jsx";
 import { TemaStyles, useTemaNoDocumento, IconeOink, usePilula } from "./tema.jsx";
 
@@ -13,6 +14,9 @@ const BETA = import.meta.env.MODE === "beta";
 export const CHAVE_PESSOAL = import.meta.env.DEV
   ? import.meta.env.VITE_PESSOAL_KEY || "financas-pessoal-teste"
   : BETA ? "financas-beta-pessoal" : "financas-pessoal-v1";
+export const CHAVE_INVEST = import.meta.env.DEV
+  ? import.meta.env.VITE_INVEST_KEY || "financas-invest-teste"
+  : BETA ? "financas-beta-invest" : "financas-invest-v1";
 export { CHAVE_CASA };
 
 const ABAS = [
@@ -128,13 +132,9 @@ export default function Shell() {
           <div style={{ display: aba === "pessoal" ? "block" : "none" }}>
             <MinhasContas chave={CHAVE_PESSOAL} ativo={aba === "pessoal"} larga={larga} />
           </div>
-          {aba === "invest" && (
-            <div className="sh-vazio">
-              <b>Investimentos</b>
-              Esta aba está guardada pra depois. Quando você tiver a ideia do que quer
-              acompanhar aqui, a gente monta junto.
-            </div>
-          )}
+          <div style={{ display: aba === "invest" ? "block" : "none" }}>
+            <Investimentos chave={CHAVE_INVEST} ativo={aba === "invest"} larga={larga} />
+          </div>
           {!larga && <div style={{ height: 96 }} />}
         </div>
 
@@ -145,8 +145,8 @@ export default function Shell() {
                 <button key={k} className={aba === k ? "on" : ""} aria-current={aba === k ? "page" : undefined} onClick={() => setAba(k)}>{curto}</button>
               ))}
             </nav>
-            {aba === "pessoal" ? (
-              <button className="sh-mais" aria-label="Novo lançamento" onClick={novo}><Plus size={28} strokeWidth={2.8} /></button>
+            {aba === "pessoal" || aba === "invest" ? (
+              <button className="sh-mais" aria-label={aba === "invest" ? "Novo investimento" : "Novo lançamento"} onClick={novo}><Plus size={28} strokeWidth={2.8} /></button>
             ) : (
               <button className="sh-cfg" aria-label="Configurações" onClick={() => setConfig(true)}><Settings size={24} /></button>
             )}
@@ -155,7 +155,7 @@ export default function Shell() {
       </div>
 
       <AvisoDesfazerGeral />
-      {config && <Configuracoes chaveCasa={CHAVE_CASA} chavePessoal={CHAVE_PESSOAL} larga={larga} onFechar={() => setConfig(false)} />}
+      {config && <Configuracoes chaveCasa={CHAVE_CASA} chavePessoal={CHAVE_PESSOAL} chaveInvest={CHAVE_INVEST} larga={larga} onFechar={() => setConfig(false)} />}
     </>
   );
 }

@@ -29,10 +29,10 @@ function baixar(nome, conteudo, tipo = "application/json") {
   setTimeout(() => URL.revokeObjectURL(url), 2000);
 }
 
-async function lerAbas(chaveCasa, chavePessoal) {
-  const [casa, pessoal] = await Promise.all([nuvem.get(chaveCasa), nuvem.get(chavePessoal)]);
-  if (casa.failed || pessoal.failed) throw new Error("sem conexão");
-  return { casa: casa.value, pessoal: pessoal.value };
+async function lerAbas(chaveCasa, chavePessoal, chaveInvest) {
+  const [casa, pessoal, invest] = await Promise.all([nuvem.get(chaveCasa), nuvem.get(chavePessoal), chaveInvest ? nuvem.get(chaveInvest) : { value: null }]);
+  if (casa.failed || pessoal.failed || invest.failed) throw new Error("sem conexão");
+  return { casa: casa.value, pessoal: pessoal.value, invest: invest.value };
 }
 
 function csvMinhasContas(doc) {
@@ -126,7 +126,7 @@ function Seg({ opcoes, valor, onChange, rotulo }) {
   );
 }
 
-export default function Configuracoes({ chaveCasa, chavePessoal, larga, onFechar }) {
+export default function Configuracoes({ chaveCasa, chavePessoal, chaveInvest, larga, onFechar }) {
   const [prefs, setPref] = usePrefs();
   const [msg, setMsg] = useState("");
   const [exportando, setExportando] = useState(false);
@@ -163,9 +163,10 @@ export default function Configuracoes({ chaveCasa, chavePessoal, larga, onFechar
   const backupTudo = async () => {
     setOcupado(true);
     try {
-      const abas = await lerAbas(chaveCasa, chavePessoal);
+      const abas = await lerAbas(chaveCasa, chavePessoal, chaveInvest);
       const arquivo = { app: "oink", versao: 1, criadoEm: new Date().toISOString(), abas: {
-        casa: { chave: chaveCasa, dados: abas.casa }, pessoal: { chave: chavePessoal, dados: abas.pessoal } } };
+        casa: { chave: chaveCasa, dados: abas.casa }, pessoal: { chave: chavePessoal, dados: abas.pessoal },
+        ...(abas.invest ? { invest: { chave: chaveInvest, dados: abas.invest } } : {}) } };
       baixar(`oink-backup-${hojeTxt()}.json`, JSON.stringify(arquivo, null, 2));
       setMsg("Backup baixado. Guarde o arquivo num lugar seguro (Drive, e-mail…).");
     } catch (e) { falhou(e); }
@@ -175,12 +176,13 @@ export default function Configuracoes({ chaveCasa, chavePessoal, larga, onFechar
   const exportar = async (qual, formato) => {
     setOcupado(true);
     try {
-      const abas = await lerAbas(chaveCasa, chavePessoal);
+      const abas = await lerAbas(chaveCasa, chavePessoal, chaveInvest);
       if (qual === "pessoal" && formato === "csv") {
         baixar(`oink-minhas-contas-${hojeTxt()}.csv`, csvMinhasContas(abas.pessoal || {}), "text/csv;charset=utf-8");
       } else {
-        const dados = qual === "casa" ? abas.casa : abas.pessoal;
-        baixar(`oink-${qual === "casa" ? "contas-da-casa" : "minhas-contas"}-${hojeTxt()}.json`, JSON.stringify(dados, null, 2));
+        const dados = abas[qual];
+        const nomes = { casa: "contas-da-casa", pessoal: "minhas-contas", invest: "investimentos" };
+        baixar(`oink-${nomes[qual]}-${hojeTxt()}.json`, JSON.stringify(dados, null, 2));
       }
       setExportando(false);
       setMsg("Arquivo baixado.");
@@ -194,7 +196,7 @@ export default function Configuracoes({ chaveCasa, chavePessoal, larga, onFechar
     if (!f) return;
     try {
       const j = JSON.parse(await f.text());
-      if (j?.app !== "oink" || !j.abas || (!j.abas.casa?.dados && !j.abas.pessoal?.dados)) {
+      if (j?.app !== "oink" || !j.abas || (!j.abas.casa?.dados && !j.abas.pessoal?.dados && !j.abas.invest?.dados)) {
         setMsg("Esse arquivo não é um backup do Oink (use o arquivo de “Baixar backup de tudo”).");
         return;
       }
@@ -211,6 +213,8 @@ export default function Configuracoes({ chaveCasa, chavePessoal, larga, onFechar
       const trocas = [];
       if (a.casa?.dados) trocas.push({ chave: chaveCasa, novo: a.casa.dados });
       if (a.pessoal?.dados) trocas.push({ chave: chavePessoal, novo: a.pessoal.dados });
+      // backups antigos não têm investimentos: aí a aba Investimentos fica como está
+      if (a.invest?.dados && chaveInvest) trocas.push({ chave: chaveInvest, novo: a.invest.dados });
       registrar(chavePessoal, { acao: "geral:restaurou", resumo: `Você restaurou o backup ${restaurar.nome}` });
       await trocarComCopia(trocas, "restaurar");
     } catch (e) { falhou(e); }
@@ -305,7 +309,7 @@ export default function Configuracoes({ chaveCasa, chavePessoal, larga, onFechar
             <div className="cf-sec">SEUS DADOS</div>
             <div className="cf-caixa">
               <div className="cf-status"><ShieldCheck size={30} /><div><b>Backup automático ligado</b><small>Último: {ultimoBackup} · uma cópia por dia, guardada no cofre</small></div></div>
-              <Item titulo="Baixar backup de tudo" sub="Contas da casa + Minhas contas num arquivo só">
+              <Item titulo="Baixar backup de tudo" sub="Contas da casa, Minhas contas e Investimentos num arquivo só">
                 <button className="cf-bt-verde" disabled={ocupado} onClick={backupTudo}><Download size={15} /> Baixar</button>
               </Item>
               <Item titulo="Exportar uma aba" sub="Escolha a aba e o formato (pra levar pra outro app ou planilha)" onClick={() => setExportando(true)} />
@@ -354,6 +358,7 @@ export default function Configuracoes({ chaveCasa, chavePessoal, larga, onFechar
               <button disabled={ocupado} onClick={() => exportar("pessoal", "csv")}>Minhas contas · planilha (Excel) <Download size={16} /></button>
               <button disabled={ocupado} onClick={() => exportar("pessoal", "json")}>Minhas contas · arquivo de dados <Download size={16} /></button>
               <button disabled={ocupado} onClick={() => exportar("casa", "json")}>Contas da casa · arquivo de dados <Download size={16} /></button>
+              <button disabled={ocupado} onClick={() => exportar("invest", "json")}>Investimentos · arquivo de dados <Download size={16} /></button>
             </div>
             <div className="cf-linha-bts"><button className="cf-b-sec" onClick={() => setExportando(false)}>Fechar</button></div>
           </div>
@@ -365,7 +370,7 @@ export default function Configuracoes({ chaveCasa, chavePessoal, larga, onFechar
           <div className="cf-modal" onClick={(e) => e.stopPropagation()} role="alertdialog" aria-label="Restaurar backup">
             <h2>Restaurar este backup?</h2>
             <p>O arquivo <b>{restaurar.nome}</b> foi feito em <b>{new Date(restaurar.dados.criadoEm).toLocaleString("pt-BR")}</b>.
-              Ele vai <b>trocar</b> {[restaurar.dados.abas.casa?.dados && "Contas da casa", restaurar.dados.abas.pessoal?.dados && "Minhas contas"].filter(Boolean).join(" e ")} pelo que está no arquivo.</p>
+              Ele vai <b>trocar</b> {[restaurar.dados.abas.casa?.dados && "Contas da casa", restaurar.dados.abas.pessoal?.dados && "Minhas contas", restaurar.dados.abas.invest?.dados && "Investimentos"].filter(Boolean).join(" e ")} pelo que está no arquivo.</p>
             <p>O que existe hoje fica guardado numa cópia, e aparece um botão “Desfazer” logo depois.</p>
             <div className="cf-linha-bts">
               <button className="cf-b-sec" disabled={ocupado} onClick={() => setRestaurar(null)}>Cancelar</button>
