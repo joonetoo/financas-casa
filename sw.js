@@ -2,11 +2,11 @@
 // "esqueleto" do app (telas/botões), nunca os dados: esses continuam vindo
 // sempre da rede. Estratégia: tenta a rede primeiro (sempre a versão mais
 // nova quando tem internet); sem internet, cai pro que já foi guardado.
-const CACHE = "oink-shell-15f9e2a978";
+const CACHE = "oink-shell-faf0ea74ae";
 const ARQUIVOS = [
   "./",
   "./index.html",
-  "./assets/index-DaBDH3bX.js",
+  "./assets/index-CphujWzn.js",
   "./assets/index-BwUxfZeh.css",
   "./manifest.json",
   "./favicon-32.png",
