@@ -571,7 +571,7 @@ function Modal({ children, onFechar, largo }) {
   }, [onFechar]);
   return (
     <div className="mc-modal-fundo" onClick={onFechar}>
-      <div className="mc-modal" style={largo ? { maxWidth: 520 } : undefined} onClick={(e) => e.stopPropagation()} role="dialog">
+      <div className="mc-modal iv-modal" style={largo ? { maxWidth: 520 } : undefined} onClick={(e) => e.stopPropagation()} role="dialog">
         {children}
       </div>
     </div>

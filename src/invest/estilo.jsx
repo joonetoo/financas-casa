@@ -139,6 +139,11 @@ html[data-tema="claro"] .iv-liq{background:color-mix(in srgb, #fff 45%, transpar
 .iv-marcar.on .mc-cat-marca{background:var(--ac);border-color:var(--ac);color:var(--ac-deep)}
 .iv-aviso-taxa{display:flex;gap:10px;align-items:flex-start;padding:12px 14px;border-radius:16px;background:color-mix(in srgb, var(--warn) 14%, transparent);color:var(--ink);font-size:13.5px;font-weight:700;line-height:1.45}
 .iv-aviso-taxa svg{flex-shrink:0;color:var(--warn);margin-top:1px}
+/* calendário dentro das janelinhas: abre no meio do formulário (em vez de flutuar), assim a borda da janela nunca corta */
+.iv-modal .mc-cal{position:static;width:100%;max-width:340px;margin:8px 0 0 auto;box-shadow:none}
+.iv-modal .mc-menu-fundo{display:none}
+.iv-modal .mc-2col:has(.mc-cal){grid-template-columns:minmax(0,1fr)}
+.iv-modal .iv-linha-mov:has(.mc-cal) .mc-data{grid-column:1 / -1;grid-row:2}
 @media (prefers-reduced-motion:reduce){.iv-vivo i,.iv-subs{animation:none}}
     `}</style>
   );
