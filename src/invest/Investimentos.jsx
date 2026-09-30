@@ -392,8 +392,11 @@ export default function Investimentos({ chave, ativo = true, larga }) {
 function subtitulo(inv) {
   if (inv.tipo === "cdi") return [inv.banco, `${fmtNum(inv.pct || 100)}% do CDI`].filter(Boolean).join(" · ");
   if (inv.tipo === "selic") return `Selic${Number(inv.spread) ? ` + ${fmtNum(inv.spread)}%` : ""}${inv.venc ? ` · vence ${inv.venc.slice(0, 4)}` : ""}`;
-  const [, venc] = String(inv.titulo || "").split("|");
-  return [inv.taxa ? `IPCA + ${fmtNum(inv.taxa)}%` : "Tesouro Direto", venc ? `vence ${venc.slice(0, 4)}` : ""].filter(Boolean).join(" · ");
+  const [tipo, venc] = String(inv.titulo || "").split("|");
+  // Renda+ e Educa+: o ano do nome é o 1º pagamento; o "vencimento" é o último
+  const ano = venc ? +venc.slice(0, 4) : 0;
+  const quando = !venc ? "" : tipo === "Renda+" ? `paga de ${ano - 19} a ${ano}` : tipo === "Educa+" ? `paga de ${ano - 4} a ${ano}` : `vence ${ano}`;
+  return [inv.taxa ? `IPCA + ${fmtNum(inv.taxa)}%` : "Tesouro Direto", quando].filter(Boolean).join(" · ");
 }
 const fmtNum = (n) => Number(n).toLocaleString("pt-BR", { maximumFractionDigits: 2 });
 

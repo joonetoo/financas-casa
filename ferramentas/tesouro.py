@@ -46,6 +46,18 @@ def num(s):  # 1.234,56 -> 1234.56
     return float(s.replace(".", "").replace(",", ".")) if s else None
 
 
+# O arquivo do Tesouro traz a data do ÚLTIMO pagamento. O nome que aparece
+# no app do banco é outro: o Renda+ 2055 paga de 2055 a 2074 (vence em 2074)
+# e o Educa+ 2030 paga de 2030 a 2034. Então o ano do nome é:
+def ano_do_nome(tipo, venc):
+    ano = int(venc[:4])
+    if tipo == "Renda+":
+        return ano - 19
+    if tipo == "Educa+":
+        return ano - 4
+    return ano
+
+
 def main():
     if len(sys.argv) > 1:  # arquivo local (pra testar)
         bruto = open(sys.argv[1], "rb").read()
@@ -93,7 +105,7 @@ def main():
         titulos[chave] = {
             "tipo": t["tipo"],
             "venc": t["venc"],
-            "nome": f"Tesouro {t['tipo']} {t['venc'][:4]}",
+            "nome": f"Tesouro {t['tipo']} {ano_do_nome(t['tipo'], t['venc'])}",
             "pu": round(pu, 2),
             "taxa": taxa,
             "meses": fim_mes,
