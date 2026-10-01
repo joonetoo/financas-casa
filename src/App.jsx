@@ -580,6 +580,22 @@ const yearNow = () => String(new Date().getFullYear());
 
 const blankAno = (label) => ({ id: uid(), label: label || yearNow(), months: [] });
 
+// Nomes dos meses: o "+" cria o mês seguinte sozinho, já com letra maiúscula.
+const MESES_NOMES = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
+const normMes = (t) => String(t || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+// "Novembro", "novembro", "Nov" → 10 (ou -1 se não reconhecer)
+function indiceMes(label) {
+  const n = normMes(label);
+  if (!n) return -1;
+  const exato = MESES_NOMES.findIndex((m) => normMes(m) === n);
+  if (exato >= 0) return exato;
+  return n.length >= 3 ? MESES_NOMES.findIndex((m) => normMes(m).startsWith(n.slice(0, 3))) : -1;
+}
+const mesCurto = (label) => {
+  const i = indiceMes(label);
+  return i >= 0 ? MESES_NOMES[i].slice(0, 3) : String(label || "");
+};
+
 /* ------------------------------------------------------------------ */
 /* Pequenos componentes de UI                                          */
 /* ------------------------------------------------------------------ */
@@ -730,6 +746,7 @@ export default function FinancasCasa({ ativo = true }) {
   const [copyFeedback, setCopyFeedback] = useState("");
   const [toast, setToast] = useState(null);
   const [periodOpen, setPeriodOpen] = useState(false);
+  const [menuAnoId, setMenuAnoId] = useState(null); // ano que o menu do mês está mostrando
   const toastIdRef = useRef(0);
 
   const showToast = useCallback((msg, undoFn) => {
@@ -1358,7 +1375,22 @@ export default function FinancasCasa({ ativo = true }) {
         source = data.anos[i].months[data.anos[i].months.length - 1];
       }
     }
-    const clone = source
+    const clone = novoMesCopiando(label, source);
+    setData((prev) => ({
+      ...prev,
+      anos: prev.anos.map((a) => (a.id === activeAnoId ? { ...a, months: [...a.months, clone] } : a)),
+    }));
+    setActiveMonthId(clone.id);
+    setNewMonthLabel("");
+    setAddingMonth(false);
+    setPeriodOpen(false);
+    setActiveTab("resumo");
+  }
+
+  // Mês novo: já vem com as contas fixas, os serviços e os orçamentos do mês
+  // de origem (lançamentos e valores de cada um começam zerados).
+  function novoMesCopiando(label, source) {
+    return source
       ? {
           id: uid(),
           label,
@@ -1379,20 +1411,66 @@ export default function FinancasCasa({ ativo = true }) {
           orcamentos: { servicos: 0, mercado: 0, feira: 0, combustivel: 0, meusGastos: 0, comprasCasa: 0, investimentos: 0 },
           lancamentos: emptyLanc(),
         };
-    setData((prev) => ({
-      ...prev,
-      anos: prev.anos.map((a) => (a.id === activeAnoId ? { ...a, months: [...a.months, clone] } : a)),
-    }));
-    setActiveMonthId(clone.id);
-    setNewMonthLabel("");
-    setAddingMonth(false);
-    setActiveTab("resumo");
   }
 
-  function deleteMonth(monthId) {
-    const anoId = activeAnoId;
-    const idx = activeAno.months.findIndex((m) => m.id === monthId);
-    const removed = activeAno.months[idx];
+  // Qual é o próximo mês: o seguinte ao ÚLTIMO mês que existe (em qualquer ano).
+  // Depois de Dezembro vem Janeiro do ano seguinte (o ano é criado se faltar).
+  function proximoMes() {
+    let ai = data.anos.length - 1;
+    while (ai >= 0 && data.anos[ai].months.length === 0) ai--;
+    if (ai < 0) return null;
+    const ano = data.anos[ai];
+    const ultimo = ano.months[ano.months.length - 1];
+    const i = indiceMes(ultimo.label);
+    if (i < 0) return null;
+    if (i < 11) return { nome: MESES_NOMES[i + 1], anoId: ano.id, anoLabel: ano.label, source: ultimo };
+    const n = Number(String(ano.label).trim());
+    if (!Number.isFinite(n)) return null;
+    const label = String(n + 1);
+    const existe = data.anos.find((a) => String(a.label).trim() === label);
+    return { nome: "Janeiro", anoId: existe?.id || null, anoLabel: label, source: ultimo, anoNovo: !existe };
+  }
+
+  function adicionarProximoMes() {
+    const prox = proximoMes();
+    if (!prox) {
+      // não reconheci o nome do último mês: abre o campo pra digitar
+      setMenuAnoId(activeAnoId);
+      setPeriodOpen(true);
+      setAddingMonth(true);
+      return;
+    }
+    const clone = novoMesCopiando(prox.nome, prox.source);
+    const anoId = prox.anoId || uid();
+    setData((prev) => {
+      if (prox.anoId) {
+        return { ...prev, anos: prev.anos.map((a) => (a.id === anoId ? { ...a, months: [...a.months, clone] } : a)) };
+      }
+      return { ...prev, anos: [...prev.anos, { id: anoId, label: prox.anoLabel, months: [clone] }] };
+    });
+    const voltarPara = { anoId: activeAnoId, monthId: activeMonthId };
+    setActiveAnoId(anoId);
+    setActiveMonthId(clone.id);
+    setPeriodOpen(false);
+    setAddingMonth(false);
+    setActiveTab("resumo");
+    showToast(`${prox.nome}${prox.anoId === activeAnoId ? "" : " " + prox.anoLabel} criado.`, () => {
+      setData((prev) => ({
+        ...prev,
+        anos: prox.anoId
+          ? prev.anos.map((a) => (a.id === anoId ? { ...a, months: a.months.filter((m) => m.id !== clone.id) } : a))
+          : prev.anos.filter((a) => a.id !== anoId),
+      }));
+      setActiveAnoId(voltarPara.anoId);
+      setActiveMonthId(voltarPara.monthId);
+    });
+  }
+
+  function deleteMonth(monthId, anoIdAlvo = activeAnoId) {
+    const anoId = anoIdAlvo;
+    const anoAlvo = data.anos.find((a) => a.id === anoId) || activeAno;
+    const idx = anoAlvo.months.findIndex((m) => m.id === monthId);
+    const removed = anoAlvo.months[idx];
     setData((prev) => ({
       ...prev,
       anos: prev.anos.map((a) =>
@@ -1400,7 +1478,7 @@ export default function FinancasCasa({ ativo = true }) {
       ),
     }));
     if (monthId === activeMonthId) {
-      const remaining = activeAno.months.filter((m) => m.id !== monthId);
+      const remaining = anoAlvo.months.filter((m) => m.id !== monthId);
       setActiveMonthId(remaining[remaining.length - 1]?.id ?? null);
     }
     setConfirmDeleteMonthId(null);
@@ -1415,6 +1493,7 @@ export default function FinancasCasa({ ativo = true }) {
             return { ...a, months };
           }),
         }));
+        setActiveAnoId(anoId);
         setActiveMonthId(removed.id);
       });
     }
@@ -1505,6 +1584,7 @@ export default function FinancasCasa({ ativo = true }) {
         <button
           className="fc-period-arrow"
           title="Mês anterior"
+          aria-label="Mês anterior"
           disabled={!canStepMonth(-1)}
           onClick={() => stepMonth(-1)}
         >
@@ -1513,132 +1593,103 @@ export default function FinancasCasa({ ativo = true }) {
         <button
           className={"fc-period-label" + (periodOpen ? " fc-period-label-open" : "")}
           aria-expanded={periodOpen}
-          onClick={() => setPeriodOpen((v) => !v)}
+          onClick={() => {
+            if (!periodOpen) { setMenuAnoId(activeAnoId); setConfirmDeleteMonthId(null); setAddingMonth(false); }
+            setPeriodOpen((v) => !v);
+          }}
         >
-          {month.label} {activeAno.label}
+          <span className="fc-mes-longo">{month.label}</span>
+          <span className="fc-mes-curto">{mesCurto(month.label)}</span> {activeAno.label}
           <ChevronDown size={14} className="fc-period-caret" />
         </button>
         <button
           className="fc-period-arrow"
           title="Próximo mês"
+          aria-label="Próximo mês"
           disabled={!canStepMonth(1)}
           onClick={() => stepMonth(1)}
         >
           <ChevronRight size={17} />
         </button>
-      </nav>
+        {(() => {
+          const prox = proximoMes();
+          const nome = prox ? prox.nome + (String(prox.anoLabel) !== String(activeAno.label) ? " " + prox.anoLabel : "") : "o próximo mês";
+          return (
+            <button className="fc-period-arrow fc-period-add" title={`Adicionar ${nome}`} aria-label={`Adicionar ${nome}`} onClick={adicionarProximoMes}>
+              <Plus size={19} strokeWidth={2.8} />
+            </button>
+          );
+        })()}
 
-      {periodOpen && (
-        <div className="fc-period-sheet">
-          <div className="fc-period-group">
-            <span className="fc-period-group-label">Ano</span>
-            <div className="fc-period-items">
-              {data.anos.map((a) => (
-                <button
-                  key={a.id}
-                  className={"fc-period-chip" + (a.id === activeAnoId ? " fc-period-chip-active" : "")}
-                  onClick={() => openAno(a)}
-                >
-                  {a.label}
-                </button>
-              ))}
-              {addingAno ? (
-                <span className="fc-add-month-form">
-                  <input
-                    autoFocus
-                    className="fc-input"
-                    placeholder="Ano"
-                    value={newAnoLabel}
-                    onChange={(e) => setNewAnoLabel(e.target.value)}
-                    onKeyDown={(e) => e.key === "Enter" && confirmAddAno()}
-                  />
-                  <button className="fc-icon-btn" onClick={() => confirmAddAno()} title="Adicionar">
-                    <Check size={15} />
-                  </button>
-                  <button className="fc-icon-btn" onClick={() => setAddingAno(false)} title="Cancelar">
-                    <X size={15} />
-                  </button>
-                </span>
-              ) : (
-                <button className="fc-period-chip fc-period-chip-ghost" onClick={() => setAddingAno(true)}>
-                  <Plus size={13} /> ano
-                </button>
-              )}
-            </div>
-          </div>
-
-          <div className="fc-period-group">
-            <span className="fc-period-group-label">Mês</span>
-            <div className="fc-period-items">
-              {activeAno.months.map((m) =>
-                confirmDeleteMonthId === m.id ? (
-                  <span key={m.id} className="fc-confirm-inline">
-                    <span className="fc-confirm-text">Excluir {m.label}?</span>
-                    <button
-                      className="fc-icon-btn fc-icon-btn-danger"
-                      title="Confirmar exclusão"
-                      onClick={() => deleteMonth(m.id)}
-                    >
-                      <Check size={14} />
-                    </button>
-                    <button
-                      className="fc-icon-btn"
-                      title="Cancelar"
-                      onClick={() => setConfirmDeleteMonthId(null)}
-                    >
-                      <X size={14} />
-                    </button>
+        {periodOpen && (() => {
+          const anoIdx = Math.max(0, data.anos.findIndex((a) => a.id === (menuAnoId || activeAnoId)));
+          const menuAno = data.anos[anoIdx];
+          const hoje = new Date();
+          const ehHoje = (m) => String(menuAno.label).trim() === String(hoje.getFullYear()) && indiceMes(m.label) === hoje.getMonth();
+          const qtdLanc = (m) => Object.values(m.lancamentos || {}).reduce((t, arr) => t + (Array.isArray(arr) ? arr.length : 0), 0);
+          const prox = proximoMes();
+          return (
+            <>
+              <div className="fc-mes-fundo" onClick={() => setPeriodOpen(false)} />
+              <div className="fc-mes-menu vidro" role="menu" aria-label="Escolher mês">
+                <div className="fc-mes-ano">
+                  <button aria-label="Ano anterior" disabled={anoIdx === 0} onClick={() => { setMenuAnoId(data.anos[anoIdx - 1].id); setConfirmDeleteMonthId(null); }}><ChevronLeft size={18} /></button>
+                  <b>{menuAno.label}</b>
+                  <button aria-label="Próximo ano" disabled={anoIdx >= data.anos.length - 1} onClick={() => { setMenuAnoId(data.anos[anoIdx + 1].id); setConfirmDeleteMonthId(null); }}><ChevronRight size={18} /></button>
+                </div>
+                {menuAno.months.length === 0 && <div className="fc-mes-vazio">Nenhum mês em {menuAno.label} ainda.</div>}
+                {menuAno.months.map((m) =>
+                  confirmDeleteMonthId === m.id ? (
+                    <div key={m.id} className="fc-mes-item fc-mes-confirma">
+                      <span>Apagar {m.label}?</span>
+                      <span className="fc-mes-acoes">
+                        <button className="fc-mes-sim" onClick={() => deleteMonth(m.id, menuAno.id)}><Check size={15} /> Apagar</button>
+                        <button className="fc-mes-nao" aria-label="Cancelar" onClick={() => setConfirmDeleteMonthId(null)}><X size={15} /></button>
+                      </span>
+                    </div>
+                  ) : (
+                    <div key={m.id} className={"fc-mes-item" + (m.id === activeMonthId ? " on" : "")}>
+                      <button
+                        role="menuitem"
+                        className="fc-mes-abrir"
+                        onClick={() => { setActiveAnoId(menuAno.id); setActiveMonthId(m.id); setPeriodOpen(false); }}
+                      >
+                        <span>{m.label}</span>
+                        <small>{ehHoje(m) ? "hoje · " : ""}{qtdLanc(m)} {qtdLanc(m) === 1 ? "lançamento" : "lançamentos"}</small>
+                      </button>
+                      <button className="fc-mes-lixo" title={`Apagar ${m.label}`} aria-label={`Apagar ${m.label}`} onClick={() => setConfirmDeleteMonthId(m.id)}>
+                        <Trash2 size={15} />
+                      </button>
+                    </div>
+                  )
+                )}
+                {addingMonth ? (
+                  <span className="fc-add-month-form fc-mes-form">
+                    <input
+                      autoFocus
+                      className="fc-input"
+                      placeholder="Nome do mês"
+                      value={newMonthLabel}
+                      onChange={(e) => setNewMonthLabel(e.target.value)}
+                      onKeyDown={(e) => e.key === "Enter" && confirmAddMonth()}
+                    />
+                    <button className="fc-icon-btn" onClick={confirmAddMonth} title="Adicionar"><Check size={15} /></button>
+                    <button className="fc-icon-btn" onClick={() => setAddingMonth(false)} title="Cancelar"><X size={15} /></button>
                   </span>
                 ) : (
-                  <span
-                    key={m.id}
-                    className={"fc-period-month" + (m.id === activeMonthId ? " fc-period-month-active" : "")}
-                  >
-                    <button
-                      className="fc-period-month-btn"
-                      onClick={() => {
-                        setActiveMonthId(m.id);
-                        setPeriodOpen(false);
-                      }}
-                    >
-                      {m.label}
-                    </button>
-                    <button
-                      className="fc-period-month-del"
-                      title={`Excluir ${m.label}`}
-                      onClick={() => setConfirmDeleteMonthId(m.id)}
-                    >
-                      <Trash2 size={14} />
-                    </button>
-                  </span>
-                )
-              )}
-              {addingMonth ? (
-                <span className="fc-add-month-form">
-                  <input
-                    autoFocus
-                    className="fc-input"
-                    placeholder="Nome do mês"
-                    value={newMonthLabel}
-                    onChange={(e) => setNewMonthLabel(e.target.value)}
-                    onKeyDown={(e) => e.key === "Enter" && confirmAddMonth()}
-                  />
-                  <button className="fc-icon-btn" onClick={confirmAddMonth} title="Adicionar">
-                    <Check size={15} />
+                  <button className="fc-mes-add" onClick={adicionarProximoMes}>
+                    <Plus size={18} strokeWidth={2.8} />
+                    <span>
+                      {prox ? `Adicionar ${prox.nome}${String(prox.anoLabel) !== String(menuAno.label) ? " " + prox.anoLabel : ""}` : "Adicionar mês"}
+                      {prox && <small>Já vem com as fixas e orçamentos de {prox.source.label}</small>}
+                    </span>
                   </button>
-                  <button className="fc-icon-btn" onClick={() => setAddingMonth(false)} title="Cancelar">
-                    <X size={15} />
-                  </button>
-                </span>
-              ) : (
-                <button className="fc-period-chip fc-period-chip-ghost" onClick={() => setAddingMonth(true)}>
-                  <Plus size={13} /> mês
-                </button>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
+                )}
+              </div>
+            </>
+          );
+        })()}
+      </nav>
 
       {/* quadro de vidro (visual Oink): sub-abas + conteúdo num cartão só, pra dar leitura */}
       <div className="fc-quadro vidro">

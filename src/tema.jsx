@@ -220,6 +220,46 @@ html[data-tema] .fc-period-label{flex:0 0 auto!important;min-height:48px!importa
   font-size:19px!important;font-weight:900!important}
 html[data-tema] .fc-period-arrow{border-radius:15px!important;color:var(--o-ink)!important}
 @media (max-width:820px){ html[data-tema] .fc-period{justify-content:space-between!important} }
+/* barra do mês da casa: ‹ mês › + (o + cria o próximo mês) e menu igual ao da Minhas contas */
+html[data-tema] .fc-period{position:relative;gap:8px!important}
+.fc-mes-curto{display:none}
+@media (max-width:820px){ .fc-mes-longo{display:none} .fc-mes-curto{display:inline} html[data-tema] .fc-period-label{padding:0 18px!important} }
+html[data-tema] .fc-period-add{border:none!important;background:linear-gradient(180deg,#FF9DBE,#FF6D9B)!important;color:#3A0A1D!important;
+  box-shadow:0 3px 0 var(--o-rosa-sombra);opacity:1!important}
+html[data-tema] .fc-period-add:active{transform:translateY(2px)!important;box-shadow:0 1px 0 var(--o-rosa-sombra)}
+.fc-mes-fundo{position:fixed;inset:0;z-index:44}
+.fc-mes-menu{position:absolute;top:58px;left:50%;transform:translateX(-50%);z-index:45;width:min(320px,calc(100vw - 32px));padding:8px;border-radius:24px;
+  background:var(--o-sf2);border:1px solid var(--o-line);box-shadow:0 24px 50px -12px rgba(0,0,0,.55);display:flex;flex-direction:column;gap:2px;
+  max-height:min(78vh,680px);overflow-y:auto;font-family:'Nunito',sans-serif;animation:oink-sobe .22s cubic-bezier(.22,.9,.32,1)}
+html[data-plat="mac"] .fc-mes-menu.vidro{background:color-mix(in srgb, var(--o-sf2) 96%, transparent)!important}
+.fc-mes-ano{display:flex;align-items:center;justify-content:space-between;padding:2px 2px 8px;margin-bottom:4px;border-bottom:1px solid var(--o-line)}
+.fc-mes-ano b{font-size:16px!important;font-weight:900!important;color:var(--o-ink)}
+.fc-mes-ano button{width:38px;height:38px;border:none;border-radius:12px;background:transparent;color:var(--o-soft);display:flex;align-items:center;justify-content:center;cursor:pointer}
+.fc-mes-ano button:hover:not(:disabled){background:color-mix(in srgb, var(--o-ink) 8%, transparent)}
+.fc-mes-ano button:disabled{opacity:.25;cursor:default}
+.fc-mes-item{display:flex;align-items:center;border-radius:15px;min-height:48px}
+.fc-mes-item.on{background:var(--o-ink)}
+.fc-mes-abrir{flex:1;min-width:0;display:flex;align-items:center;justify-content:space-between;gap:10px;height:48px;padding:0 6px 0 16px;border:none;background:transparent;
+  color:var(--o-ink);font-size:16px!important;font-weight:800!important;cursor:pointer;text-align:left;border-radius:15px}
+.fc-mes-item:not(.on) .fc-mes-abrir:hover{background:color-mix(in srgb, var(--o-ink) 7%, transparent)}
+.fc-mes-abrir small{font-size:12.5px!important;font-weight:700!important;letter-spacing:0;color:var(--o-faint);white-space:nowrap}
+.fc-mes-item.on .fc-mes-abrir{color:var(--o-bg);font-weight:900!important}
+.fc-mes-item.on .fc-mes-abrir small{color:color-mix(in srgb, var(--o-bg) 65%, transparent)}
+.fc-mes-lixo{width:36px;height:36px;margin-right:6px;flex-shrink:0;border:none;border-radius:11px;background:transparent;color:var(--o-faint);display:flex;align-items:center;justify-content:center;cursor:pointer}
+.fc-mes-lixo:hover{color:var(--o-saiu);background:color-mix(in srgb, var(--o-saiu) 14%, transparent)}
+.fc-mes-item.on .fc-mes-lixo{color:color-mix(in srgb, var(--o-bg) 55%, transparent)}
+.fc-mes-confirma{justify-content:space-between;gap:8px;padding:0 6px 0 16px;background:color-mix(in srgb, var(--o-saiu) 14%, transparent);font-size:15px!important;font-weight:800!important;color:var(--o-ink)}
+.fc-mes-acoes{display:flex;gap:6px}
+.fc-mes-sim{height:36px;padding:0 12px;border:none;border-radius:11px;background:var(--o-saiu);color:#fff;font-size:13px!important;font-weight:900!important;display:flex;align-items:center;gap:4px;cursor:pointer}
+.fc-mes-nao{width:36px;height:36px;border:none;border-radius:11px;background:color-mix(in srgb, var(--o-ink) 10%, transparent);color:var(--o-ink);display:flex;align-items:center;justify-content:center;cursor:pointer}
+.fc-mes-vazio{padding:12px 16px;font-size:14px;font-weight:700;color:var(--o-faint)}
+.fc-mes-add{display:flex;align-items:center;gap:10px;min-height:56px;margin-top:4px;padding:8px 16px;border:none;border-radius:15px;cursor:pointer;text-align:left;
+  background:color-mix(in srgb, var(--o-rosa) 13%, transparent);color:var(--o-rosa);font-size:16px!important;font-weight:900!important}
+html[data-tema="claro"] .fc-mes-add{color:#C2386B}
+.fc-mes-add:hover{background:color-mix(in srgb, var(--o-rosa) 20%, transparent)}
+.fc-mes-add small{display:block;font-size:12px!important;font-weight:700!important;letter-spacing:0;color:var(--o-faint);margin-top:1px}
+.fc-mes-form{display:flex;gap:6px;padding:6px}
+.fc-mes-form .fc-input{flex:1;min-width:0}
 /* sub-abas: pílula com fundinho */
 html[data-tema] .fc-tabs{border-radius:999px!important;padding:5px!important;background:var(--o-sf2)!important}
 html[data-tema] .fc-tab{border-radius:999px!important;font-size:14px!important;font-weight:800!important;color:var(--o-soft)}
