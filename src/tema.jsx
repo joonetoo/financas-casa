@@ -228,7 +228,7 @@ html[data-tema] .fc-period-add{border:none!important;background:linear-gradient(
   box-shadow:0 3px 0 var(--o-rosa-sombra);opacity:1!important}
 html[data-tema] .fc-period-add:active{transform:translateY(2px)!important;box-shadow:0 1px 0 var(--o-rosa-sombra)}
 .fc-mes-fundo{position:fixed;inset:0;z-index:44}
-.fc-mes-menu{position:absolute;top:58px;left:50%;transform:translateX(-50%);z-index:45;width:min(320px,calc(100vw - 32px));padding:8px;border-radius:24px;
+.fc-mes-menu{position:absolute;top:58px;left:50%;translate:-50% 0;z-index:45;width:min(320px,calc(100vw - 32px));padding:8px;border-radius:24px;
   background:var(--o-sf2);border:1px solid var(--o-line);box-shadow:0 24px 50px -12px rgba(0,0,0,.55);display:flex;flex-direction:column;gap:2px;
   max-height:min(78vh,680px);overflow-y:auto;font-family:'Nunito',sans-serif;animation:oink-sobe .22s cubic-bezier(.22,.9,.32,1)}
 html[data-plat="mac"] .fc-mes-menu.vidro{background:color-mix(in srgb, var(--o-sf2) 96%, transparent)!important}
