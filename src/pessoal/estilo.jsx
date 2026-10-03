@@ -295,6 +295,36 @@ export function MCStyles() {
 @keyframes mc-brilho{0%{transform:translateX(-100%)}55%,100%{transform:translateX(100%)}}
 @media (prefers-reduced-motion:reduce){.mc-hero-card::after{animation:none;display:none}}
 .mc-hero-ic{position:absolute;right:18px;top:18px}
+/* saldo do período: faltando = avermelhado suave, sobrando = verde (zero fica neutro) */
+.mc-hero-falta,.mc-hero-sobra{border-radius:22px;padding:16px 18px 18px;margin-bottom:10px}
+.mc-hero-falta{background:linear-gradient(135deg,color-mix(in srgb, var(--neg) 17%, transparent),color-mix(in srgb, var(--neg) 6%, transparent));box-shadow:inset 0 0 0 1px color-mix(in srgb, var(--neg) 24%, transparent)}
+.mc-hero-sobra{background:linear-gradient(135deg,color-mix(in srgb, var(--ac) 17%, transparent),color-mix(in srgb, var(--ac) 6%, transparent));box-shadow:inset 0 0 0 1px color-mix(in srgb, var(--ac) 24%, transparent)}
+.mc-hero-falta .mc-hero-num,.mc-hero-falta .mc-hero-rot{color:color-mix(in srgb, var(--neg) 68%, var(--ink))}
+.mc-hero-sobra .mc-hero-num,.mc-hero-sobra .mc-hero-rot{color:var(--ac)}
+.mc-hero-falta .mc-hero-num small,.mc-hero-sobra .mc-hero-num small{color:inherit;opacity:.85}
+/* no Mac o cartão grande é de vidro verde: o tom muda junto */
+.mc-hero-card.mc-hero-falta{background:linear-gradient(160deg, color-mix(in srgb, #C0454A 62%, var(--sf)), var(--sf))}
+html[data-plat="mac"] .mc-hero-card.vidro.mc-hero-falta{background:linear-gradient(160deg, color-mix(in srgb, #C0454A 60%, var(--o-sf)), color-mix(in srgb, var(--o-sf) 82%, transparent))!important}
+.mc-hero-card.mc-hero-falta .mc-hero-num,.mc-hero-card.mc-hero-falta .mc-hero-rot{color:#FFC2C4}
+.mc-hero-card.mc-hero-sobra .mc-hero-num,.mc-hero-card.mc-hero-sobra .mc-hero-rot{color:#C9F7DF}
+/* calculadora do campo Valor */
+.mc-valor-wrap{position:relative}
+.mc-valor-wrap .mc-inp{padding-right:48px}
+.mc-calc-bt{position:absolute;right:6px;top:50%;transform:translateY(-50%);width:36px;height:36px;border:none;border-radius:11px;background:color-mix(in srgb, var(--ac) 14%, transparent);color:var(--ac);display:flex;align-items:center;justify-content:center;cursor:pointer}
+.mc-calc-portal{padding:0;margin:0;max-width:none}
+.mc-calc-fundo{z-index:80}
+.mc-calc{max-width:380px;gap:6px}
+.mc-calc-expr{min-height:20px;text-align:right;color:var(--faint);font-size:15px;font-weight:700;padding:4px 4px 0;word-break:break-all}
+.mc-calc-res{text-align:right;font-size:36px;font-weight:900;font-variant-numeric:tabular-nums;padding:0 4px 8px;word-break:break-all}
+.mc-calc-teclas{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.mc-calc-k{height:52px;border:none;border-radius:14px;background:var(--sf2);color:var(--ink);font:inherit;font-size:19px;font-weight:800;cursor:pointer}
+.mc-calc-k:active{filter:brightness(1.25)}
+.mc-calc-k.op{color:var(--warn)}
+.mc-calc-k.limpa{color:color-mix(in srgb, var(--neg) 68%, var(--ink))}
+.mc-calc-k.cancela{font-size:12px;color:var(--faint)}
+.mc-calc-k.usar{grid-column:span 2;background:var(--ac);color:var(--ac-deep);font-size:16px}
+.mc-calc-k.usar:disabled{opacity:.4;cursor:default}
+
 .mc-periodo{display:flex;align-items:center;gap:10px;padding:6px 0 10px;position:relative}
 .mc-per-centro{flex-grow:1;display:flex;flex-direction:column;align-items:center;position:relative}
 .mc-per-bt{display:inline-flex;align-items:center;gap:6px;height:42px;padding:0 16px;border-radius:999px;border:none;background:var(--sf2);

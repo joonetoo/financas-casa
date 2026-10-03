@@ -3,7 +3,7 @@ import { createPortal } from "react-dom";
 import {
   ChevronLeft, ChevronRight, ChevronDown, Plus, X, Eye, EyeOff, ThumbsUp, MessageSquare, Repeat,
   Filter, Tags, History, Trash2, Copy, ArrowRight, Check, Undo2, Search, Pencil, ShieldCheck,
-  Archive, ArchiveRestore, Info, Settings, CheckSquare,
+  Archive, ArchiveRestore, Info, Settings, CheckSquare, Calculator,
 } from "lucide-react";
 import { useDocNuvem, registrar, lerHistorico } from "./nuvem.js";
 import { ICONES, CORES, CATEGORIAS_PADRAO } from "./categorias.js";
@@ -465,10 +465,10 @@ export default function MinhasContas({ chave, ativo = true, larga: largaProp }) 
       </div>
     </div>
   ) : (
-    <div className={"mc-hero" + (larga ? " mc-hero-card vidro" : "")}>
+    <div className={"mc-hero" + (larga ? " mc-hero-card vidro" : "") + (res < 0 ? " mc-hero-falta" : res > 0 ? " mc-hero-sobra" : "")}>
       {larga && <span className="mc-hero-ic"><IconeOink size={70} moedaCaindo={moedaCaindo > 0} key={moedaCaindo} /></span>}
       <div className="mc-hero-rot">{rotHero}</div>
-      <div className="mc-hero-num">{oculto ? "R$ ••••" : <>R$ {inteiro}<small>,{centavos}</small></>}</div>
+      <div className="mc-hero-num">{oculto ? "R$ ••••" : <>{res < 0 ? "−" : res > 0 ? "+" : ""}R$ {inteiro}<small>,{centavos}</small></>}</div>
       <div className="mc-hero-pills">
         <span className="mc-pill-e">+{v(tot.entradas)} entrou</span>
         <span className="mc-pill-s">−{v(tot.saidas)} saiu</span>
@@ -940,6 +940,108 @@ function EscolherIntervalo({ inicial, onEscolher, onFechar }) {
 /* Novo / editar lançamento                                            */
 /* ------------------------------------------------------------------ */
 
+/* ---------------- calculadora do campo Valor ----------------
+   Só mexe no texto do campo (valorTxt). Nada é salvo até o Joel tocar em Salvar do lançamento. */
+const OPS = ["+", "−", "×", "÷"];
+function avaliarCalc(expr) {
+  const toks = expr.match(/\d+(?:,\d*)?|[+−×÷]/g) || [];
+  while (toks.length && OPS.includes(toks[toks.length - 1])) toks.pop(); // "50+" vale 50
+  if (!toks.length) return NaN;
+  const nums = [];
+  const ops = [];
+  for (const t of toks) {
+    if (OPS.includes(t)) ops.push(t);
+    else nums.push(Number(t.replace(",", ".")));
+  }
+  if (nums.length !== ops.length + 1) return NaN;
+  // × e ÷ primeiro
+  const n2 = [nums[0]];
+  const o2 = [];
+  for (let i = 0; i < ops.length; i++) {
+    if (ops[i] === "×") n2[n2.length - 1] *= nums[i + 1];
+    else if (ops[i] === "÷") n2[n2.length - 1] /= nums[i + 1];
+    else { o2.push(ops[i]); n2.push(nums[i + 1]); }
+  }
+  let r = n2[0];
+  for (let i = 0; i < o2.length; i++) r = o2[i] === "+" ? r + n2[i + 1] : r - n2[i + 1];
+  return Number.isFinite(r) ? Math.round(r * 100) / 100 : NaN;
+}
+
+function CalcValor({ inicial, onUsar, onFechar }) {
+  const ini = lerValor(inicial);
+  // fresh = o 1º número digitado troca o valor que já estava (operador continua a conta a partir dele)
+  const [st, setSt] = useState(() => (Number.isFinite(ini) && ini > 0
+    ? { expr: String(ini).replace(".", ","), fresh: true }
+    : { expr: "", fresh: false }));
+  const expr = st.expr;
+  const temOp = /[+−×÷]/.test(expr);
+  const res = avaliarCalc(expr);
+  const ok = Number.isFinite(res) && res > 0;
+
+  const dig = (d) => setSt(({ expr: e, fresh }) => {
+    if (fresh) return { expr: d === "," ? "0," : d, fresh: false };
+    const ult = e.split(/[+−×÷]/).pop();
+    if (d === ",") return { expr: ult.includes(",") ? e : e + (ult === "" ? "0," : ","), fresh: false };
+    return { expr: e + d, fresh: false };
+  });
+  const op = (o) => setSt(({ expr: e }) => ({
+    expr: !e ? e : OPS.includes(e.slice(-1)) ? e.slice(0, -1) + o : e + o, fresh: false,
+  }));
+  const apagar = () => setSt(({ expr: e }) => ({ expr: e.slice(0, -1), fresh: false }));
+  const limpar = () => setSt({ expr: "", fresh: false });
+  const usar = () => { if (ok) onUsar(fmtValor(res)); };
+
+  const ref = useRef({});
+  ref.current = { dig, op, apagar, usar, onFechar };
+  useEffect(() => {
+    const tecla = (e) => {
+      const k = e.key;
+      const c = ref.current;
+      const mapa = { "*": "×", "/": "÷", "-": "−", "+": "+" };
+      if (/^\d$/.test(k)) c.dig(k);
+      else if (k === "," || k === ".") c.dig(",");
+      else if (mapa[k]) c.op(mapa[k]);
+      else if (k === "Backspace") c.apagar();
+      else if (k === "Enter") c.usar();
+      else if (k === "Escape") c.onFechar();
+      else return;
+      e.preventDefault();
+      e.stopPropagation();
+    };
+    window.addEventListener("keydown", tecla, true);
+    return () => window.removeEventListener("keydown", tecla, true);
+  }, []);
+
+  const mostra = expr ? expr.replace(/([+−×÷])/g, " $1 ") : "";
+  // vai pro body (fora do formulário), dentro de um mc-wrap pra herdar cores e tema
+  return createPortal(
+    <div className="mc-wrap mc-calc-portal"><div className="mc-modal-fundo mc-calc-fundo" onClick={(e) => { e.stopPropagation(); onFechar(); }}>
+      <div className="mc-modal mc-calc" onClick={(e) => e.stopPropagation()} role="dialog" aria-label="Calculadora">
+        <div className="mc-calc-expr">{temOp ? mostra : "\u00A0"}</div>
+        <div className="mc-calc-res">{temOp ? (Number.isFinite(res) ? "= " + fmtValor(res) : "—") : (expr || "0")}</div>
+        <div className="mc-calc-teclas">
+          <button type="button" className="mc-calc-k limpa" onClick={limpar}>C</button>
+          <button type="button" className="mc-calc-k op" onClick={() => op("÷")}>÷</button>
+          <button type="button" className="mc-calc-k op" onClick={() => op("×")}>×</button>
+          <button type="button" className="mc-calc-k" aria-label="Apagar" onClick={apagar}>⌫</button>
+          {["7", "8", "9"].map((d) => <button type="button" key={d} className="mc-calc-k" onClick={() => dig(d)}>{d}</button>)}
+          <button type="button" className="mc-calc-k op" onClick={() => op("−")}>−</button>
+          {["4", "5", "6"].map((d) => <button type="button" key={d} className="mc-calc-k" onClick={() => dig(d)}>{d}</button>)}
+          <button type="button" className="mc-calc-k op" onClick={() => op("+")}>+</button>
+          {["1", "2", "3"].map((d) => <button type="button" key={d} className="mc-calc-k" onClick={() => dig(d)}>{d}</button>)}
+          <button type="button" className="mc-calc-k cancela" onClick={onFechar}>Cancelar</button>
+          <button type="button" className="mc-calc-k" onClick={() => dig("0")}>0</button>
+          <button type="button" className="mc-calc-k" onClick={() => dig(",")}>,</button>
+          <button type="button" className="mc-calc-k usar" disabled={!ok} onClick={usar}>
+            {ok ? "Usar " + fmtValor(res) : "Usar"}
+          </button>
+        </div>
+      </div>
+    </div></div>,
+    document.body
+  );
+}
+
 function FormLancamento({
   modo, item, ymPadrao, cats, catPorId, lancs, larga, onFechar, onSalvarNovo, onSalvarEdicao,
   onNavegar, onPagar, onCopiar, onProxMes, onExcluir,
@@ -956,6 +1058,7 @@ function FormLancamento({
   const [verRepetir, setVerRepetir] = useState(false);
   const [escolhendoCat, setEscolhendoCat] = useState(false);
   const [erro, setErro] = useState("");
+  const [calc, setCalc] = useState(false);
   const set = (k, val) => setF((o) => ({ ...o, [k]: val }));
 
   const cat = catPorId[f.catId];
@@ -1020,8 +1123,14 @@ function FormLancamento({
       <div className="mc-2col">
         <label className="mc-campo">
           <span className="mc-rot">{f.repetir === "parcela" ? (f.modoValor === "parcela" ? "Valor da parcela" : "Valor total") : "Valor"}</span>
-          <input className="mc-inp mc-inp-valor" inputMode="decimal" placeholder="0,00" value={f.valorTxt}
-            onChange={(e) => set("valorTxt", e.target.value)} onFocus={(e) => e.target.select()} />
+          <div className="mc-valor-wrap">
+            <input className="mc-inp mc-inp-valor" inputMode="decimal" placeholder="0,00" value={f.valorTxt}
+              onChange={(e) => set("valorTxt", e.target.value)} onFocus={(e) => e.target.select()} />
+            <button type="button" className="mc-calc-bt" aria-label="Abrir calculadora" onClick={() => setCalc(true)}>
+              <Calculator size={16} />
+            </button>
+          </div>
+          {calc && <CalcValor inicial={f.valorTxt} onUsar={(t) => { set("valorTxt", t); setCalc(false); }} onFechar={() => setCalc(false)} />}
         </label>
         <div className="mc-campo">
           <span className="mc-rot">{f.repetir === "parcela" ? "1ª parcela" : "Data"}</span>
