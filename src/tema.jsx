@@ -293,6 +293,13 @@ html[data-tema] .fc-hero-role{font-size:13px!important;font-weight:700!important
 html[data-tema] .fc-hero-chip-value{font-size:15px!important;font-weight:900!important;color:var(--o-ink)!important;justify-self:start;text-align:left!important;
   align-self:start;line-height:1.3}
 
+/* editar o valor do Antonio no topo: mesma letra grande do valor, sem as setinhas do campo de número */
+.fc-input-amount{-moz-appearance:textfield;appearance:textfield}
+.fc-input-amount::-webkit-inner-spin-button,.fc-input-amount::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
+html[data-tema] .fc-hero-chip .fc-input-amount{grid-column:auto;justify-self:stretch;width:100%;min-width:0;height:40px!important;padding:0 12px!important;
+  font-family:'Nunito',sans-serif!important;font-size:18px!important;font-weight:900!important;font-variant-numeric:tabular-nums;text-align:left!important;
+  color:var(--o-ink)!important;background:rgba(0,0,0,.28)!important;border:1.5px solid var(--o-verde, #5FE3A1)!important;border-radius:12px!important}
+
 /* categorias do Resumo: ícone redondo colorido, "R$ x de R$ y", etiqueta e barra grossa */
 html[data-tema] .fc-env-grid{grid-template-columns:minmax(0,1fr)!important;gap:10px!important}
 html[data-tema] .fc-env-card{display:grid!important;grid-template-columns:42px minmax(0,1fr) auto;grid-template-areas:"ic nome tag" "ic num tag" "bar bar bar" "usou usou usou";
