@@ -139,7 +139,7 @@ const CATS = [
   { key: "mercado", label: "Mercado", color: "#1FA36A", icon: "mercado", fixed: false },
   { key: "feira", label: "Feira da semana", color: "#E8804F", icon: "feira", fixed: false },
   { key: "combustivel", label: "Combustível / estacionamento", color: "#D6457A", icon: "combustivel", fixed: false },
-  { key: "meusGastos", label: "Meus gastos", color: "#D9A55D", icon: "meusgastos", fixed: false },
+  { key: "meusGastos", label: "Meu crédito", color: "#D9A55D", icon: "meusgastos", fixed: false },
   { key: "comprasCasa", label: "Compras da casa", color: "#B0417F", icon: "compras", fixed: false },
   { key: "investimentos", label: "Investimentos", color: "#2FA886", icon: "investimentos", fixed: false },
 ];
@@ -1719,73 +1719,42 @@ export default function FinancasCasa({ ativo = true }) {
           <span className="fc-tab-long">Fixas &amp; assinaturas</span>
           <span className="fc-tab-short">Fixas</span>
         </TabButton>
-        <TabButton
-          innerRef={tabSlider.registerItem("comparativo")}
-          active={activeTab === "comparativo"}
-          onClick={() => setActiveTab("comparativo")}
-        >
-          <span className="fc-tab-long">Comparativo</span>
-          <span className="fc-tab-short">Comparar</span>
-        </TabButton>
       </nav>
 
       <main className="fc-main">
         {activeTab === "resumo" && (
           <div className="fc-hero-resumo fc-tab-content">
-            {(() => {
-              const pctUsado = totalPrevisto > 0 ? Math.min(100, (totalGasto / totalPrevisto) * 100) : 0;
-              return (
-                <section className="fc-hero">
-                  <span className="fc-hero-eyebrow">Ainda dá pra gastar em {month.label}</span>
-                  <span className="fc-hero-number fc-tabular">
-                    {hideValues ? (
-                      "••••••"
-                    ) : (
-                      <>
-                        <small>{diferenca < 0 ? "−R$ " : "R$ "}</small>
-                        {fmt(Math.abs(diferenca)).replace(/^-?R\$\s?/, "").split(",")[0]}
-                        <small>,{fmt(Math.abs(diferenca)).split(",")[1]}</small>
-                      </>
-                    )}
-                  </span>
-                  <span className="fc-hero-pills fc-tabular">
-                    <span className="fc-hero-pill">Previsto <b>{money(totalPrevisto)}</b></span>
-                    <span className="fc-hero-pill">Já gasto <b>{money(totalGasto)}</b></span>
-                  </span>
-                  <div className="fc-hero-uso">
-                    <span>{Math.round(pctUsado)}% do orçamento usado</span>
-                    <span className="fc-hero-uso-resto">
-                      {pctUsado >= 100 ? "no limite" : `sobra ${Math.max(0, 100 - Math.round(pctUsado))}%`}
-                    </span>
-                  </div>
-                  <div className="fc-hero-barra">
-                    <i
-                      style={{
-                        width: pctUsado + "%",
-                        background: budgetState(totalPrevisto, totalGasto).color,
-                      }}
-                    />
-                  </div>
-                  <div className="fc-hero-chips">
-                    <span className="fc-hero-chip">
-                      <span className="fc-hero-avatar fc-av-joel">J</span>
-                      <span className="fc-hero-role">Joel (calc.)</span>
-                      <span className="fc-hero-chip-value fc-tabular">{money(joelCalculado)}</span>
-                    </span>
-                    <span className="fc-hero-chip">
-                      <span className="fc-hero-avatar fc-av-antonio">A</span>
-                      <span className="fc-hero-role">Antonio</span>
-                      <EditableAmount
-                        value={month.antonio}
-                        onCommit={(v) => setPerson("antonio", v)}
-                        className="fc-hero-chip-value"
-                        mask={hideValues}
-                      />
-                    </span>
-                  </div>
-                </section>
-              );
-            })()}
+            <section className="fc-hero">
+              <span className="fc-hero-eyebrow">Total de {month.label}</span>
+              <span className="fc-hero-number fc-tabular">
+                {hideValues ? (
+                  "••••••"
+                ) : (
+                  <>
+                    <small>R$ </small>
+                    {fmt(Math.abs(totalPrevisto)).replace(/^-?R\$\s?/, "").split(",")[0]}
+                    <small>,{fmt(Math.abs(totalPrevisto)).split(",")[1]}</small>
+                  </>
+                )}
+              </span>
+              <div className="fc-hero-chips">
+                <span className="fc-hero-chip">
+                  <span className="fc-hero-avatar fc-av-antonio">A</span>
+                  <span className="fc-hero-role">Antonio</span>
+                  <EditableAmount
+                    value={month.antonio}
+                    onCommit={(v) => setPerson("antonio", v)}
+                    className="fc-hero-chip-value"
+                    mask={hideValues}
+                  />
+                </span>
+                <span className="fc-hero-chip">
+                  <span className="fc-hero-avatar fc-av-joel">J</span>
+                  <span className="fc-hero-role">Joel</span>
+                  <span className="fc-hero-chip-value fc-tabular">{money(joelCalculado)}</span>
+                </span>
+              </div>
+            </section>
             <div className="fc-env-grid">
               {CATS.map((c) => ({
                 c,
@@ -1810,15 +1779,8 @@ export default function FinancasCasa({ ativo = true }) {
                           <CatIcon name={c.icon} />
                         </span>
                         <span className="fc-env-name">{c.label}</span>
-                        <span
-                          className={"fc-env-left" + (est.word ? "" : " fc-tabular fc-env-left-num")}
-                          style={{ color: est.color }}
-                        >
-                          {est.word
-                            ? est.word
-                            : est.over
-                            ? `${money(-est.resta)} acima`
-                            : `sobra ${money(est.resta)}`}
+                        <span className="fc-env-left fc-tabular fc-env-left-num" style={{ color: est.color }}>
+                          {est.word ? est.word : est.over ? `−${money(-est.resta)}` : money(est.resta)}
                         </span>
                       </div>
                       <div className="fc-env-gauge">
@@ -1828,8 +1790,9 @@ export default function FinancasCasa({ ativo = true }) {
                         />
                       </div>
                       <div className="fc-env-nums">
-                        <span className="fc-env-budget fc-tabular">
-                          {money(gasto)} de {money(orcamento)}
+                        <span className="fc-env-budget fc-tabular">orçamento {money(orcamento)}</span>
+                        <span className="fc-env-usou fc-tabular">
+                          −{money(gasto)} <small>{c.key === "contasCasa" ? "já pago" : "já usou"}</small>
                         </span>
                       </div>
                     </button>
@@ -1843,10 +1806,6 @@ export default function FinancasCasa({ ativo = true }) {
                   <ChevronRight size={14} />
                 </button>
               )}
-            </div>
-            <div className="fc-ledger-row fc-ledger-total fc-hero-resumo-total">
-              <span>Total previsto do mês</span>
-              <span className="fc-tabular">{money(totalPrevisto)}</span>
             </div>
           </div>
         )}
@@ -2157,80 +2116,6 @@ export default function FinancasCasa({ ativo = true }) {
               )}
             </div>
           </div>
-          </div>
-        )}
-
-        {activeTab === "comparativo" && (
-          <div className="fc-tab-content">
-            <p className="fc-section-title" style={{ marginBottom: 4 }}>
-              <span>Gastos por categoria, mês a mês</span>
-            </p>
-            <div style={{ width: "100%", height: 300 }}>
-              <ResponsiveContainer>
-                <BarChart data={activeAno.months.map((m) => ({
-                  name: m.label,
-                  ...CATS.reduce((acc, c) => {
-                    acc[c.label] = categoryTotal(m, c.key);
-                    return acc;
-                  }, {}),
-                }))}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="var(--line)" />
-                  <XAxis dataKey="name" tick={{ fill: "var(--ink-soft)", fontSize: 12 }} />
-                  <YAxis tick={{ fill: "var(--ink-soft)", fontSize: 12 }} />
-                  <Tooltip
-                    cursor={{ fill: "rgba(255,255,255,.04)" }}
-                    content={<ChartTooltip money={money} />}
-                  />
-                  <Legend
-                    wrapperStyle={{ fontSize: 11.5, paddingTop: 10 }}
-                    iconType="square"
-                    iconSize={9}
-                    formatter={(v) => <span style={{ color: "var(--ink-soft)" }}>{v}</span>}
-                  />
-                  {CATS.filter((c) => !ocultas.includes(c.key) || data.anos.some((a) => a.months.some((m) => temValor(m, c.key)))).map((c) => (
-                    <Bar
-                      key={c.key}
-                      dataKey={c.label}
-                      stackId="a"
-                      fill={c.color}
-                      stroke="var(--bg)"
-                      strokeWidth={1}
-                    />
-                  ))}
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-
-            <p className="fc-section-title" style={{ marginTop: 28, marginBottom: 4 }}>
-              <span>Joel × Antonio — contribuição mensal</span>
-            </p>
-            <div style={{ width: "100%", height: 240 }}>
-              <ResponsiveContainer>
-                <BarChart
-                  data={activeAno.months.map((m) => ({
-                    name: m.label,
-                    Joel: monthPlanned(m) - (Number(m.antonio) || 0),
-                    Antonio: m.antonio,
-                  }))}
-                >
-                  <CartesianGrid strokeDasharray="3 3" stroke="var(--line)" />
-                  <XAxis dataKey="name" tick={{ fill: "var(--ink-soft)", fontSize: 12 }} />
-                  <YAxis tick={{ fill: "var(--ink-soft)", fontSize: 12 }} />
-                  <Tooltip
-                    cursor={{ fill: "rgba(255,255,255,.04)" }}
-                    content={<ChartTooltip money={money} />}
-                  />
-                  <Legend
-                    wrapperStyle={{ fontSize: 11.5, paddingTop: 10 }}
-                    iconType="square"
-                    iconSize={9}
-                    formatter={(v) => <span style={{ color: "var(--ink-soft)" }}>{v}</span>}
-                  />
-                  <Bar dataKey="Joel" fill={PERSON_COLORS.joel} />
-                  <Bar dataKey="Antonio" fill={PERSON_COLORS.antonio} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
           </div>
         )}
       </main>
