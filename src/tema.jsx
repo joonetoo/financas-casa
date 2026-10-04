@@ -295,7 +295,7 @@ html[data-tema] .fc-hero-chip-value{font-size:15px!important;font-weight:900!imp
 
 /* categorias do Resumo: ícone redondo colorido, "R$ x de R$ y", etiqueta e barra grossa */
 html[data-tema] .fc-env-grid{grid-template-columns:minmax(0,1fr)!important;gap:10px!important}
-html[data-tema] .fc-env-card{display:grid!important;grid-template-columns:42px minmax(0,1fr) auto;grid-template-areas:"ic nome tag" "ic num tag" "bar bar bar";
+html[data-tema] .fc-env-card{display:grid!important;grid-template-columns:42px minmax(0,1fr) auto;grid-template-areas:"ic nome tag" "ic num tag" "bar bar bar" "usou usou usou";
   column-gap:12px;row-gap:1px;align-items:center;min-height:0!important;padding:14px 16px!important;background:var(--o-sf)!important;border:1px solid var(--o-line)!important;
   border-radius:24px!important;box-shadow:none!important}
 html[data-tema] .fc-env-card:hover{transform:translateY(-3px)!important}
@@ -308,6 +308,8 @@ html[data-tema] .fc-env-card .fc-env-gauge{grid-area:bar;height:10px!important;m
 html[data-tema] .fc-env-left{height:26px;padding:0 10px;border-radius:999px;display:inline-flex!important;align-items:center;font-size:12px!important;font-weight:900!important;
   background:color-mix(in srgb, currentColor 18%, transparent);white-space:nowrap}
 html[data-tema] .fc-env-card .fc-env-left{grid-area:tag}
+html[data-tema] .fc-env-card .fc-env-usou{grid-area:usou;margin-top:8px;font-size:15px;font-weight:900;color:color-mix(in srgb, var(--o-saiu) 68%, var(--o-ink))}
+html[data-tema] .fc-env-card .fc-env-usou small{font-size:12px;font-weight:700;color:var(--o-faint);margin-left:4px}
 html[data-tema] .fc-env-empty{border-style:dashed!important;background:transparent!important;border-radius:20px!important;font-weight:700!important;color:var(--o-faint)!important}
 html[data-tema] .fc-hero-resumo-total{padding:14px 8px!important}
 /* ícone de categoria em todo lugar: bolinha com a cor da categoria */
