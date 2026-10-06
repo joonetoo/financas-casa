@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useLayoutEffect, useMemo, useCallback, useRef } from "react";
 import { Carregando, SemInternet } from "./tema.jsx";
+import { registrar, enviarFila } from "./pessoal/nuvem.js";
 import {
   ResponsiveContainer,
   BarChart,
@@ -567,10 +568,15 @@ async function backupIfNeeded(goodData) {
     // data LOCAL (toISOString é UTC: depois das 21h no Brasil já seria amanhã)
     const d = new Date();
     const today = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    // foto do dia que ainda não chegou no cofre (sem internet, cofre ocupado) vai agora
+    enviarFila(STORAGE_KEY);
     if (localStorage.getItem(BACKUP_DATE_FLAG) === today) return;
     const weekday = new Date().getDay();
     await storage.set(`${STORAGE_KEY}-backup-${weekday}`, JSON.stringify(goodData));
     localStorage.setItem(BACKUP_DATE_FLAG, today);
+    // e uma "foto" no cofre app_historico (só ler/acrescentar), igual à Minhas contas:
+    // essa ninguém consegue apagar nem sobrescrever pelo app
+    registrar(STORAGE_KEY, { acao: "foto", resumo: "Backup do dia", depois: goodData });
   } catch (e) {
     console.error("Falha ao gravar backup diário", e);
   }
