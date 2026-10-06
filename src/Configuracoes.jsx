@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { ChevronLeft, ChevronRight, ShieldCheck, Download, Upload, History, Tags, Trash2, X, Check, Undo2 } from "lucide-react";
 import { nuvem, registrar } from "./pessoal/nuvem.js";
 import { usePrefs, IconeOink } from "./tema.jsx";
+import { supabase } from "./supa.js";
 
 // Configurações do app todo. Regras de segurança (skill zero-data-loss):
 //  - restaurar e "começar do zero" SEMPRE guardam antes uma cópia do que existe
@@ -127,6 +128,21 @@ function Seg({ opcoes, valor, onChange, rotulo }) {
 }
 
 export default function Configuracoes({ chaveCasa, chavePessoal, chaveInvest, larga, onFechar }) {
+  // sair deste aparelho: toca 2x pra confirmar (o primeiro toque só "arma" por 4s)
+  const [sairArmado, setSairArmado] = useState(false);
+  const [emailEntrada, setEmailEntrada] = useState("");
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => setEmailEntrada(data?.session?.user?.email || ""));
+  }, []);
+  useEffect(() => {
+    if (!sairArmado) return;
+    const t = setTimeout(() => setSairArmado(false), 4000);
+    return () => clearTimeout(t);
+  }, [sairArmado]);
+  const tocarSair = async () => {
+    if (!sairArmado) { setSairArmado(true); return; }
+    await supabase.auth.signOut({ scope: "local" });
+  };
   const [prefs, setPref] = usePrefs();
   const [msg, setMsg] = useState("");
   const [exportando, setExportando] = useState(false);
@@ -334,6 +350,13 @@ export default function Configuracoes({ chaveCasa, chavePessoal, chaveInvest, la
                 <Seg rotulo="Aparência" valor={prefs.aparencia} onChange={(v) => setPref("aparencia", v)} opcoes={[["escuro", "Escuro"], ["claro", "Claro"], ["auto", "Auto"]]} />
               </Item>
               <Item titulo="Categorias" sub="Criar, editar, arquivar" onClick={() => abrirNaAba("categorias")}><Tags size={18} className="cf-fraco" /></Item>
+            </div>
+
+            <div className="cf-sec">ESTE APARELHO</div>
+            <div className="cf-caixa">
+              <Item titulo="Sair deste aparelho" sub={emailEntrada ? `Entrou como ${emailEntrada} · pra voltar, é só pedir o link de novo` : "Pra voltar, é só pedir o link de novo"}>
+                <button className={"cf-bt-perigo" + (sairArmado ? " armado" : "")} onClick={tocarSair}>{sairArmado ? "Toque de novo pra sair" : "Sair"}</button>
+              </Item>
             </div>
 
             <div className="cf-sec">COMEÇAR DO ZERO</div>

@@ -23,17 +23,13 @@ import {
   Eye,
   EyeOff,
 } from "lucide-react";
-import { createClient } from "@supabase/supabase-js";
+import { supabase } from "./supa.js";
 
 /* ------------------------------------------------------------------ */
 /* Persistência na nuvem (Supabase) — sincroniza entre notebook/celular */
 /* ------------------------------------------------------------------ */
 
-const SUPABASE_URL = "https://oikbmfdlhvqesbgnmeky.supabase.co";
-const SUPABASE_ANON_KEY =
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9pa2JtZmRsaHZxZXNiZ25tZWt5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkyMjUxMTgsImV4cCI6MjEwNDgwMTExOH0.VRvyNxYyvkjNaBnKAsHqfDTZxSM8pd5W9k5ElqGeeF8";
-
-const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+// o cliente Supabase (com a entrada/login) mora em supa.js, compartilhado com as outras abas
 
 // Sem internet de verdade (avião, sem sinal), o pedido pro Supabase pode
 // demorar bem mais que uma falha normal pra desistir sozinho (às vezes

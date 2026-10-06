@@ -1,11 +1,14 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import Shell from "./Shell.jsx";
+import { Porteiro } from "./Entrar.jsx";
 import "./index.css";
 
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>
-    <Shell />
+    <Porteiro>
+      <Shell />
+    </Porteiro>
   </React.StrictMode>
 );
 

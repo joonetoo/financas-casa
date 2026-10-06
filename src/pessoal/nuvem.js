@@ -17,16 +17,10 @@
 // o app só consegue ACRESCENTAR — nem um erro do app consegue apagar o passado.
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import { createClient } from "@supabase/supabase-js";
+import { supabase } from "../supa.js";
 
-const SUPABASE_URL = "https://oikbmfdlhvqesbgnmeky.supabase.co";
-const SUPABASE_ANON_KEY =
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9pa2JtZmRsaHZxZXNiZ25tZWt5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkyMjUxMTgsImV4cCI6MjEwNDgwMTExOH0.VRvyNxYyvkjNaBnKAsHqfDTZxSM8pd5W9k5ElqGeeF8";
-
-// sem login: não guarda sessão (e não briga com o cliente da aba da casa)
-export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-  auth: { persistSession: false, autoRefreshToken: false, storageKey: "fc-pessoal-auth" },
-});
+// mesmo cliente da aba da casa (supa.js): a entrada vale pras duas
+export { supabase };
 
 const p2 = (n) => String(n).padStart(2, "0");
 const hoje = () => {
