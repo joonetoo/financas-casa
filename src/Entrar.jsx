@@ -81,14 +81,16 @@ export default function TelaEntrada({ estadoFixo }) {
     setOcupado(true);
     try {
       const volta = window.location.origin + window.location.pathname;
-      const { error } = await supabase.auth.signInWithOtp({ email: e, options: { emailRedirectTo: volta, shouldCreateUser: true } });
+      const { error } = await supabase.auth.signInWithOtp({ email: e, options: { emailRedirectTo: volta, shouldCreateUser: false } });
       if (error) throw error;
       guardarEmail(e);
       setCodigo(["", "", "", "", "", ""]);
       setEspera(60);
       setEstado("enviado");
     } catch (err) {
-      setAviso(textoErro(err));
+      const m = String(err?.message || "").toLowerCase();
+      if (m.includes("signups not allowed") || m.includes("not found") || m.includes("otp_disabled")) setEstado("outro");
+      else setAviso(textoErro(err));
     } finally {
       setOcupado(false);
     }
