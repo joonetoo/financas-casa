@@ -16,6 +16,7 @@ import io
 import json
 import os
 import sys
+import time
 import urllib.request
 
 URL = (
@@ -58,12 +59,24 @@ def ano_do_nome(tipo, venc):
     return ano
 
 
+def baixar(tentativas=5):
+    # O site do Tesouro às vezes derruba a conexão (RemoteDisconnected): tenta de novo, esperando mais a cada vez.
+    for n in range(1, tentativas + 1):
+        try:
+            req = urllib.request.Request(URL, headers={"User-Agent": "Mozilla/5.0 (oink-robo-tesouro)"})
+            return urllib.request.urlopen(req, timeout=300).read()
+        except Exception as e:
+            print(f"Tentativa {n}/{tentativas} falhou: {e!r}", file=sys.stderr)
+            if n == tentativas:
+                raise
+            time.sleep(20 * n)
+
+
 def main():
     if len(sys.argv) > 1:  # arquivo local (pra testar)
         bruto = open(sys.argv[1], "rb").read()
     else:
-        req = urllib.request.Request(URL, headers={"User-Agent": "oink-robo-tesouro"})
-        bruto = urllib.request.urlopen(req, timeout=300).read()
+        bruto = baixar()
     linhas = list(csv.reader(io.StringIO(bruto.decode("latin-1")), delimiter=";"))
     cab = linhas[0]
     i = {nome: cab.index(nome) for nome in ("Tipo Titulo", "Data Vencimento", "Data Base", "Taxa Venda Manha", "PU Venda Manha")}
