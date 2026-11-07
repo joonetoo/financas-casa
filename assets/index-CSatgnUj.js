@@ -1598,6 +1598,8 @@ html[data-plat="mac"] .mc-hero-card.vidro.mc-hero-falta{background:linear-gradie
 .cv-mac .cv-col{gap:16px}
 .cv-lado{position:sticky;top:14px;min-width:0}
 .cv-mac-2{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px;align-items:start}
+/* janela do Mac menor: o cartão verde e o "E se…" ficam um embaixo do outro */
+@media (max-width:1380px){.cv-mac-2{grid-template-columns:minmax(0,1fr)}}
 
 /* cenários */
 .cv-cen-bloco{display:flex;flex-direction:column;gap:10px;min-width:0}
