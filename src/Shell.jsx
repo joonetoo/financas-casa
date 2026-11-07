@@ -17,6 +17,10 @@ export const CHAVE_PESSOAL = import.meta.env.DEV
 export const CHAVE_INVEST = import.meta.env.DEV
   ? import.meta.env.VITE_INVEST_KEY || "financas-invest-teste"
   : BETA ? "financas-beta-invest" : "financas-invest-v1";
+// Calculadora de investimentos: linha só dela (é simulação, nunca mexe nas outras)
+export const CHAVE_CALC = import.meta.env.DEV
+  ? import.meta.env.VITE_CALC_KEY || "financas-calc-teste"
+  : BETA ? "financas-beta-calc" : "financas-calc-v1";
 export { CHAVE_CASA };
 
 const ABAS = [
@@ -42,6 +46,15 @@ export default function Shell() {
   useTemaNoDocumento();
   const larga = useLarga();
   const [config, setConfig] = useState(false);
+  // a aba Investimentos avisa qual das duas abas de cima está aberta (e lembra no aparelho)
+  const [secaoInvest, setSecaoInvest] = useState(() => {
+    try { return localStorage.getItem("oink-inv-secao") === "calc" ? "calc" : "inv"; } catch (e) { return "inv"; }
+  });
+  useEffect(() => {
+    const f = (e) => setSecaoInvest(e.detail);
+    window.addEventListener("oink-invest-secao", f);
+    return () => window.removeEventListener("oink-invest-secao", f);
+  }, []);
   const [aba, setAba] = useState(() => {
     try {
       const a = localStorage.getItem(ABA_KEY);
@@ -133,7 +146,7 @@ export default function Shell() {
             <MinhasContas chave={CHAVE_PESSOAL} ativo={aba === "pessoal"} larga={larga} />
           </div>
           <div style={{ display: aba === "invest" ? "block" : "none" }}>
-            <Investimentos chave={CHAVE_INVEST} ativo={aba === "invest"} larga={larga} />
+            <Investimentos chave={CHAVE_INVEST} chaveCalc={CHAVE_CALC} chavePessoal={CHAVE_PESSOAL} ativo={aba === "invest"} larga={larga} />
           </div>
           {!larga && <div style={{ height: 96 }} />}
         </div>
@@ -145,7 +158,7 @@ export default function Shell() {
                 <button key={k} className={aba === k ? "on" : ""} aria-current={aba === k ? "page" : undefined} onClick={() => setAba(k)}>{curto}</button>
               ))}
             </nav>
-            {aba === "pessoal" || aba === "invest" ? (
+            {aba === "pessoal" || (aba === "invest" && secaoInvest !== "calc") ? (
               <button className="sh-mais" aria-label={aba === "invest" ? "Novo investimento" : "Novo lançamento"} onClick={novo}><Plus size={28} strokeWidth={2.8} /></button>
             ) : (
               <button className="sh-cfg" aria-label="Configurações" onClick={() => setConfig(true)}><Settings size={24} /></button>

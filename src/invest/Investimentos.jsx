@@ -6,7 +6,8 @@ import {
 import { useDocNuvem, registrar } from "../pessoal/nuvem.js";
 import { MCStyles } from "../pessoal/estilo.jsx";
 import { CampoData } from "../pessoal/MinhasContas.jsx";
-import { Carregando, SemInternet } from "../tema.jsx";
+import { Carregando, SemInternet, usePilula } from "../tema.jsx";
+import Calculadora, { CVStyles } from "./Calculadora.jsx";
 import { IVStyles } from "./estilo.jsx";
 import {
   TIPOS, vazio, normalizar, simular, calcularCarteira, evolucao, progressoMetas, primeiraData,
@@ -16,6 +17,7 @@ import {
 
 const OLHO_KEY = "fc-hide-values";
 const GRUPOS_KEY = "oink-inv-fechados";
+const SECAO_KEY = "oink-inv-secao";
 
 /* ---------------- ícones dos tipos ---------------- */
 
@@ -61,7 +63,7 @@ const cdiAno = (m) => {
 
 /* ------------------------------------------------------------------ */
 
-export default function Investimentos({ chave, ativo = true, larga }) {
+export default function Investimentos({ chave, chaveCalc, chavePessoal, ativo = true, larga }) {
   const nv = useDocNuvem(chave, { vazio, normalizar });
   const { doc, editar } = nv;
   const desde = useMemo(() => (doc ? primeiraData(doc) : null), [doc]);
@@ -81,6 +83,20 @@ export default function Investimentos({ chave, ativo = true, larga }) {
     try { localStorage.setItem(GRUPOS_KEY, JSON.stringify(fechados)); } catch (e) { /* só neste aparelho */ }
   }, [fechados]);
 
+  // as duas abas de cima: "inv" (carteira) e "calc" (calculadora)
+  const [secao, setSecao] = useState(() => {
+    try { return localStorage.getItem(SECAO_KEY) === "calc" ? "calc" : "inv"; } catch (e) { return "inv"; }
+  });
+  useEffect(() => {
+    try { localStorage.setItem(SECAO_KEY, secao); } catch (e) { /* só neste aparelho */ }
+    window.scrollTo(0, 0);
+  }, [secao]);
+  // a barra de baixo (celular) troca o "+" pelo botão de configurações na calculadora
+  useEffect(() => {
+    window.dispatchEvent(new CustomEvent("oink-invest-secao", { detail: secao }));
+  }, [secao]);
+  const [abasRef, pilulaAbas] = usePilula([secao, larga, ativo, nv.carregado]);
+
   const [abertoId, setAbertoId] = useState(null);
   const [form, setForm] = useState(null);
   const [toast, setToast] = useState(null);
@@ -92,11 +108,11 @@ export default function Investimentos({ chave, ativo = true, larga }) {
 
   // o "+" da barra de baixo (celular) abre o cadastro
   useEffect(() => {
-    if (!ativo) return undefined;
+    if (!ativo || secao !== "inv") return undefined;
     const novo = () => setForm({ tipo: "novo" });
     window.addEventListener("oink-novo", novo);
     return () => window.removeEventListener("oink-novo", novo);
-  }, [ativo]);
+  }, [ativo, secao]);
 
   const carteira = useMemo(() => (doc ? calcularCarteira(doc, mercado) : null), [doc, mercado]);
   const pontos = useMemo(() => (doc ? evolucao(doc, mercado) : []), [doc, mercado]);
@@ -292,12 +308,24 @@ export default function Investimentos({ chave, ativo = true, larga }) {
     <div className={"mc-wrap iv" + (larga ? " mc-larga" : "")}>
       <MCStyles />
       <IVStyles />
-      <header className="iv-topo">
-        <h1 className="iv-titulo">Investimentos</h1>
-        {botoesTopo}
+      <CVStyles />
+      <header className={"iv-topo" + (larga ? "" : " cv-topo-cel")}>
+        <div className="cv-abas" role="tablist" aria-label="Investimentos" ref={abasRef}>
+          <span className="cv-pil" data-pilula style={pilulaAbas} />
+          {[["inv", "Investimentos"], ["calc", larga ? "Calculadora de investimentos" : "Calculadora"]].map(([k, nome]) => (
+            <button key={k} type="button" role="tab" aria-selected={secao === k} data-on={secao === k ? "1" : undefined}
+              className={secao === k ? "on" : ""} onClick={() => setSecao(k)}>{nome}</button>
+          ))}
+        </div>
+        {secao === "inv" && botoesTopo}
       </header>
 
-      {larga ? (
+      <div style={{ display: secao === "calc" ? "block" : "none" }}>
+        <Calculadora chave={chaveCalc} chavePessoal={chavePessoal} docInvest={doc} patrimonio={carteira.bruto}
+          larga={larga} ativo={ativo && secao === "calc"} />
+      </div>
+
+      {secao !== "inv" ? null : larga ? (
         <div className="iv-mac">
           <div className="iv-col" style={{ gap: 18 }}>
             <div className="iv-mac-topo">
