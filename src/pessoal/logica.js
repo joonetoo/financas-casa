@@ -189,12 +189,16 @@ export const fmtValor = (v) =>
   new Intl.NumberFormat("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(v);
 export const fmtReais = (v) => "R$ " + fmtValor(v);
 
-// "1.234,56" / "1234,56" / "1234.56" / "R$ 12" → número (ou NaN)
+// "1.234,56" / "1234,56" / "1234.56" / "R$ 12" / "-1.500" → número (ou NaN)
+// Só aceita número escrito por extenso em algarismos: "1e3", "0x10" e
+// parecidos dão NaN (antes passavam como 1000 e 16).
 export function lerValor(txt) {
   let s = String(txt ?? "").replace(/[R$\s]/g, "");
   if (!s) return NaN;
   if (s.includes(",")) s = s.replace(/\./g, "").replace(",", ".");
-  else if (/^\d{1,3}(\.\d{3})+$/.test(s)) s = s.replace(/\./g, ""); // "1.234" = mil duzentos…
+  // "1.234" = mil duzentos… (vale com sinal; milhar nunca começa com zero: "0.500" é meio)
+  else if (/^[-+]?[1-9]\d{0,2}(\.\d{3})+$/.test(s)) s = s.replace(/\./g, "");
+  if (!/^[-+]?(\d+\.?\d*|\.\d+)$/.test(s)) return NaN;
   const n = Number(s);
   return Number.isFinite(n) ? n : NaN;
 }

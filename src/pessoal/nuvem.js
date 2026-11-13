@@ -18,6 +18,9 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { supabase } from "../supa.js";
+import {
+  comLimiteOuErro, comSinal, erroDeGravacao, podeTerChegado, acharMinhaGravacao, lembrarTentativa, idDaCopiaDeConflito,
+} from "../sinc.js";
 
 // mesmo cliente da aba da casa (supa.js): a entrada vale pras duas
 export { supabase };
@@ -59,26 +62,29 @@ export const nuvem = {
     }
   },
   // cópias (backup/conflito): grava sempre; lança erro se falhar
+  // (gravações têm limite de tempo: estourou, o pedido é cancelado de verdade
+  // e vira falha comum — não trava nem se empilha com a próxima tentativa)
   async set(key, doc) {
-    const { error } = await supabase
-      .from("app_data").upsert({ id: key, data: doc, updated_at: new Date().toISOString() });
-    if (error) throw error;
+    const { error, status } = await comLimiteOuErro((sinal) => comSinal(supabase
+      .from("app_data").upsert({ id: key, data: doc, updated_at: new Date().toISOString() }), sinal));
+    if (error) throw erroDeGravacao(error, status);
   },
   async setIfUnchanged(key, doc, esperado, novoCarimbo) {
     if (!esperado) {
-      const { error } = await supabase.from("app_data").insert({ id: key, data: doc, updated_at: novoCarimbo });
+      const { error, status } = await comLimiteOuErro((sinal) => comSinal(
+        supabase.from("app_data").insert({ id: key, data: doc, updated_at: novoCarimbo }), sinal));
       if (error) {
         if (error.code === "23505") return { conflict: true };
-        throw error;
+        throw erroDeGravacao(error, status);
       }
       return { ok: true };
     }
-    const { data, error } = await supabase
+    const { data, error, status } = await comLimiteOuErro((sinal) => comSinal(supabase
       .from("app_data")
       .update({ data: doc, updated_at: novoCarimbo })
       .eq("id", key).eq("updated_at", esperado)
-      .select("updated_at");
-    if (error) throw error;
+      .select("updated_at"), sinal));
+    if (error) throw erroDeGravacao(error, status);
     if (!data || data.length === 0) return { conflict: true };
     return { ok: true };
   },
@@ -175,6 +181,12 @@ export function useDocNuvem(chave, { vazio, normalizar = (d) => d }) {
   const pendingRef = useRef(false);
   const retryRef = useRef(null);
   const puxandoRef = useRef(false);
+  // gravações deste aparelho que ficaram SEM RESPOSTA (rede caiu no meio,
+  // estourou o tempo): podem ter chegado na nuvem. Guardadas pra, na hora de
+  // um "conflito", reconhecer a própria gravação em vez de acusar outro aparelho.
+  const tentativasRef = useRef([]);
+  // nome da linha "-conflito-" do conflito em andamento (reaproveitado até resolver)
+  const idConflitoRef = useRef(null);
 
   useEffect(() => {
     let vivo = true;
@@ -226,21 +238,43 @@ export function useDocNuvem(chave, { vazio, normalizar = (d) => d }) {
     dirtyRef.current = false;
     const agora = docRef.current;
     const carimbo = new Date().toISOString();
+    const offlineAntes = typeof navigator !== "undefined" && navigator.onLine === false;
     let ok = false, bateu = false;
     try {
       const r = await nuvem.setIfUnchanged(chave, agora, lastSyncedRef.current, carimbo);
       if (r.conflict) bateu = true;
       else {
         lastSyncedRef.current = carimbo;
+        tentativasRef.current = []; // a linha mudou de carimbo: nenhuma antiga chega mais
+        idConflitoRef.current = null;
         ok = true;
       }
     } catch (e) {
       dirtyRef.current = true;
+      // se PODE ter chegado (rede caiu no meio, tempo estourou), lembra o que foi
+      // enviado e com qual carimbo. Sem internet desde antes, ou recusada pelo
+      // servidor, comprovadamente não entrou: não ocupa lugar na lista.
+      if (podeTerChegado(e, { offlineAntes })) {
+        tentativasRef.current = lembrarTentativa(tentativasRef.current, { carimbo, doc: agora });
+      }
     } finally {
-      savingRef.current = false;
+      // em conflito, a "vez" de gravar continua presa até ele ser resolvido:
+      // senão uma edição feita nesse meio-tempo disparava outra gravação em paralelo
+      if (!bateu) savingRef.current = false;
     }
     if (bateu) {
-      await resolverRef.current(agora);
+      let regravar = false;
+      try {
+        regravar = (await resolverRef.current(agora)) === "regravar";
+      } catch (e) {
+        dirtyRef.current = true;
+        setErroSalvar(true);
+        clearTimeout(retryRef.current);
+        retryRef.current = setTimeout(flushSave, 5000);
+      } finally {
+        savingRef.current = false;
+      }
+      if (regravar) flushSave();
       return;
     }
     setErroSalvar(!ok);
@@ -255,12 +289,33 @@ export function useDocNuvem(chave, { vazio, normalizar = (d) => d }) {
   const resolverRef = useRef(null);
   resolverRef.current = async (docLocal) => {
     const d = new Date();
-    const idCopia = `${chave}-conflito-${hoje()}-${p2(d.getHours())}${p2(d.getMinutes())}${p2(d.getSeconds())}`;
     const falhou = () => {
       dirtyRef.current = true;
       setErroSalvar(true);
+      clearTimeout(retryRef.current);
       retryRef.current = setTimeout(flushSave, 5000);
     };
+    // Antes de acusar conflito: se alguma gravação daqui ficou sem resposta,
+    // confere se o que está na nuvem é ela mesma (mesmo carimbo E mesmo
+    // conteúdo). Se for, a gravação tinha chegado — não é conflito.
+    if (tentativasRef.current.length) {
+      const linha = await nuvem.get(chave);
+      if (linha.failed) return falhou(); // não deu pra conferir: tenta de novo, sem criar cópia
+      const minha = acharMinhaGravacao(tentativasRef.current, linha);
+      if (minha) {
+        lastSyncedRef.current = linha.updatedAt;
+        tentativasRef.current = [];
+        idConflitoRef.current = null;
+        pendingRef.current = false;
+        // mudou algo aqui depois daquela gravação? então ainda falta mandar
+        const falta = docRef.current !== minha.doc;
+        dirtyRef.current = falta;
+        setErroSalvar(false);
+        return falta ? "regravar" : undefined; // quem chamou grava de novo, depois de soltar a vez
+      }
+    }
+    if (!idConflitoRef.current) idConflitoRef.current = idDaCopiaDeConflito(chave, d);
+    const idCopia = idConflitoRef.current;
     try {
       await nuvem.set(idCopia, docLocal);
     } catch (e) {
@@ -268,14 +323,24 @@ export function useDocNuvem(chave, { vazio, normalizar = (d) => d }) {
     }
     const res = await nuvem.get(chave);
     if (res.failed || !res.value) return falhou();
+    // Arruma a versão da nuvem ANTES de mexer em qualquer marca: se ela vier
+    // num formato que quebra o `normalizar`, nada pode ter mudado aqui (senão,
+    // 5 s depois, este aparelho gravaria o dele por cima da versão do outro).
+    let daNuvem;
+    try { daNuvem = normalizar(res.value); } catch (e) { return falhou(); }
     if (dirtyRef.current) {
-      try { await nuvem.set(idCopia, docRef.current); } catch (e) { /* a 1ª cópia já está salva */ }
+      // editou durante a resolução: a cópia precisa levar essa edição também.
+      // Se não der pra gravar, NÃO segue (senão a edição sumia em silêncio):
+      // fica com o que está aqui e tenta tudo de novo.
+      try { await nuvem.set(idCopia, docRef.current); } catch (e) { return falhou(); }
     }
     lastSyncedRef.current = res.updatedAt || null;
+    tentativasRef.current = [];
+    idConflitoRef.current = null; // resolvido: um conflito novo ganha linha nova
     dirtyRef.current = false;
     pendingRef.current = false;
     fromServerRef.current = true;
-    setDoc(normalizar(res.value));
+    setDoc(daNuvem);
     setErroSalvar(false);
     setConflito({ quando: `${p2(d.getDate())}/${p2(d.getMonth() + 1)} às ${p2(d.getHours())}:${p2(d.getMinutes())}` });
   };
@@ -290,9 +355,11 @@ export function useDocNuvem(chave, { vazio, normalizar = (d) => d }) {
       const res = await nuvem.get(chave);
       if (res.failed || !res.value) return;
       if (dirtyRef.current || savingRef.current) return;
+      let daNuvem; // arruma antes de mexer nas marcas: se quebrar, nada muda aqui
+      try { daNuvem = normalizar(res.value); } catch (e) { return; }
       lastSyncedRef.current = res.updatedAt || null;
       fromServerRef.current = true;
-      setDoc(normalizar(res.value));
+      setDoc(daNuvem);
     } finally {
       puxandoRef.current = false;
     }

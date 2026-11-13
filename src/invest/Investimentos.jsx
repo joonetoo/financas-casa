@@ -102,7 +102,8 @@ export default function Investimentos({ chave, chaveCalc, chavePessoal, ativo = 
   const [toast, setToast] = useState(null);
   useEffect(() => {
     if (!toast) return undefined;
-    const tm = setTimeout(() => setToast(null), 3500);
+    // aviso com "Desfazer" fica 10 s (tempo de perceber e reagir); os outros, 3,5 s
+    const tm = setTimeout(() => setToast(null), toast.desfazer ? 10000 : 3500);
     return () => clearTimeout(tm);
   }, [toast]);
 
@@ -142,11 +143,25 @@ export default function Investimentos({ chave, chaveCalc, chavePessoal, ativo = 
     setToast("Investimento guardado");
   };
   const excluirInv = (id) => {
-    const antes = doc.investimentos.find((i) => i.id === id);
+    const idx = doc.investimentos.findIndex((i) => i.id === id);
+    const antes = doc.investimentos[idx];
     editar((d) => ({ ...d, investimentos: d.investimentos.filter((i) => i.id !== id) }));
     registrar(chave, { acao: "invest:excluiu", resumo: `Você apagou o investimento ${antes?.nome}`, antes });
     setAbertoId(null);
-    setToast("Investimento apagado (fica guardado no registro de atividades)");
+    if (!antes) return;
+    setToast({
+      txt: `Investimento ${antes.nome} apagado`,
+      desfazer: () => {
+        // volta inteiro (com todos os registros), no mesmo lugar da lista
+        editar((d) => {
+          if (d.investimentos.some((i) => i.id === antes.id)) return d;
+          const lista = d.investimentos.slice();
+          lista.splice(Math.min(idx, lista.length), 0, antes);
+          return { ...d, investimentos: lista };
+        });
+        registrar(chave, { acao: "invest:desfez", resumo: `Você trouxe de volta o investimento ${antes.nome}`, depois: antes });
+      },
+    });
   };
   const salvarMov = (invId, mov) => {
     const inv = doc.investimentos.find((i) => i.id === invId);
@@ -158,8 +173,29 @@ export default function Investimentos({ chave, chaveCalc, chavePessoal, ativo = 
   };
   const excluirMov = (invId, movId) => {
     const inv = doc.investimentos.find((i) => i.id === invId);
+    const idx = inv.movs.findIndex((m) => m.id === movId);
+    const mov = inv.movs[idx];
     mudarInv(invId, (i) => ({ ...i, movs: i.movs.filter((m) => m.id !== movId) }), `Você apagou um registro de ${inv.nome}`);
-    setToast("Registro apagado");
+    if (!mov) {
+      setToast("Registro apagado");
+      return;
+    }
+    setToast({
+      txt: "Registro apagado",
+      desfazer: () => {
+        // volta o registro pro mesmo lugar (se o investimento ainda existir)
+        editar((d) => ({
+          ...d,
+          investimentos: d.investimentos.map((i) => {
+            if (i.id !== invId || i.movs.some((m) => m.id === mov.id)) return i;
+            const movs = i.movs.slice();
+            movs.splice(Math.min(idx, movs.length), 0, mov);
+            return { ...i, movs };
+          }),
+        }));
+        registrar(chave, { acao: "invest:desfez", resumo: `Você trouxe de volta um registro de ${inv.nome}`, depois: mov });
+      },
+    });
   };
   const salvarMetas = (novasMetas, ligacoes) => {
     const antes = { metas: doc.metas, ligacoes: doc.investimentos.map((i) => [i.id, i.metaId || null]) };
@@ -412,7 +448,12 @@ export default function Investimentos({ chave, chaveCalc, chavePessoal, ativo = 
         </div>
       )}
       {nv.erroSalvar && <div className="mc-aviso mc-aviso-erro" role="alert"><span className="mc-ponto" /> Erro ao salvar · tentando de novo…</div>}
-      {toast && <div className="mc-toast"><span>{toast}</span></div>}
+      {toast && (
+        <div className="mc-toast" role="status">
+          <span>{typeof toast === "string" ? toast : toast.txt}</span>
+          {toast.desfazer && <button type="button" onClick={() => { toast.desfazer(); setToast(null); }}>Desfazer</button>}
+        </div>
+      )}
     </div>
   );
 }
@@ -685,6 +726,8 @@ function FormNovo({ doc, mercado, onFechar, onSalvar }) {
       const qtd = lerNumero(f.qtd);
       if (!f.titulo) return { erro: "Escolha qual título do Tesouro." };
       if (!(valor > 0)) return { erro: "Coloque quanto você pagou." };
+      // quantidade é opcional, mas se digitou algo que não é número, avisa (antes era ignorada calada)
+      if (String(f.qtd ?? "").trim() && !(qtd > 0)) return { erro: "Não entendi a quantidade de títulos. Digite só números, como 1,25." };
       return { movs: [{ id: uid(), tipo: "aporte", data: f.data, valor, ...(qtd > 0 ? { qtd } : {}), criado: agora }] };
     }
     if (!f.jaTenho) {
@@ -884,6 +927,8 @@ function FormMov({ x, tipo, mov, mercado, onFechar, onSalvar, onExcluir }) {
     const valor = lerNumero(f.valor);
     const qtd = lerNumero(f.qtd);
     if (!(valor > 0)) return setErro("Coloque um valor maior que zero.");
+    // quantidade é opcional, mas se digitou algo que não é número, avisa (antes apagava a quantidade calada)
+    if (String(f.qtd ?? "").trim() && !(qtd > 0)) return setErro("Não entendi a quantidade de títulos. Digite só números, como 1,25.");
     if (f.data > hoje) return setErro("A data não pode ser no futuro.");
     if (tipo === "resgate" && !mov) {
       const naData = simular(inv, mercado, f.data).bruto;

@@ -1,6 +1,11 @@
 import React, { useState, useEffect, useLayoutEffect, useMemo, useCallback, useRef } from "react";
 import { Carregando, SemInternet } from "./tema.jsx";
 import { registrar, enviarFila } from "./pessoal/nuvem.js";
+import { lerValor } from "./pessoal/logica.js";
+import {
+  comLimiteOuErro, comSinal, erroDeGravacao, podeTerChegado, acharMinhaGravacao, lembrarTentativa,
+  idDaCopiaDeConflito, decidirLinhaLida, casaValida, legadoValido, valorDoCampoEditavel,
+} from "./sinc.js";
 import {
   ResponsiveContainer,
   BarChart,
@@ -60,12 +65,14 @@ const storage = {
   },
   // Lança erro se a gravação falhar — quem chama precisa saber, senão uma
   // edição fica só na memória enquanto o app finge que salvou.
+  // Gravações têm limite de tempo: estourou, o pedido é cancelado de verdade
+  // e vira falha comum (não trava nem se empilha com a próxima tentativa).
   async set(key, value) {
     const parsed = JSON.parse(value);
-    const { error } = await supabase
+    const { error, status } = await comLimiteOuErro((sinal) => comSinal(supabase
       .from("app_data")
-      .upsert({ id: key, data: parsed, updated_at: new Date().toISOString() });
-    if (error) throw error;
+      .upsert({ id: key, data: parsed, updated_at: new Date().toISOString() }), sinal));
+    if (error) throw erroDeGravacao(error, status);
   },
   // só a "hora da última gravação" da linha (leve) — pra saber se outro
   // aparelho salvou algo desde a última vez que este leu
@@ -87,22 +94,22 @@ const storage = {
   async setIfUnchanged(key, value, esperado, novoCarimbo) {
     const parsed = JSON.parse(value);
     if (!esperado) {
-      const { error } = await supabase
+      const { error, status } = await comLimiteOuErro((sinal) => comSinal(supabase
         .from("app_data")
-        .insert({ id: key, data: parsed, updated_at: novoCarimbo });
+        .insert({ id: key, data: parsed, updated_at: novoCarimbo }), sinal));
       if (error) {
         if (error.code === "23505") return { conflict: true };
-        throw error;
+        throw erroDeGravacao(error, status);
       }
       return { ok: true };
     }
-    const { data, error } = await supabase
+    const { data, error, status } = await comLimiteOuErro((sinal) => comSinal(supabase
       .from("app_data")
       .update({ data: parsed, updated_at: novoCarimbo })
       .eq("id", key)
       .eq("updated_at", esperado)
-      .select("updated_at");
-    if (error) throw error;
+      .select("updated_at"), sinal));
+    if (error) throw erroDeGravacao(error, status);
     if (!data || data.length === 0) return { conflict: true };
     return { ok: true };
   },
@@ -546,9 +553,11 @@ const SEED_DATA = { anos: [{ id: "ano-2026", label: "2026", months: SEED_MONTHS 
 // VITE_STORAGE_KEY so vale no servidor de teste local (aponta pra uma COPIA
 // dos dados, "financas-casa-teste"); no app publicado e sempre a linha real.
 // No app BETA (build --mode beta) usa uma cópia própria, "financas-beta-casa".
-export const STORAGE_KEY =
-  (import.meta.env.DEV && import.meta.env.VITE_STORAGE_KEY) ||
-  (import.meta.env.MODE === "beta" ? "financas-beta-casa" : "financas-casa-data-v3");
+// No servidor de teste SEM a variável, cai na cópia de teste (nunca na linha
+// real) — igual às outras abas (ver Shell.jsx).
+export const STORAGE_KEY = import.meta.env.DEV
+  ? import.meta.env.VITE_STORAGE_KEY || "financas-casa-teste"
+  : import.meta.env.MODE === "beta" ? "financas-beta-casa" : "financas-casa-data-v3";
 const STORAGE_KEY_LEGACY = "financas-casa-data-v2";
 
 // Backup diário rotativo: 1x por dia (por dia da semana, guarda até 7
@@ -616,8 +625,12 @@ function EditableAmount({ value, onCommit, align = "right", className = "", mask
         step="0.01"
         value={draft}
         onChange={(e) => setDraft(e.target.value)}
-        onBlur={() => {
-          onCommit(Number(draft) || 0);
+        onBlur={(e) => {
+          // texto que não é número NÃO grava nada (antes virava 0 por cima do
+          // valor): o campo só volta pro valor de antes. Vazio/zero continua valendo 0.
+          const r = valorDoCampoEditavel(draft, !!(e.target.validity && e.target.validity.badInput));
+          if (r.gravar) onCommit(r.valor);
+          else setDraft(String(value ?? 0));
           setEditing(false);
         }}
         onKeyDown={(e) => {
@@ -750,6 +763,7 @@ export default function FinancasCasa({ ativo = true }) {
   const [periodOpen, setPeriodOpen] = useState(false);
   const [menuAnoId, setMenuAnoId] = useState(null); // ano que o menu do mês está mostrando
   const toastIdRef = useRef(0);
+  const importandoRef = useRef(false); // importar em andamento (evita toque duplo)
 
   const showToast = useCallback((msg, undoFn) => {
     const id = ++toastIdRef.current;
@@ -888,9 +902,23 @@ export default function FinancasCasa({ ativo = true }) {
         return;
       }
 
+      // A semente só entra quando a linha GENUINAMENTE não existe (leitura
+      // confirmada vazia, e sem a linha antiga também). Linha que existe mas
+      // veio num formato estranho → tela de erro, sem `loaded`: assim o
+      // salvamento automático nunca grava a semente por cima do que está lá.
+      const lerTexto = (t) => {
+        try { return JSON.parse(t); } catch (e) { return undefined; }
+      };
       let finalData;
-      if (res.value) {
-        finalData = JSON.parse(res.value);
+      const lido = res.value != null ? lerTexto(res.value) : null;
+      const oQueFazer = decidirLinhaLida({ existe: res.value != null, valor: lido }, casaValida);
+      if (oQueFazer === "erro") {
+        console.error("A linha das contas da casa existe, mas veio num formato inesperado — nada foi gravado.");
+        setLoadError("formato");
+        return;
+      }
+      if (oQueFazer === "usar") {
+        finalData = lido;
         lastSyncedRef.current = res.updatedAt || null;
         fromServerRef.current = true; // carregar não é editar: não grava nada
         backupIfNeeded(finalData);
@@ -901,16 +929,18 @@ export default function FinancasCasa({ ativo = true }) {
           setLoadError(true);
           return;
         }
-        if (legacy.value) {
-          const old = JSON.parse(legacy.value);
-          finalData = { anos: [{ id: uid(), label: yearNow(), months: old.months || [] }] };
-        } else {
-          finalData = SEED_DATA;
+        const old = legacy.value != null ? lerTexto(legacy.value) : null;
+        const legado = decidirLinhaLida({ existe: legacy.value != null, valor: old }, legadoValido);
+        if (legado === "erro") {
+          console.error("A linha antiga (v2) existe, mas veio num formato inesperado — nada foi gravado.");
+          setLoadError("formato");
+          return;
         }
-      }
-      if (!finalData.anos || finalData.anos.length === 0) {
-        finalData = SEED_DATA;
-        fromServerRef.current = false;
+        if (legado === "usar") {
+          finalData = { anos: [{ id: uid(), label: yearNow(), months: old.months }] };
+        } else {
+          finalData = SEED_DATA; // primeiro uso de verdade: nenhuma das duas linhas existe
+        }
       }
       setData(finalData);
       abrirMesAtual(finalData);
@@ -934,6 +964,12 @@ export default function FinancasCasa({ ativo = true }) {
   const pendingSaveRef = useRef(false);
   const retryTimerRef = useRef(null);
   const [saveError, setSaveError] = useState(false);
+  // gravações deste aparelho que ficaram SEM RESPOSTA (rede caiu no meio,
+  // estourou o tempo): podem ter chegado na nuvem. Guardadas pra, na hora de
+  // um "conflito", reconhecer a própria gravação em vez de acusar outro aparelho.
+  const tentativasRef = useRef([]);
+  // nome da linha "-conflito-" do conflito em andamento (reaproveitado até resolver)
+  const idConflitoRef = useRef(null);
 
   // Se a gravação falhar (internet caiu etc.), avisa na tela e tenta de novo
   // a cada 5s até conseguir — sempre com o estado mais recente.
@@ -947,8 +983,10 @@ export default function FinancasCasa({ ativo = true }) {
     if (!dirtyRef.current) return; // nada editado aqui: não grava nada
     savingRef.current = true;
     dirtyRef.current = false; // edições durante a gravação marcam de novo
-    const json = JSON.stringify(dataRef.current);
+    const enviado = dataRef.current;
+    const json = JSON.stringify(enviado);
     const carimbo = new Date().toISOString();
+    const offlineAntes = typeof navigator !== "undefined" && navigator.onLine === false;
     let ok = false;
     let conflito = false;
     try {
@@ -956,16 +994,38 @@ export default function FinancasCasa({ ativo = true }) {
       if (r.conflict) conflito = true;
       else {
         lastSyncedRef.current = carimbo;
+        tentativasRef.current = []; // a linha mudou de carimbo: nenhuma antiga chega mais
+        idConflitoRef.current = null;
         ok = true;
       }
     } catch (e) {
       console.error("Falha ao salvar", e);
       dirtyRef.current = true;
+      // se PODE ter chegado (rede caiu no meio, tempo estourou), lembra o que foi
+      // enviado e com qual carimbo. Sem internet desde antes, ou recusada pelo
+      // servidor, comprovadamente não entrou: não ocupa lugar na lista.
+      if (podeTerChegado(e, { offlineAntes })) {
+        tentativasRef.current = lembrarTentativa(tentativasRef.current, { carimbo, doc: enviado });
+      }
     } finally {
-      savingRef.current = false;
+      // em conflito, a "vez" de gravar continua presa até ele ser resolvido:
+      // senão uma edição feita nesse meio-tempo disparava outra gravação em paralelo
+      if (!conflito) savingRef.current = false;
     }
     if (conflito) {
-      await resolverConflitoRef.current(json);
+      let regravar = false;
+      try {
+        regravar = (await resolverConflitoRef.current(json)) === "regravar";
+      } catch (e) {
+        console.error("Falha ao resolver o conflito", e);
+        dirtyRef.current = true;
+        setSaveError(true);
+        clearTimeout(retryTimerRef.current);
+        retryTimerRef.current = setTimeout(flushSave, 5000);
+      } finally {
+        savingRef.current = false;
+      }
+      if (regravar) flushSave();
       return;
     }
     setSaveError(!ok);
@@ -984,13 +1044,35 @@ export default function FinancasCasa({ ativo = true }) {
   resolverConflitoRef.current = async (jsonLocal) => {
     const d = new Date();
     const p2 = (n) => String(n).padStart(2, "0");
-    const dia = `${d.getFullYear()}-${p2(d.getMonth() + 1)}-${p2(d.getDate())}`;
-    const idCopia = `${STORAGE_KEY}-conflito-${dia}-${p2(d.getHours())}${p2(d.getMinutes())}${p2(d.getSeconds())}`;
     const falhou = () => {
       dirtyRef.current = true;
       setSaveError(true);
+      clearTimeout(retryTimerRef.current);
       retryTimerRef.current = setTimeout(flushSave, 5000);
     };
+    // Antes de acusar conflito: se alguma gravação daqui ficou sem resposta,
+    // confere se o que está na nuvem é ela mesma (mesmo carimbo E mesmo
+    // conteúdo). Se for, a gravação tinha chegado — não é conflito.
+    if (tentativasRef.current.length) {
+      const linha = await storage.get(STORAGE_KEY);
+      if (linha.failed) return falhou(); // não deu pra conferir: tenta de novo, sem criar cópia
+      let naNuvem;
+      try { naNuvem = linha.value != null ? JSON.parse(linha.value) : null; } catch (e) { naNuvem = null; }
+      const minha = acharMinhaGravacao(tentativasRef.current, { updatedAt: linha.updatedAt, value: naNuvem });
+      if (minha) {
+        lastSyncedRef.current = linha.updatedAt;
+        tentativasRef.current = [];
+        idConflitoRef.current = null;
+        pendingSaveRef.current = false;
+        // mudou algo aqui depois daquela gravação? então ainda falta mandar
+        const falta = dataRef.current !== minha.doc;
+        dirtyRef.current = falta;
+        setSaveError(false);
+        return falta ? "regravar" : undefined; // quem chamou grava de novo, depois de soltar a vez
+      }
+    }
+    if (!idConflitoRef.current) idConflitoRef.current = idDaCopiaDeConflito(STORAGE_KEY, d);
+    const idCopia = idConflitoRef.current;
     try {
       await storage.set(idCopia, jsonLocal);
     } catch (e) {
@@ -999,9 +1081,14 @@ export default function FinancasCasa({ ativo = true }) {
     const res = await storage.get(STORAGE_KEY);
     if (res.failed || !res.value) return falhou();
     if (dirtyRef.current) {
-      try { await storage.set(idCopia, JSON.stringify(dataRef.current)); } catch (e) { /* a primeira cópia já está salva */ }
+      // editou durante a resolução: a cópia precisa levar essa edição também.
+      // Se não der pra gravar, NÃO segue (senão a edição sumia em silêncio):
+      // fica com o que está aqui e tenta tudo de novo.
+      try { await storage.set(idCopia, JSON.stringify(dataRef.current)); } catch (e) { return falhou(); }
     }
     lastSyncedRef.current = res.updatedAt || null;
+    tentativasRef.current = [];
+    idConflitoRef.current = null; // resolvido: um conflito novo ganha linha nova
     dirtyRef.current = false;
     pendingSaveRef.current = false;
     fromServerRef.current = true;
@@ -1167,7 +1254,14 @@ export default function FinancasCasa({ ativo = true }) {
     return (
       <div className="fc-wrap">
         <FcStyles />
-        <SemInternet />
+        {loadError === "formato" ? (
+          <SemInternet
+            titulo="Os dados chegaram num formato que o app não reconhece"
+            sub="Nada foi mudado. Fale com o Claude antes de mexer."
+          />
+        ) : (
+          <SemInternet />
+        )}
       </div>
     );
   }
@@ -1310,8 +1404,17 @@ export default function FinancasCasa({ ativo = true }) {
     }));
 
   const addLancamento = () => {
-    const valor = Number(lancValor.replace(",", "."));
-    if (!valor) return;
+    if (!String(lancValor).trim()) return; // campo vazio: nada a lançar
+    // "1.500" = mil e quinhentos; "1.234,56" = mil duzentos e trinta e quatro e 56
+    const valor = lerValor(lancValor);
+    if (!Number.isFinite(valor)) {
+      showToast(`Não entendi o valor "${String(lancValor).trim()}". Digite só números, como 1.500 ou 12,50 — nada foi lançado.`);
+      return;
+    }
+    if (valor === 0) {
+      showToast("O valor está zerado — nada foi lançado.");
+      return;
+    }
     addLancamentoDireto(activeCat, lancDesc || "Item sem descrição", valor);
     setLancDesc("");
     setLancValor("");
@@ -1540,12 +1643,32 @@ export default function FinancasCasa({ ativo = true }) {
     setTimeout(() => setCopyFeedback(""), 3000);
   }
 
-  function applyImport() {
+  // Importar troca TUDO: antes de aplicar, guarda o que existe hoje numa linha
+  // à parte ("<linha>-antes-importar-<data>-<hora>"), igual às Configurações
+  // fazem ao restaurar. Se a cópia não puder ser gravada, não importa nada.
+  async function applyImport() {
+    if (importandoRef.current) return;
+    let parsed;
     try {
-      const parsed = JSON.parse(importText);
-      if (!parsed || !Array.isArray(parsed.anos) || parsed.anos.length === 0) {
-        throw new Error("formato inválido");
-      }
+      parsed = JSON.parse(importText);
+      if (!casaValida(parsed)) throw new Error("formato inválido");
+    } catch (e) {
+      setImportError("Esse texto não parece um export válido do app. Confira se colou tudo, do { até o } final.");
+      return;
+    }
+    importandoRef.current = true;
+    try {
+      const d = new Date();
+      const p2 = (n) => String(n).padStart(2, "0");
+      const quando = `${d.getFullYear()}-${p2(d.getMonth() + 1)}-${p2(d.getDate())}-${p2(d.getHours())}${p2(d.getMinutes())}${p2(d.getSeconds())}`;
+      await storage.set(`${STORAGE_KEY}-antes-importar-${quando}`, JSON.stringify(dataRef.current));
+    } catch (e) {
+      setImportError("Não consegui guardar uma cópia de segurança do que existe hoje (sem internet?). Nada foi mudado — tente de novo.");
+      return;
+    } finally {
+      importandoRef.current = false;
+    }
+    try {
       setData(parsed);
       openAno(parsed.anos[parsed.anos.length - 1]);
       setImportText("");

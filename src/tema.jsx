@@ -479,12 +479,14 @@ export function Carregando({ texto = "Carregando…" }) {
 // uma lista de esqueleto, com o focinho + um X vermelho no estilo da moeda de
 // "pago". Nunca é mostrada por cima de dados — só quando o carregamento falhou
 // de verdade (ver zero-data-loss: o gate de "carregado" nunca é ligado aqui).
-export function SemInternet({ onTentar }) {
+// `titulo` e `sub` (opcionais) trocam só o texto — pra um erro que NÃO é de
+// internet não aparecer como se fosse. O visual é o mesmo.
+export function SemInternet({ onTentar, titulo: tituloProprio, sub: subProprio }) {
   const offline = typeof navigator !== "undefined" && navigator.onLine === false;
-  const titulo = offline ? "Ops, sem internet" : "Não deu pra carregar agora";
-  const sub = offline
+  const titulo = tituloProprio || (offline ? "Ops, sem internet" : "Não deu pra carregar agora");
+  const sub = subProprio || (offline
     ? "Suas contas aparecem assim que a conexão voltar"
-    : "Verifique a internet e tente de novo — por segurança, nada será salvo até carregar direito";
+    : "Verifique a internet e tente de novo — por segurança, nada será salvo até carregar direito");
   return (
     <div style={{ position: "relative", minHeight: "100vh" }}>
       <div className="oink-sn-fundo" aria-hidden="true">

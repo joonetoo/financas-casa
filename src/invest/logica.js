@@ -10,7 +10,7 @@
 //  - "ipca":  Tesouro IPCA+, Renda+, Educa+ (preço muda todo dia; vale
 //             quantidade × preço oficial do Tesouro)
 
-import { uid, hojeISO, p2 } from "../pessoal/logica.js";
+import { uid, hojeISO, p2, lerValor } from "../pessoal/logica.js";
 
 export { uid, hojeISO, p2 };
 
@@ -461,11 +461,10 @@ export const fmt = (v) => (Number(v) || 0).toLocaleString("pt-BR", { minimumFrac
 export const fmtSinal = (v) => (v < -0.004 ? "−" : "+") + fmt(Math.abs(v));
 export const fmtPct = (v, casas = 1) => (v < 0 ? "−" : "+") + Math.abs(v * 100).toLocaleString("pt-BR", { minimumFractionDigits: casas, maximumFractionDigits: casas }) + "%";
 export const fmtQtd = (q) => (Number(q) || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 4 });
+// Mesma regra do `lerValor` da Minhas contas (uma regra só no app todo):
+// "1.234,56", "1234,56", "1234.56", "13,65", "6.96", "110%"; e "1.500" = mil e
+// quinhentos (antes era lido como 1,5). O que não é número dá NaN.
 export function lerNumero(txt) {
   if (typeof txt === "number") return txt;
-  const s = String(txt || "").replace(/[^\d,.-]/g, "");
-  if (!s) return NaN;
-  // "1.234,56" ou "1234,56" ou "1234.56"
-  const norm = s.includes(",") ? s.replace(/\./g, "").replace(",", ".") : s;
-  return Number(norm);
+  return lerValor(String(txt ?? "").replace(/%/g, ""));
 }

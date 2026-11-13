@@ -7,7 +7,10 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
+    "test": "vitest run",
+    "predeploy": "npm test",
     "deploy": "vite build && gh-pages -d dist",
+    "predeploy-beta": "npm test",
     "deploy-beta": "vite build --mode beta && gh-pages -d dist -r https://github.com/joonetoo/financas-beta.git"
   },
   "dependencies": {
@@ -20,7 +23,9 @@
   "devDependencies": {
     "@vitejs/plugin-react": "^4.3.4",
     "gh-pages": "^6.3.0",
-    "vite": "^6.0.5"
+    "jsdom": "^31.0.0",
+    "vite": "^6.0.5",
+    "vitest": "^4.1.12"
   },
   "allowScripts": {
     "esbuild@0.25.12": true,

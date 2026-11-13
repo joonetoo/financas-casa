@@ -33,6 +33,7 @@ function gerarServiceWorker() {
   return {
     name: "gerar-service-worker",
     closeBundle() {
+      if (process.env.VITEST) return; // rodando os testes: não mexe no dist
       const dist = path.resolve("dist");
       const indexPath = path.join(dist, "index.html");
       if (!fs.existsSync(indexPath)) return;
@@ -90,4 +91,9 @@ self.addEventListener("fetch", (e) => {
 export default defineConfig(({ mode }) => ({
   base: "./",
   plugins: [react(), nomeBeta(mode), gerarServiceWorker()],
+  // Testes (npm test): só os arquivos de testes/, e com a rede bloqueada.
+  test: {
+    include: ["testes/**/*.test.{js,jsx}"],
+    setupFiles: ["testes/ajuda/sem-rede.js"],
+  },
 }));

@@ -17,6 +17,7 @@ const agoraTxt = () => {
 };
 const hojeTxt = () => agoraTxt().slice(0, 10);
 const DESFAZER_KEY = "oink-desfazer";
+const DESFAZER_EVENTO = "oink-desfazer-mudou"; // o aviso relê a anotação sem recarregar a página
 
 function baixar(nome, conteudo, tipo = "application/json") {
   const blob = new Blob([conteudo], { type: tipo });
@@ -50,37 +51,92 @@ function csvMinhasContas(doc) {
   return "﻿" + linhas.join("\r\n");
 }
 
-// guarda o que existe hoje numa linha à parte e troca pelo novo; depois recarrega
-async function trocarComCopia(trocas, motivo) {
+const guardarDesfazer = (info) => {
+  try {
+    sessionStorage.setItem(DESFAZER_KEY, JSON.stringify(info));
+  } catch (e) { /* sem desfazer automático, mas a cópia existe */ }
+};
+
+// guarda o que existe hoje numa linha à parte e troca pelo novo; depois recarrega.
+// Ordem que importa:
+//  1. grava TODAS as cópias "-antes-" (falhou aqui → nada foi mudado);
+//  2. já deixa o "Desfazer" anotado, ANTES de trocar qualquer coisa;
+//  3. troca uma linha por vez. Se cair no meio, o erro sai com `.parcial`
+//     dizendo o que foi trocado, o que ficou sem confirmação e o que nem
+//     começou — e o aviso com "Desfazer" aparece na hora;
+//  4. só no fim, com tudo trocado, roda `aoConcluir` e recarrega.
+// "Tentar de novo" depois de uma troca que parou no meio: as linhas já estão
+// meio trocadas, então copiar de novo guardaria o estado ERRADO como "antes".
+// Por isso, se existe uma anotação parcial do mesmo tipo (ainda no prazo do
+// aviso), as cópias originais dela são reaproveitadas — o Desfazer continua
+// voltando pro estado de ANTES DE TUDO.
+async function trocarComCopia(trocas, motivo, aoConcluir) {
   const carimbo = agoraTxt();
-  const copias = [];
-  for (const { chave, novo } of trocas) {
-    const atual = await nuvem.get(chave);
-    if (atual.failed) throw new Error("sem conexão");
-    const idCopia = `${chave}-antes-${motivo}-${carimbo}`;
-    if (atual.value) {
-      await nuvem.set(idCopia, atual.value);
-      copias.push({ chave, idCopia });
+  const anterior = lerDesfazer();
+  const jaCopiadas = anterior && anterior.parcial && anterior.motivo === motivo && Array.isArray(anterior.copias)
+    ? anterior.copias.filter((c) => c && c.chave && c.idCopia) : [];
+  const jaTem = (chave) => jaCopiadas.some((c) => c.chave === chave);
+  const copias = [...jaCopiadas];
+  try {
+    for (const { chave } of trocas) {
+      if (jaTem(chave)) continue; // a cópia de antes de tudo já existe: não copia o estado meio trocado
+      const atual = await nuvem.get(chave);
+      if (atual.failed) throw new Error("sem conexão");
+      const idCopia = `${chave}-antes-${motivo}-${carimbo}`;
+      if (atual.value) {
+        await nuvem.set(idCopia, atual.value);
+        copias.push({ chave, idCopia });
+      }
+    }
+  } catch (e) {
+    // nada foi trocado NESTA tentativa; se havia uma troca pela metade, ela continua (e o Desfazer dela também)
+    if (jaCopiadas.length) e.aindaParcial = true;
+    throw e;
+  }
+  const quando = Date.now();
+  guardarDesfazer({ motivo, quando, copias, parcial: true });
+  const nome = (t) => t.nome || t.chave;
+  for (let i = 0; i < trocas.length; i++) {
+    try {
+      await nuvem.set(trocas[i].chave, trocas[i].novo);
+    } catch (e) {
+      // a troca que falhou pode ter chegado mesmo assim (resposta perdida):
+      // o Desfazer cobre ela, as anteriores e o que já vinha de uma tentativa
+      // anterior; as que nem começaram ficam fora.
+      const tentadas = trocas.slice(0, i + 1).map((t) => t.chave);
+      guardarDesfazer({ motivo, quando, parcial: true, copias: copias.filter((c) => tentadas.includes(c.chave) || jaTem(c.chave)) });
+      window.dispatchEvent(new Event(DESFAZER_EVENTO));
+      const erro = new Error("troca pela metade");
+      erro.parcial = { feitas: trocas.slice(0, i).map(nome), incerta: nome(trocas[i]), faltaram: trocas.slice(i + 1).map(nome) };
+      throw erro;
     }
   }
-  for (const { chave, novo } of trocas) await nuvem.set(chave, novo);
+  guardarDesfazer({ motivo, quando, copias });
   try {
-    sessionStorage.setItem(DESFAZER_KEY, JSON.stringify({ motivo, quando: Date.now(), copias }));
-  } catch (e) { /* sem desfazer automático, mas a cópia existe */ }
+    if (aoConcluir) aoConcluir();
+  } catch (e) { /* o registro é um extra: a troca já foi feita */ }
   window.location.reload();
 }
 
 // Aviso que aparece depois de restaurar / começar do zero, com "Desfazer"
+const lerDesfazer = () => {
+  try {
+    const i = JSON.parse(sessionStorage.getItem(DESFAZER_KEY) || "null");
+    return i && Date.now() - i.quando < 10 * 60 * 1000 ? i : null;
+  } catch (e) {
+    return null;
+  }
+};
+
 export function AvisoDesfazerGeral() {
-  const [info, setInfo] = useState(() => {
-    try {
-      const i = JSON.parse(sessionStorage.getItem(DESFAZER_KEY) || "null");
-      return i && Date.now() - i.quando < 10 * 60 * 1000 ? i : null;
-    } catch (e) {
-      return null;
-    }
-  });
+  const [info, setInfo] = useState(lerDesfazer);
   const [trabalhando, setTrabalhando] = useState(false);
+  // troca que parou no meio: a página não recarrega, então o aviso é chamado por aqui
+  useEffect(() => {
+    const reler = () => setInfo(lerDesfazer());
+    window.addEventListener(DESFAZER_EVENTO, reler);
+    return () => window.removeEventListener(DESFAZER_EVENTO, reler);
+  }, []);
   if (!info) return null;
   const fechar = () => {
     try { sessionStorage.removeItem(DESFAZER_KEY); } catch (e) { /* nada */ }
@@ -101,13 +157,25 @@ export function AvisoDesfazerGeral() {
       alert("Não consegui desfazer agora (sem internet?). Tente de novo — a cópia continua guardada.");
     }
   };
-  const txt = info.motivo === "restaurar" ? "Backup restaurado." : "Lançamentos apagados.";
+  const txt = info.parcial
+    ? (info.motivo === "restaurar" ? "A restauração parou no meio." : "Não deu pra confirmar se apagou.")
+    : info.motivo === "restaurar" ? "Backup restaurado." : "Lançamentos apagados.";
+  // o estilo mora aqui, junto do aviso: ele aparece em qualquer aba, não só
+  // com as Configurações abertas (antes o CSS só existia lá dentro)
   return (
-    <div className="cf-aviso" role="status">
-      <span>{txt} O que tinha antes ficou guardado.</span>
-      <button onClick={desfazer} disabled={trabalhando}><Undo2 size={16} /> {trabalhando ? "Desfazendo…" : "Desfazer"}</button>
-      <button className="cf-aviso-x" aria-label="Fechar aviso" onClick={fechar}><X size={16} /></button>
-    </div>
+    <>
+      <style>{`
+        .cf-aviso{position:fixed;left:50%;transform:translateX(-50%);top:12px;z-index:90;display:flex;align-items:center;gap:10px;max-width:calc(100vw - 24px);
+          background:var(--o-ink);color:var(--o-bg);border-radius:16px;padding:10px 10px 10px 16px;font:800 14px 'Nunito',sans-serif;box-shadow:0 16px 40px -12px rgba(0,0,0,.6)}
+        .cf-aviso button{border:none;border-radius:10px;background:var(--o-bg);color:var(--o-entrou);font:900 13px 'Nunito',sans-serif;padding:8px 12px;cursor:pointer;display:inline-flex;gap:6px;align-items:center}
+        .cf-aviso .cf-aviso-x{background:transparent;color:var(--o-bg);padding:6px}
+      `}</style>
+      <div className="cf-aviso" role="status">
+        <span>{txt} O que tinha antes ficou guardado.</span>
+        <button onClick={desfazer} disabled={trabalhando}><Undo2 size={16} /> {trabalhando ? "Desfazendo…" : "Desfazer"}</button>
+        <button className="cf-aviso-x" aria-label="Fechar aviso" onClick={fechar}><X size={16} /></button>
+      </div>
+    </>
   );
 }
 
@@ -173,6 +241,24 @@ export default function Configuracoes({ chaveCasa, chavePessoal, chaveInvest, la
 
   const falhou = (e) => {
     setOcupado(false);
+    if (e && e.parcial) {
+      // caiu DEPOIS de começar a trocar: dizer exatamente o que aconteceu
+      const { feitas, incerta, faltaram } = e.parcial;
+      setRestaurar(null);
+      setZeroArmado(0);
+      setMsg([
+        "Parou no meio — a internet caiu?",
+        feitas.length ? `Já trocado: ${feitas.join(", ")}.` : "",
+        `Sem confirmação (pode ter trocado ou não): ${incerta}.`,
+        faltaram.length ? `Não trocado: ${faltaram.join(", ")}.` : "",
+        "O que tinha antes ficou guardado: toque em “Desfazer” no aviso do topo pra voltar como estava, ou tente de novo.",
+      ].filter(Boolean).join(" "));
+      return;
+    }
+    if (e && e.aindaParcial) {
+      setMsg("Não consegui agora — confira a internet e tente de novo. A troca anterior continua pela metade; o “Desfazer” do aviso do topo ainda vale.");
+      return;
+    }
     setMsg("Não consegui agora — confira a internet e tente de novo. Nada foi mudado.");
   };
 
@@ -227,12 +313,14 @@ export default function Configuracoes({ chaveCasa, chavePessoal, chaveInvest, la
     try {
       const a = restaurar.dados.abas;
       const trocas = [];
-      if (a.casa?.dados) trocas.push({ chave: chaveCasa, novo: a.casa.dados });
-      if (a.pessoal?.dados) trocas.push({ chave: chavePessoal, novo: a.pessoal.dados });
+      if (a.casa?.dados) trocas.push({ chave: chaveCasa, novo: a.casa.dados, nome: "Contas da casa" });
+      if (a.pessoal?.dados) trocas.push({ chave: chavePessoal, novo: a.pessoal.dados, nome: "Minhas contas" });
       // backups antigos não têm investimentos: aí a aba Investimentos fica como está
-      if (a.invest?.dados && chaveInvest) trocas.push({ chave: chaveInvest, novo: a.invest.dados });
-      registrar(chavePessoal, { acao: "geral:restaurou", resumo: `Você restaurou o backup ${restaurar.nome}` });
-      await trocarComCopia(trocas, "restaurar");
+      if (a.invest?.dados && chaveInvest) trocas.push({ chave: chaveInvest, novo: a.invest.dados, nome: "Investimentos" });
+      const nomeArquivo = restaurar.nome;
+      // só entra no registro de atividades depois que TUDO foi trocado
+      await trocarComCopia(trocas, "restaurar", () =>
+        registrar(chavePessoal, { acao: "geral:restaurou", resumo: `Você restaurou o backup ${nomeArquivo}` }));
     } catch (e) { falhou(e); }
   };
 
@@ -248,8 +336,10 @@ export default function Configuracoes({ chaveCasa, chavePessoal, chaveInvest, la
       const r = await nuvem.get(chavePessoal);
       if (r.failed) throw new Error("sem conexão");
       const atual = r.value || { v: 1, categorias: [], lancamentos: [] };
-      registrar(chavePessoal, { acao: "geral:zerou", resumo: `Você apagou todos os ${atual.lancamentos?.length || 0} lançamentos de Minhas contas (as categorias ficaram)` });
-      await trocarComCopia([{ chave: chavePessoal, novo: { ...atual, lancamentos: [] } }], "zerar");
+      const quantos = atual.lancamentos?.length || 0;
+      // só entra no registro de atividades depois que a troca deu certo
+      await trocarComCopia([{ chave: chavePessoal, novo: { ...atual, lancamentos: [] }, nome: "Minhas contas" }], "zerar", () =>
+        registrar(chavePessoal, { acao: "geral:zerou", resumo: `Você apagou todos os ${quantos} lançamentos de Minhas contas (as categorias ficaram)` }));
     } catch (e) { falhou(e); }
   };
 
@@ -309,10 +399,6 @@ export default function Configuracoes({ chaveCasa, chavePessoal, chaveInvest, la
         .cf-b-verm{border:none;background:var(--o-saiu);color:#fff}
         .cf-opcoes{display:flex;flex-direction:column;gap:8px}
         .cf-opcoes button{height:50px;border-radius:14px;border:1px solid var(--o-line);background:var(--o-sf2);color:var(--o-ink);font:800 15px 'Nunito',sans-serif;cursor:pointer;display:flex;align-items:center;justify-content:space-between;padding:0 16px}
-        .cf-aviso{position:fixed;left:50%;transform:translateX(-50%);top:12px;z-index:90;display:flex;align-items:center;gap:10px;max-width:calc(100vw - 24px);
-          background:var(--o-ink);color:var(--o-bg);border-radius:16px;padding:10px 10px 10px 16px;font:800 14px 'Nunito',sans-serif;box-shadow:0 16px 40px -12px rgba(0,0,0,.6)}
-        .cf-aviso button{border:none;border-radius:10px;background:var(--o-bg);color:var(--o-entrou);font:900 13px 'Nunito',sans-serif;padding:8px 12px;cursor:pointer;display:inline-flex;gap:6px;align-items:center}
-        .cf-aviso .cf-aviso-x{background:transparent;color:var(--o-bg);padding:6px}
       `}</style>
       <div className="cf-in">
         <div className="cf-topo">
