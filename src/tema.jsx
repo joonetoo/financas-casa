@@ -174,20 +174,14 @@ html[data-tema] .fc-slide-pill-tab{background:var(--o-ink)!important;border-radi
 html[data-tema] .fc-tab-active{color:var(--o-bg)!important}
 html[data-tema] .fc-tab-active::after{display:none!important}
 @media (max-width:820px){
-  html[data-tema] .fc-tabs{position:static!important;display:flex!important;margin:0 0 16px!important;padding:4px!important;
-    border-radius:18px!important;border:none!important;background:var(--o-sf)!important;backdrop-filter:none!important}
-  html[data-tema] .fc-tab{min-height:42px!important;font-size:12.5px!important;border-radius:14px!important}
+  html[data-tema] .fc-tabs{position:static!important;display:flex!important;border:none!important;backdrop-filter:none!important}
   html[data-tema] .fc-tab-active{background:var(--o-ink)!important}
   html[data-tema] .fc-main{padding-bottom:110px!important}
 }
 
 /* casa: mês no centro, conteúdo dentro de um quadro (igual à Minhas contas), sem o backup antigo (agora em Configurações) */
-html[data-tema] .fc-period{justify-content:center}
-html[data-tema] .fc-quadro{background:var(--o-sf);border:1px solid var(--o-line);border-radius:28px;padding:18px;margin-bottom:18px;
-  animation:oink-sobe .4s cubic-bezier(.22,.9,.32,1)}
-@media (max-width:820px){ html[data-tema] .fc-quadro{padding:0;border:none;border-radius:0;background:transparent!important;backdrop-filter:none!important}
-  html[data-tema] .fc-budget-item{font-size:15px!important;padding:10px!important} }
-html[data-tema] .fc-quadro .fc-tabs{background:var(--o-sf2)!important}
+/* o conteúdo de cada aba fica direto no fundo: cada bloco é o seu próprio cartão (sem cartão dentro de cartão) */
+html[data-tema] .fc-quadro{margin-bottom:18px;animation:oink-sobe .4s cubic-bezier(.22,.9,.32,1)}
 html[data-tema] .fc-data-zone > *:not(.fc-danger-link):not(.fc-confirm-inline){display:none!important}
 html[data-tema] .fc-data-zone{border:none!important;padding-top:4px!important;margin-top:0!important}
 html[data-tema="claro"][data-plat="mac"] body{background:
@@ -208,27 +202,45 @@ html[data-plat="mac"] .fc-hero{backdrop-filter:blur(40px) saturate(160%);-webkit
   background:linear-gradient(160deg, color-mix(in srgb, #2FA876 75%, var(--o-sf)), color-mix(in srgb, var(--o-sf) 82%, transparent))!important}
 
 /* ===== Casa repaginada na ID do Oink (mockup "Parte 3", aprovado 2026-09-27) ===== */
-/* topo: título grande igual ao "Minhas contas" */
-html[data-tema] .fc-header{align-items:flex-end}
-html[data-tema] .fc-brand-badge{display:none!important}
-html[data-tema] .fc-brand-name{font-size:30px!important;font-weight:900!important;letter-spacing:-.01em;line-height:1.1}
-html[data-plat="mac"] .fc-brand-name, html[data-plat="pc"] .fc-brand-name{font-size:36px!important}
-html[data-tema] .fc-subtitle{font-size:14px!important;font-weight:700!important;color:var(--o-faint)!important;margin-top:4px}
-html[data-tema] .fc-hide-btn{width:44px!important;height:44px!important;border-radius:15px!important;background:var(--o-sf)!important;color:var(--o-ink)!important}
+/* topo numa linha só: título · abas · mês · Lançar · olho (refino 2026-11) */
+html[data-tema] .fc-wrap{--tinta5:color-mix(in srgb, var(--o-ink) 5%, transparent);--tinta12:color-mix(in srgb, var(--o-ink) 12%, transparent);
+  padding:14px 14px 24px!important;border-radius:0}
+html[data-tema] .sh-larga .fc-wrap{padding-left:0!important}
+html[data-tema] .fc-header{flex-wrap:wrap;align-items:center;justify-content:flex-start;gap:10px;margin:0 0 16px;padding:6px 6px 0}
+html[data-tema] .fc-brand{align-items:baseline;gap:10px;margin-right:14px}
+html[data-tema] .fc-brand-name{font-size:22px!important;font-weight:900!important;letter-spacing:-.01em;line-height:1.1;white-space:nowrap}
+html[data-tema] .fc-subtitle{font-size:14px!important;font-weight:600!important;color:var(--o-faint)!important;margin:0;white-space:nowrap}
+html[data-tema] .fc-hide-btn{width:34px!important;height:34px!important;min-width:0!important;min-height:0!important;padding:0!important;border-radius:11px!important;
+  border:1px solid var(--tinta12)!important;background:var(--tinta5)!important;color:var(--o-ink)!important}
+.fc-lancar{height:34px;padding:0 16px;border:none;border-radius:11px;background:var(--o-rosa);color:var(--o-rosa-deep);font-size:13px!important;font-weight:800!important;
+  display:inline-flex;align-items:center;gap:6px;cursor:pointer;flex-shrink:0;transition:transform .12s cubic-bezier(.22,.9,.32,1),filter .12s}
+.fc-lancar:hover{filter:brightness(1.05)}
+.fc-lancar:active{transform:scale(.97)}
 /* mês */
-html[data-tema] .fc-period-label{flex:0 0 auto!important;min-height:48px!important;padding:0 22px!important;border:none!important;background:var(--o-sf2)!important;
-  font-size:19px!important;font-weight:900!important}
-html[data-tema] .fc-period-arrow{border-radius:15px!important;color:var(--o-ink)!important}
-@media (max-width:820px){ html[data-tema] .fc-period{justify-content:space-between!important} }
+html[data-tema] .fc-period{position:relative;margin:0 0 0 auto!important;gap:4px!important}
+html[data-tema] .fc-period-label{flex:0 0 auto!important;min-width:150px;min-height:34px!important;padding:0 12px!important;border:1px solid var(--tinta12)!important;
+  border-radius:11px!important;background:var(--tinta5)!important;font-size:13px!important;font-weight:800!important;gap:5px!important}
+html[data-tema] .fc-period-arrow{width:34px!important;height:34px!important;border-radius:11px!important;border:1px solid var(--tinta12)!important;
+  background:var(--tinta5)!important;color:var(--o-ink)!important}
+@media (max-width:820px){
+  html[data-tema] .fc-wrap{padding:0 14px 24px!important}
+  html[data-tema] .fc-header{gap:8px;padding:8px 0 0;margin-bottom:12px}
+  html[data-tema] .fc-brand{order:1;flex:1 1 0;min-width:0;min-height:44px;flex-direction:column;align-items:flex-start;justify-content:center;gap:1px;margin:0}
+  html[data-tema] .fc-brand-name{font-size:20px!important}
+  html[data-tema] .fc-subtitle{font-size:12.5px!important}
+  html[data-tema] .fc-lancar{display:none}
+  html[data-tema] .fc-hide-btn{order:2;width:44px!important;height:44px!important;border-radius:14px!important;border:none!important;background:var(--o-sf)!important}
+  html[data-tema] .fc-period{order:3;flex:1 1 100%;margin:0!important;gap:8px!important}
+  html[data-tema] .fc-period-arrow{width:44px!important;height:44px!important;border-radius:14px!important;border:none!important;background:var(--o-sf)!important}
+  html[data-tema] .fc-period-label{flex:1 1 0!important;min-width:0;min-height:44px!important;border:none!important;border-radius:14px!important;background:var(--o-sf)!important;font-size:15px!important}
+  html[data-tema] .fc-tabs{order:4}
+}
 /* barra do mês da casa: ‹ mês › + (o + cria o próximo mês) e menu igual ao da Minhas contas */
-html[data-tema] .fc-period{position:relative;gap:8px!important}
+/* o "+" do mês (cria o próximo mês) é um botão comum com calendário: o rosa fica só no Lançar */
 .fc-mes-curto{display:none}
-@media (max-width:820px){ .fc-mes-longo{display:none} .fc-mes-curto{display:inline} html[data-tema] .fc-period-label{padding:0 18px!important} }
-html[data-tema] .fc-period-add{border:none!important;background:linear-gradient(180deg,#FF9DBE,#FF6D9B)!important;color:#3A0A1D!important;
-  box-shadow:0 3px 0 var(--o-rosa-sombra);opacity:1!important}
-html[data-tema] .fc-period-add:active{transform:translateY(2px)!important;box-shadow:0 1px 0 var(--o-rosa-sombra)}
+@media (max-width:820px){ .fc-mes-longo{display:none} .fc-mes-curto{display:inline} }
 .fc-mes-fundo{position:fixed;inset:0;z-index:44}
-.fc-mes-menu{position:absolute;top:58px;left:50%;translate:-50% 0;z-index:45;width:min(320px,calc(100vw - 32px));padding:8px;border-radius:24px;
+.fc-mes-menu{position:absolute;top:42px;left:50%;translate:-50% 0;z-index:45;width:min(320px,calc(100vw - 32px));padding:8px;border-radius:20px;
   background:var(--o-sf2);border:1px solid var(--o-line);box-shadow:0 24px 50px -12px rgba(0,0,0,.55);display:flex;flex-direction:column;gap:2px;
   max-height:min(78vh,680px);overflow-y:auto;font-family:'Nunito',sans-serif;animation:oink-sobe .22s cubic-bezier(.22,.9,.32,1)}
 html[data-plat="mac"] .fc-mes-menu.vidro{background:color-mix(in srgb, var(--o-sf2) 96%, transparent)!important}
@@ -260,21 +272,25 @@ html[data-tema="claro"] .fc-mes-add{color:#C2386B}
 .fc-mes-add small{display:block;font-size:12px!important;font-weight:700!important;letter-spacing:0;color:var(--o-faint);margin-top:1px}
 .fc-mes-form{display:flex;gap:6px;padding:6px}
 .fc-mes-form .fc-input{flex:1;min-width:0}
-/* sub-abas: pílula com fundinho */
-html[data-tema] .fc-tabs{border-radius:999px!important;padding:5px!important;background:var(--o-sf2)!important}
-html[data-tema] .fc-tab{border-radius:999px!important;font-size:14px!important;font-weight:800!important;color:var(--o-soft)}
-html[data-tema] .fc-slide-pill-tab{border-radius:999px!important}
-html[data-tema] .fc-tab-active{font-weight:900!important}
-@media (max-width:820px){ html[data-tema] .fc-tab{font-size:13px!important} }
+/* sub-abas: pílula pequena com fundinho, à esquerda no cabeçalho */
+html[data-tema] .fc-tabs{flex:0 0 auto;flex-wrap:nowrap!important;gap:2px!important;margin:0!important;padding:3px!important;border-radius:12px!important;background:var(--tinta5)!important}
+html[data-tema] .fc-tab{flex:0 0 auto;min-height:30px!important;padding:0 16px!important;border-radius:9px!important;font-size:13px!important;font-weight:700!important;color:var(--o-soft);white-space:nowrap}
+html[data-tema] .fc-slide-pill-tab{border-radius:9px!important;box-shadow:none!important}
+html[data-tema] .fc-tab-active{font-weight:700!important}
+@media (max-width:820px){
+  html[data-tema] .fc-tabs{flex:1 1 100%;padding:4px!important;border-radius:14px!important;background:var(--o-sf)!important}
+  html[data-tema] .fc-tab{flex:1 1 0;min-height:40px!important;padding:0 6px!important;border-radius:11px!important;font-size:13.5px!important}
+}
 
 /* cartão verde "Ainda dá pra gastar" */
-html[data-tema] .fc-hero{gap:0!important;padding:22px!important}
-@media (max-width:820px){ html[data-tema] .fc-hero{padding:20px 18px!important} html[data-tema] .fc-hero-chip{padding:10px!important;column-gap:8px!important} }
-html[data-tema] .fc-hero-eyebrow{font-size:15px!important;font-weight:700!important;text-transform:none!important;letter-spacing:0!important;
-  color:color-mix(in srgb, var(--o-ink) 75%, transparent)!important;opacity:1!important}
-html[data-tema] .fc-hero-number{font-size:46px!important;font-weight:900!important;letter-spacing:-.02em;line-height:1.05!important;margin-top:2px}
-html[data-plat="mac"] .fc-hero-number, html[data-plat="pc"] .fc-hero-number{font-size:54px!important}
-html[data-tema] .fc-hero-number small{font-size:.56em;font-weight:800;color:color-mix(in srgb, var(--o-ink) 60%, transparent)}
+html[data-tema] .fc-hero{gap:0!important;padding:20px!important;border-radius:20px!important}
+@media (max-width:820px){ html[data-tema] .fc-hero{padding:16px!important} }
+html[data-tema] .fc-hero-eyebrow{font-size:14px!important;font-weight:700!important;text-transform:none!important;letter-spacing:0!important;
+  color:color-mix(in srgb, var(--o-ink) 78%, transparent)!important;opacity:1!important}
+html[data-tema] .fc-hero-number{font-size:44px!important;font-weight:900!important;letter-spacing:-.02em;line-height:1!important;margin:10px 0 18px}
+@media (max-width:820px){ html[data-tema] .fc-hero-number{font-size:34px!important;margin:8px 0 14px} }
+html[data-tema] .fc-hero-number small{font-size:.55em;font-weight:900;color:inherit}
+html[data-tema] .fc-hero-number small:first-child{font-size:1em}
 .fc-hero-pills{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
 .fc-hero-pill{display:inline-flex;align-items:center;gap:5px;height:32px;padding:0 10px;border-radius:999px;font-size:12.5px;white-space:nowrap;font-weight:800;
   background:color-mix(in srgb, var(--o-ink) 10%, transparent);color:var(--o-ink)}
@@ -282,43 +298,38 @@ html[data-tema] .fc-hero-number small{font-size:.56em;font-weight:800;color:colo
 .fc-hero-uso-resto{opacity:.7}
 .fc-hero-barra{height:14px;border-radius:999px;background:color-mix(in srgb, var(--o-ink) 12%, transparent);overflow:hidden}
 .fc-hero-barra i{display:block;height:100%;border-radius:999px;transition:width .6s cubic-bezier(.22,.9,.32,1)}
-html[data-tema] .fc-hero-chips{display:grid!important;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px!important;margin-top:16px!important}
-html[data-tema] .fc-hero-chip{display:grid!important;grid-template-columns:34px minmax(0,1fr);column-gap:10px;align-items:center;
-  padding:10px 12px!important;border-radius:18px!important;border:none!important;background:color-mix(in srgb, var(--o-ink) 8%, transparent)!important;color:var(--o-ink)!important}
-html[data-tema] .fc-hero-chip:hover{background:color-mix(in srgb, var(--o-ink) 13%, transparent)!important}
-html[data-tema] .fc-hero-avatar{grid-row:1 / 3;width:34px!important;height:34px!important;font-size:14px!important;font-weight:900!important}
+/* quem paga o quê: uma linha por pessoa, valor à direita */
+html[data-tema] .fc-hero-chips{display:flex!important;flex-direction:column;gap:8px!important;margin-top:0!important}
+html[data-tema] .fc-hero-chip{display:flex!important;align-items:center;gap:10px;min-height:52px;
+  padding:8px 14px!important;border-radius:14px!important;border:none!important;background:color-mix(in srgb, var(--o-bg) 35%, transparent)!important;color:var(--o-ink)!important}
+html[data-tema] .fc-hero-chip:hover{background:color-mix(in srgb, var(--o-bg) 46%, transparent)!important}
+html[data-tema] .fc-hero-avatar{width:30px!important;height:30px!important;font-size:13px!important;font-weight:900!important}
 html[data-tema] .fc-av-joel{background:#FF7EA6!important;color:#3A0A1D!important}
 html[data-tema] .fc-av-antonio{background:#5FE3A1!important;color:#06301E!important}
-html[data-tema] .fc-hero-role{font-size:13px!important;font-weight:700!important;color:var(--o-ink)!important;opacity:.75;align-self:end;line-height:1.2}
-html[data-tema] .fc-hero-chip-value{font-size:15px!important;font-weight:900!important;color:var(--o-ink)!important;justify-self:start;text-align:left!important;
-  align-self:start;line-height:1.3}
+html[data-tema] .fc-hero-role{font-size:14px!important;font-weight:700!important;color:var(--o-ink)!important;line-height:1.2}
+html[data-tema] .fc-hero-chip-value{font-size:16px!important;font-weight:900!important;color:var(--o-ink)!important;margin-left:auto;text-align:right!important;line-height:1.3}
 
 /* editar o valor do Antonio no topo: mesma letra grande do valor, sem as setinhas do campo de número */
 .fc-input-amount{-moz-appearance:textfield;appearance:textfield}
 .fc-input-amount::-webkit-inner-spin-button,.fc-input-amount::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
-html[data-tema] .fc-hero-chip .fc-input-amount{grid-column:auto;justify-self:stretch;width:100%;min-width:0;height:40px!important;padding:0 12px!important;
-  font-family:'Nunito',sans-serif!important;font-size:18px!important;font-weight:900!important;font-variant-numeric:tabular-nums;text-align:left!important;
-  color:var(--o-ink)!important;background:rgba(0,0,0,.28)!important;border:1.5px solid var(--o-verde, #5FE3A1)!important;border-radius:12px!important}
+html[data-tema] .fc-hero-chip .fc-input-amount{flex:0 0 140px;width:140px;min-width:0;margin-left:auto;height:36px!important;padding:0 10px!important;
+  font-family:'Nunito',sans-serif!important;font-size:16px!important;font-weight:900!important;font-variant-numeric:tabular-nums;text-align:right!important;
+  color:var(--o-ink)!important;background:rgba(0,0,0,.28)!important;border:1.5px solid var(--o-verde, #5FE3A1)!important;border-radius:10px!important}
 
-/* categorias do Resumo: ícone redondo colorido, "R$ x de R$ y", etiqueta e barra grossa */
-html[data-tema] .fc-env-grid{grid-template-columns:minmax(0,1fr)!important;gap:10px!important}
-html[data-tema] .fc-env-card{display:grid!important;grid-template-columns:42px minmax(0,1fr) auto;grid-template-areas:"ic nome tag" "ic num tag" "bar bar bar" "usou usou usou";
-  column-gap:12px;row-gap:1px;align-items:center;min-height:0!important;padding:14px 16px!important;background:var(--o-sf)!important;border:1px solid var(--o-line)!important;
-  border-radius:24px!important;box-shadow:none!important}
-html[data-tema] .fc-env-card:hover{transform:translateY(-3px)!important}
-html[data-tema] .fc-env-card .fc-env-top, html[data-tema] .fc-env-card .fc-env-nums{display:contents!important}
-html[data-tema] .fc-env-card .fc-env-icon{grid-area:ic;width:42px!important;height:42px!important}
-html[data-tema] .fc-env-card .fc-env-name{grid-area:nome;font-size:15px!important;font-weight:800!important;align-self:end;overflow-wrap:normal!important}
-@media (max-width:1239px){ html[data-tema] .fc-hero-resumo{grid-template-columns:minmax(0,1fr)!important} }
-html[data-tema] .fc-env-card .fc-env-budget{grid-area:num;font-size:13px!important;font-weight:700!important;color:var(--o-faint)!important;align-self:start}
-html[data-tema] .fc-env-card .fc-env-gauge{grid-area:bar;height:10px!important;margin-top:12px;background:color-mix(in srgb, var(--o-ink) 12%, transparent)!important}
-html[data-tema] .fc-env-left{height:26px;padding:0 10px;border-radius:999px;display:inline-flex!important;align-items:center;font-size:12px!important;font-weight:900!important;
-  background:color-mix(in srgb, currentColor 18%, transparent);white-space:nowrap}
-html[data-tema] .fc-env-card .fc-env-left{grid-area:tag}
-html[data-tema] .fc-env-card .fc-env-usou{grid-area:usou;margin-top:8px;font-size:15px;font-weight:900;color:color-mix(in srgb, var(--o-saiu) 68%, var(--o-ink))}
-html[data-tema] .fc-env-card .fc-env-usou small{font-size:12px;font-weight:700;color:var(--o-faint);margin-left:4px}
-html[data-tema] .fc-env-empty{border-style:dashed!important;background:transparent!important;border-radius:20px!important;font-weight:700!important;color:var(--o-faint)!important}
-html[data-tema] .fc-hero-resumo-total{padding:14px 8px!important}
+/* Resumo: cartão verde à esquerda (~360px) e UM cartão "Orçamentos do mês" com uma linha por categoria */
+@media (min-width:1240px){ html[data-tema] .fc-hero-resumo{grid-template-columns:360px minmax(0,1fr)!important;gap:16px!important} }
+@media (max-width:1239px){ html[data-tema] .fc-hero-resumo{grid-template-columns:minmax(0,1fr)!important;gap:14px!important} }
+html[data-tema] .fc-orc{background:var(--o-sf);border-color:var(--o-line)}
+html[data-tema] .fc-env-card .fc-env-icon{width:34px!important;height:34px!important}
+html[data-tema] .fc-env-name{font-size:15px!important;font-weight:800!important;line-height:1.25;overflow-wrap:normal!important}
+html[data-tema] .fc-env-budget{font-size:12.5px!important;font-weight:600!important;color:var(--o-faint)!important}
+html[data-tema] .fc-env-gauge{background:color-mix(in srgb, var(--o-ink) 9%, transparent)!important}
+html[data-tema] .fc-env-left{height:24px;padding:0 10px;border-radius:999px;display:inline-flex!important;align-items:center;font-size:12.5px!important;font-weight:800!important;
+  font-family:'Nunito',sans-serif!important;background:color-mix(in srgb, currentColor 16%, transparent);white-space:nowrap}
+/* no claro o texto da etiqueta escurece um pouco, pra dar leitura em cima do fundinho da mesma cor */
+html[data-tema="claro"] .fc-env-left{color:color-mix(in srgb, var(--tag, currentColor) 62%, var(--o-ink))!important;background:color-mix(in srgb, var(--tag, currentColor) 16%, transparent)}
+html[data-tema] .fc-env-usou{font-size:14px;color:color-mix(in srgb, var(--o-saiu) 68%, var(--o-ink))}
+html[data-tema] .fc-env-card, html[data-tema] .fc-env-empty{border-top-color:color-mix(in srgb, var(--o-line) 80%, transparent)}
 /* ícone de categoria em todo lugar: bolinha com a cor da categoria */
 html[data-tema] .fc-env-icon{width:40px!important;height:40px!important;border-radius:50%!important;background:var(--cat, var(--o-verde))!important;color:#fff!important}
 html[data-tema] .fc-env-icon-sm{width:32px!important;height:32px!important}
@@ -334,25 +345,25 @@ html[data-tema] .fc-chip-quickadd{min-height:38px!important;padding:0 14px 0 10p
 html[data-tema] .fc-chip-quickadd b{color:var(--o-entrou);font-weight:900}
 html[data-tema] .fc-quickadd-label{font-size:13px!important;font-weight:700!important;color:var(--o-faint)!important;margin-bottom:8px!important}
 html[data-tema] .fc-quickadd .fc-cat-chips{flex-wrap:wrap}
-html[data-tema] .fc-budget-panel{border-radius:24px!important;padding:16px!important;background:var(--o-sf)!important}
+html[data-tema] .fc-budget-panel{border-radius:20px!important;padding:16px!important;background:var(--o-sf)!important}
 .fc-budget-head{display:flex;align-items:center;gap:12px;margin-bottom:14px}
 .fc-budget-head .fc-env-icon{width:44px!important;height:44px!important}
 .fc-budget-head-txt{flex:1;min-width:0;display:flex;flex-direction:column}
 .fc-budget-head-txt b{font-size:16px;font-weight:800;line-height:1.25}
 .fc-budget-head-txt small{font-size:13px;font-weight:700;color:var(--o-faint)}
 html[data-tema] .fc-budget-row{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px!important;margin-bottom:12px!important}
-html[data-tema] .fc-budget-item{background:var(--o-sf2);border-radius:16px;padding:10px;font-size:15px!important;font-weight:900!important;min-width:0}
-html[data-tema] .fc-budget-item > span:last-child{font-size:inherit!important;font-weight:900!important;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-@media (min-width:900px){ html[data-tema] .fc-lanc-layout{grid-template-columns:360px minmax(0,1fr)!important} html[data-tema] .fc-budget-item{font-size:15px!important;padding:10px!important} }
-html[data-tema] .fc-budget-label{font-size:11px!important;font-weight:900!important;letter-spacing:.06em!important}
+html[data-tema] .fc-budget-item{background:var(--o-sf2);border-radius:14px;padding:9px 8px;font-size:13.5px!important;font-weight:900!important;min-width:0}
+html[data-tema] .fc-budget-item > span:last-child{font-size:inherit!important;font-weight:900!important;line-height:1.25}
+@media (min-width:900px){ html[data-tema] .fc-lanc-layout{grid-template-columns:360px minmax(0,1fr)!important} }
+html[data-tema] .fc-budget-label{font-size:12.5px!important;font-weight:700!important;letter-spacing:0!important;text-transform:none!important}
 html[data-tema] .fc-progress-track{height:12px!important;border-radius:999px!important;background:color-mix(in srgb, var(--o-ink) 12%, transparent)!important}
 html[data-tema] .fc-add-row{flex-wrap:nowrap!important;gap:8px!important;margin-top:14px!important}
 html[data-tema] .fc-add-row .fc-input{height:48px;min-width:0;border-radius:16px!important;background:var(--o-sf2)!important;font-size:15px!important;font-weight:700!important;padding:0 14px!important}
 html[data-tema] .fc-add-row .fc-input:not(.fc-input-grow){width:108px!important;flex-shrink:0}
 html[data-tema] .fc-add-row .fc-icon-btn-solid{width:48px;height:48px;flex-shrink:0;border-radius:16px!important;border:none!important;
-  background:linear-gradient(180deg,#FF9DBE,#FF6D9B)!important;color:#3A0A1D!important;box-shadow:0 4px 0 var(--o-rosa-sombra)!important}
-html[data-tema] .fc-add-row .fc-icon-btn-solid:active{transform:translateY(3px)!important;box-shadow:0 1px 0 var(--o-rosa-sombra)!important}
-html[data-tema] .fc-lanc-main .fc-ledger{background:var(--o-sf);border:1px solid var(--o-line);border-radius:24px;padding:6px 14px}
+  background:var(--o-rosa)!important;color:var(--o-rosa-deep)!important;box-shadow:none!important;filter:none!important}
+html[data-tema] .fc-add-row .fc-icon-btn-solid:active{transform:scale(.94)!important}
+html[data-tema] .fc-lanc-main .fc-ledger{background:var(--o-sf);border:1px solid var(--o-line);border-radius:20px;padding:6px 14px}
 /* linhas das listas (Lançamentos e Fixas) */
 html[data-tema] .fc-ledger-row{padding:10px 2px!important;border-radius:0!important;border-bottom:1px solid var(--o-line);font-size:15px!important}
 html[data-tema] .fc-ledger-row:hover{background:transparent!important}
@@ -363,7 +374,7 @@ html[data-tema] .fc-ledger-total > span:first-child{font-size:14px;font-weight:7
 html[data-tema] .fc-ledger-total > span:last-child{font-size:16px;font-weight:900}
 html[data-tema] .fc-icon-btn-trash{border:none!important;background:transparent!important;color:var(--o-faint)!important;border-radius:50%!important;min-width:40px!important;min-height:40px!important}
 /* Fixas */
-html[data-tema] .fc-fixas-card{border-radius:24px!important;padding:16px 14px 8px!important;box-shadow:none!important}
+html[data-tema] .fc-fixas-card{border-radius:20px!important;padding:16px 14px 8px!important;box-shadow:none!important}
 html[data-tema] .fc-section-title{font-size:16px!important;font-weight:800!important;margin-bottom:6px!important}
 html[data-tema] .fc-section-title-with-icon{gap:12px!important}
 html[data-tema] .fc-section-title .fc-icon-btn{min-width:40px;min-height:40px;border-radius:14px!important;color:var(--o-ink)!important}
@@ -372,9 +383,68 @@ html[data-tema] .fc-cat-name{display:flex;align-items:center;gap:12px;font-weigh
 .fc-ocultas{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:14px 2px 8px}
 .fc-ocultas > span{width:100%;font-size:13px;font-weight:700;color:var(--o-faint)}
 .fc-ocultas .fc-chip{border-style:dashed!important;padding:0 14px!important;gap:6px!important}
+/* Mac: tudo um pouco mais baixo (botões ~34px, raio ~11) */
+html:not([data-plat="celular"]) .fc-chip{min-height:34px!important;padding:0 12px 0 5px!important;font-size:13px!important}
+html:not([data-plat="celular"]) .fc-chip-icon{width:24px!important;height:24px!important}
+html:not([data-plat="celular"]) .fc-chip-quickadd{min-height:32px!important;padding:0 12px 0 9px!important}
+html:not([data-plat="celular"]) .fc-add-row .fc-input{height:38px;border-radius:11px!important;font-size:14px!important;padding:0 12px!important}
+html:not([data-plat="celular"]) .fc-add-row .fc-icon-btn-solid{width:38px;height:38px;border-radius:11px!important}
+html:not([data-plat="celular"]) .fc-budget-item{border-radius:12px}
+html:not([data-plat="celular"]) .fc-ledger-row{padding:5px 2px!important;font-size:14px!important}
+html:not([data-plat="celular"]) .fc-ledger-row .fc-input-plain, html:not([data-plat="celular"]) .fc-ledger-row .fc-amount-btn{font-size:14px!important}
+html:not([data-plat="celular"]) .fc-icon-btn-trash{min-width:34px!important;min-height:34px!important;width:34px;height:34px}
+html:not([data-plat="celular"]) .fc-section-title .fc-icon-btn{min-width:34px;min-height:34px;border-radius:11px!important}
+html:not([data-plat="celular"]) .fc-mes-item{min-height:40px;border-radius:11px}
+html:not([data-plat="celular"]) .fc-mes-abrir{height:40px;font-size:14.5px!important;border-radius:11px}
+html:not([data-plat="celular"]) .fc-mes-lixo{width:30px;height:30px;border-radius:9px}
+html:not([data-plat="celular"]) .fc-mes-add{min-height:48px;border-radius:11px;font-size:14.5px!important}
+html:not([data-plat="celular"]) .fc-mes-ano button{width:32px;height:32px;border-radius:10px}
+html[data-tema] .fc-period-group-label{text-transform:none!important;letter-spacing:0!important;font-size:12.5px!important}
 /* no claro, o "no limite" das barras fica dourado (o texto continua no tom mais escuro, pra ler bem) */
 html[data-tema="claro"] .fc-env-gauge, html[data-tema="claro"] .fc-hero-barra, html[data-tema="claro"] .fc-progress-track{--warn:#F2B632}
 @media (prefers-reduced-motion:reduce){html[data-tema] .fc-hero::after{display:none}}
+
+/* ===== Refino 2026-11 — escala geral (Investimentos, Calculadora, Configurações): só tamanho, sem mudar a estrutura ===== */
+html[data-tema] .iv-card{border-radius:20px}
+html[data-tema] .iv-topo{margin:0 0 12px;min-height:44px}
+html[data-tema] .iv-titulo{font-size:22px}
+html[data-tema] .iv-tres span{text-transform:none;letter-spacing:0;font-size:12.5px;font-weight:700}
+html[data-tema] .cv-grupo h3{text-transform:none;letter-spacing:0;font-size:13px}
+html[data-tema] .cv-hero{border-radius:20px}
+html[data-tema] .iv-hero .mc-hero-num{font-size:40px;margin:6px 0 10px}
+html[data-tema] .iv-hero .mc-hero-ic{position:absolute;right:18px;top:18px}
+html[data-tema] .cf-sec{text-transform:lowercase;letter-spacing:0;font-size:13px;font-weight:800;padding:16px 8px 8px}
+html[data-tema] .cf-sec::first-letter{text-transform:uppercase}
+html[data-tema] .cf-caixa{border-radius:20px}
+html[data-tema] .cf-modal{border-radius:20px}
+html[data-tema] .cf-larga{left:242px}
+/* Mac: botões ~34px com raio ~11 */
+html:not([data-plat="celular"]) .mc-larga .iv-mac{grid-template-columns:minmax(0,1fr) 380px;gap:16px}
+html:not([data-plat="celular"]) .mc-larga .iv-mac-topo, html:not([data-plat="celular"]) .mc-larga .iv-lado{gap:16px}
+html:not([data-plat="celular"]) .mc-larga .cv-mac{gap:16px}
+html:not([data-plat="celular"]) .mc-wrap .cv-abas{padding:3px;border-radius:12px}
+html:not([data-plat="celular"]) .mc-wrap .cv-abas button{height:34px;padding:0 16px;border-radius:9px;font-size:13.5px}
+html:not([data-plat="celular"]) .mc-wrap .cv-abas .cv-pil{border-radius:9px}
+html:not([data-plat="celular"]) .mc-wrap .cv-perg{padding:3px;border-radius:12px}
+html:not([data-plat="celular"]) .mc-wrap .cv-perg button{height:32px;border-radius:9px;font-size:13.5px}
+html:not([data-plat="celular"]) .mc-wrap .cv-perg .cv-pil{border-radius:9px}
+html:not([data-plat="celular"]) .mc-wrap .cv-chip{height:32px;border-radius:10px;font-size:13px;padding:0 12px}
+html:not([data-plat="celular"]) .mc-wrap .cv-chip-meu{padding:0}
+html:not([data-plat="celular"]) .mc-wrap .cv-chip-nome{padding:0 12px}
+html:not([data-plat="celular"]) .mc-wrap .cv-bt{height:34px;border-radius:11px;font-size:13px;padding:0 14px}
+html:not([data-plat="celular"]) .mc-wrap .cv-salvar input{min-height:40px;border-radius:11px;font-size:14.5px}
+html:not([data-plat="celular"]) .mc-wrap .iv-per{padding:3px;border-radius:11px}
+html:not([data-plat="celular"]) .mc-wrap .iv-per button{height:28px;border-radius:8px}
+html:not([data-plat="celular"]) .mc-wrap .iv-2bts .mc-btn-rosa, html:not([data-plat="celular"]) .mc-wrap .iv-2bts .mc-btn-s{height:36px;border-radius:11px}
+html:not([data-plat="celular"]) .mc-wrap .iv-acoes-fim button{height:34px;border-radius:11px;font-size:13px}
+html:not([data-plat="celular"]) .mc-wrap .iv-sinal{height:40px;border-radius:11px}
+html:not([data-plat="celular"]) .mc-wrap .iv-tipo, html:not([data-plat="celular"]) .mc-wrap .iv-modo button{border-radius:14px;padding:10px 12px}
+html:not([data-plat="celular"]) .mc-wrap .iv-pill{height:28px;font-size:12.5px}
+html:not([data-plat="celular"]) .cf-topo h1{font-size:22px}
+html:not([data-plat="celular"]) .cf-ib{width:34px;height:34px;border-radius:11px}
+html:not([data-plat="celular"]) .cf-item{padding:11px 16px}
+html:not([data-plat="celular"]) .cf-bt-verde, html:not([data-plat="celular"]) .cf-bt-perigo{height:34px;border-radius:11px}
+html:not([data-plat="celular"]) .cf-modal .cf-linha-bts button{height:38px;border-radius:11px;font-size:14px}
 
 /* ---------------- logo ---------------- */
 .oink-logo{font-family:'Fredoka',sans-serif!important;font-weight:600;letter-spacing:-.02em;line-height:1}
@@ -416,13 +486,15 @@ html[data-plat="mac"] body{
     var(--o-bg)!important;
   background-attachment:fixed!important;
 }
-html[data-plat="mac"] .vidro{
+html[data-plat="mac"] .vidro,
+html[data-plat="mac"] .fc-budget-panel, html[data-plat="mac"] .fc-lanc-main .fc-ledger, html[data-plat="mac"] .fc-fixas-card{
   background:color-mix(in srgb, var(--o-sf) 80%, transparent)!important;
   backdrop-filter:blur(40px) saturate(160%);-webkit-backdrop-filter:blur(40px) saturate(160%);
   border:1px solid color-mix(in srgb, #FFFFFF 22%, transparent)!important;
   box-shadow:inset 0 1px 0 color-mix(in srgb, #FFFFFF 35%, transparent),0 20px 50px -22px var(--o-sombra)!important;
 }
-html[data-plat="mac"][data-tema="claro"] .vidro{background:color-mix(in srgb, #FFFFFF 80%, transparent)!important;border-color:rgba(255,255,255,.85)!important}
+html[data-plat="mac"][data-tema="claro"] .vidro,
+html[data-plat="mac"][data-tema="claro"] .fc-budget-panel, html[data-plat="mac"][data-tema="claro"] .fc-lanc-main .fc-ledger, html[data-plat="mac"][data-tema="claro"] .fc-fixas-card{background:color-mix(in srgb, #FFFFFF 80%, transparent)!important;border-color:rgba(255,255,255,.85)!important}
 /* menus e calendário por cima de conteúdo: quase sólidos, pra não misturar com o que está atrás */
 html[data-plat="mac"] .mc-cal.vidro, html[data-plat="mac"] .mc-menu.vidro{background:color-mix(in srgb, var(--o-sf2) 96%, transparent)!important}
 html[data-plat="mac"] .mc-hero-card.vidro{background:linear-gradient(160deg, color-mix(in srgb, #2FA876 75%, var(--o-sf)), color-mix(in srgb, var(--o-sf) 82%, transparent))!important}

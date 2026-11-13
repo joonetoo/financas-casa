@@ -114,6 +114,36 @@ export function totais(itens) {
   return { entradas: reais(e), saidas: reais(s), resultado: reais(e - s) };
 }
 
+// "Para onde foi": as SAÍDAS somadas por categoria, da maior pra menor.
+// Mesma regra de `totais` (pula "fora da soma", conta em centavos); receitas
+// não entram. Devolve [{ catId, total }] — catId null = sem categoria.
+// Empate: fica na ordem em que a categoria apareceu primeiro na lista.
+export function saidasPorCategoria(itens) {
+  const soma = new Map();
+  for (const l of itens) {
+    if (l.foraSoma || l.tipo === "receita") continue;
+    const id = l.catId ?? null;
+    soma.set(id, (soma.get(id) || 0) + cent(l.valor));
+  }
+  return [...soma.entries()]
+    .filter(([, c]) => c > 0)
+    .map(([catId, c], i) => ({ catId, c, i }))
+    .sort((a, b) => b.c - a.c || a.i - b.i)
+    .map(({ catId, c }) => ({ catId, total: reais(c) }));
+}
+
+// Corta a lista de `saidasPorCategoria` nas `max` maiores e junta o resto numa
+// linha só ("Outras N categorias"). Se sobrar só uma, ela aparece inteira
+// (juntar uma categoria sozinha não ajuda ninguém).
+export function maioresEOutras(lista, max = 7) {
+  if (lista.length <= max + 1) return { maiores: lista, outras: null };
+  const resto = lista.slice(max);
+  return {
+    maiores: lista.slice(0, max),
+    outras: { catIds: resto.map((x) => x.catId), total: reais(resto.reduce((t, x) => t + cent(x.total), 0)) },
+  };
+}
+
 // Os lançamentos da mesma série a partir deste (este incluído), em ordem.
 export function daquiPraFrente(lancs, item) {
   if (!item.serie) return [item];

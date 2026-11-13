@@ -4,7 +4,7 @@ import {
   lerValor, totais, criarLancamentos, somaMeses, somaYm, diasNoMes, hojeISO, cent, reais, FIXO_MESES,
   daquiPraFrente, aplicarNasProximas, foraSomaNasProximas, proximasDaSerie, proxMes, normalizar,
   periodoCom, andarPeriodo, somaDias, dentroDo, doPeriodo, doMes, nomeDia, nomeMes, nomePeriodo,
-  fmtValor, fmtReais, semAcento,
+  fmtValor, fmtReais, semAcento, saidasPorCategoria, maioresEOutras,
 } from "../src/pessoal/logica.js";
 
 afterEach(() => vi.useRealTimers());
@@ -52,6 +52,71 @@ describe("totais", () => {
   });
   it("só conta fora da soma → zero", () => {
     expect(totais([{ tipo: "despesa", valor: 99, foraSoma: true }])).toEqual({ entradas: 0, saidas: 0, resultado: 0 });
+  });
+});
+
+describe("saídas por categoria (cartão 'Para onde foi')", () => {
+  const itens = [
+    { tipo: "despesa", valor: 100, catId: "casa" },
+    { tipo: "despesa", valor: 50.1, catId: "mercado" },
+    { tipo: "despesa", valor: 50.2, catId: "mercado" },
+    { tipo: "receita", valor: 9000, catId: "salario" },
+    { tipo: "despesa", valor: 999, catId: "casa", foraSoma: true },
+    { tipo: "despesa", valor: 7, catId: null },
+    { tipo: "despesa", valor: 3 },
+  ];
+  it("soma só as saídas, por categoria, da maior pra menor", () => {
+    expect(saidasPorCategoria(itens)).toEqual([
+      { catId: "mercado", total: 100.3 },
+      { catId: "casa", total: 100 },
+      { catId: null, total: 10 },
+    ]);
+  });
+  it("bate com o 'saiu' de totais (mesma regra: fora da soma não conta)", () => {
+    const soma = saidasPorCategoria(itens).reduce((t, x) => t + cent(x.total), 0);
+    expect(reais(soma)).toBe(totais(itens).saidas);
+  });
+  it("receita nunca aparece, nem categoria que só tem conta fora da soma", () => {
+    const r = saidasPorCategoria([
+      { tipo: "receita", valor: 10, catId: "a" },
+      { tipo: "despesa", valor: 10, catId: "b", foraSoma: true },
+    ]);
+    expect(r).toEqual([]);
+  });
+  it("sem lançamentos → lista vazia", () => expect(saidasPorCategoria([])).toEqual([]));
+  it("empate fica na ordem em que apareceu", () => {
+    const r = saidasPorCategoria([
+      { tipo: "despesa", valor: 5, catId: "x" }, { tipo: "despesa", valor: 5, catId: "y" },
+    ]);
+    expect(r.map((x) => x.catId)).toEqual(["x", "y"]);
+  });
+  it("centavos não acumulam erro", () => {
+    const r = saidasPorCategoria([
+      { tipo: "despesa", valor: 0.1, catId: "x" }, { tipo: "despesa", valor: 0.2, catId: "x" },
+    ]);
+    expect(r[0].total).toBe(0.3);
+  });
+  it("não muda a lista que recebeu", () => {
+    const copia = JSON.stringify(itens);
+    saidasPorCategoria(itens);
+    expect(JSON.stringify(itens)).toBe(copia);
+  });
+
+  const lista = (n) => Array.from({ length: n }, (_, i) => ({ catId: "c" + i, total: 100 - i }));
+  it("até 8 categorias aparecem todas (não junta uma sozinha)", () => {
+    expect(maioresEOutras(lista(7))).toEqual({ maiores: lista(7), outras: null });
+    expect(maioresEOutras(lista(8))).toEqual({ maiores: lista(8), outras: null });
+  });
+  it("com mais: as 7 maiores e o resto junto", () => {
+    const r = maioresEOutras(lista(10));
+    expect(r.maiores).toEqual(lista(7));
+    expect(r.outras).toEqual({ catIds: ["c7", "c8", "c9"], total: 93 + 92 + 91 });
+  });
+  it("o total nunca muda ao juntar", () => {
+    const l = [...lista(12), { catId: "z", total: 0.1 }, { catId: "w", total: 0.2 }];
+    const r = maioresEOutras(l);
+    const tudo = r.maiores.reduce((t, x) => t + cent(x.total), 0) + cent(r.outras.total);
+    expect(tudo).toBe(l.reduce((t, x) => t + cent(x.total), 0));
   });
 });
 

@@ -88,9 +88,31 @@ self.addEventListener("fetch", (e) => {
   };
 }
 
-export default defineConfig(({ mode }) => ({
+// Modo de pré-visualização (só no servidor de desenvolvimento, e só com
+// VITE_NUVEM_FALSA=1): troca `src/supa.js` por `src/dev/supaFalso.js`, uma
+// nuvem em memória com dados inventados — sem login e sem falar com o Supabase.
+// Em `vite build` este plugin nem entra na lista (mesmo com a variável ligada),
+// então o app publicado nunca enxerga a pasta `src/dev/`.
+function nuvemFalsa() {
+  const real = path.resolve("src/supa.js");
+  const falso = path.resolve("src/dev/supaFalso.js");
+  return {
+    name: "nuvem-falsa",
+    enforce: "pre",
+    resolveId(source, importer) {
+      if (!importer || !/(^|\/)supa\.js(\?.*)?$/.test(source)) return null;
+      const alvo = path.resolve(path.dirname(importer.split("?")[0]), source.split("?")[0]);
+      return alvo === real ? falso : null;
+    },
+  };
+}
+
+export default defineConfig(({ mode, command }) => ({
   base: "./",
-  plugins: [react(), nomeBeta(mode), gerarServiceWorker()],
+  plugins: [
+    ...(command === "serve" && process.env.VITE_NUVEM_FALSA === "1" ? [nuvemFalsa()] : []),
+    react(), nomeBeta(mode), gerarServiceWorker(),
+  ],
   // Testes (npm test): só os arquivos de testes/, e com a rede bloqueada.
   test: {
     include: ["testes/**/*.test.{js,jsx}"],

@@ -307,6 +307,8 @@ export function MCStyles() {
 html[data-plat="mac"] .mc-hero-card.vidro.mc-hero-falta{background:linear-gradient(160deg, color-mix(in srgb, #C0454A 60%, var(--o-sf)), color-mix(in srgb, var(--o-sf) 82%, transparent))!important}
 .mc-hero-card.mc-hero-falta .mc-hero-num,.mc-hero-card.mc-hero-falta .mc-hero-rot{color:#FFC2C4}
 .mc-hero-card.mc-hero-sobra .mc-hero-num,.mc-hero-card.mc-hero-sobra .mc-hero-rot{color:#C9F7DF}
+html[data-tema="claro"] .mc-hero-card.mc-hero-sobra .mc-hero-num,html[data-tema="claro"] .mc-hero-card.mc-hero-sobra .mc-hero-rot{color:#0A3D2A}
+html[data-tema="claro"] .mc-hero-card.mc-hero-falta .mc-hero-num,html[data-tema="claro"] .mc-hero-card.mc-hero-falta .mc-hero-rot{color:#6E1216}
 /* calculadora do campo Valor */
 .mc-valor-wrap{position:relative}
 .mc-valor-wrap .mc-inp{padding-right:48px}
@@ -392,6 +394,208 @@ html[data-plat="mac"] .mc-hero-card.vidro.mc-hero-falta{background:linear-gradie
 .mc-cal-dia.hoje{color:#FF7EA6}
 .mc-cal-dia.on{background:var(--ink);color:var(--bg)}
 .mc-cal-hoje{width:100%;height:40px;margin-top:8px;border:none;border-radius:12px;background:color-mix(in srgb, var(--ink) 8%, transparent);color:var(--ink);font-size:14px;font-weight:900;cursor:pointer}
+
+/* =====================================================================
+   Refino de layout (aprovado em 2026-11): telas mais densas, tudo numa
+   linha, rótulos em frase normal. Só tamanho/ordem — cores, letras, vidro
+   e animações continuam os da identidade (variáveis --o-*).
+   ===================================================================== */
+.mc-wrap{--tinta5:color-mix(in srgb, var(--ink) 5%, transparent);--tinta12:color-mix(in srgb, var(--ink) 12%, transparent)}
+/* rótulos em frase normal */
+.mc-rot,.mc-form-tipo,.mc-cat-grupo,.mc-res-rot,.mc-bx-rot{text-transform:none;letter-spacing:0;font-size:12.5px}
+.mc-balao small{letter-spacing:0;font-size:12px;font-weight:800;opacity:.7}
+.mc-dia{padding:14px 2px 6px;font-size:12.5px;text-transform:none;letter-spacing:0}
+.mc-linha.sel{background:color-mix(in srgb, var(--ac) 10%, transparent);outline:1px solid color-mix(in srgb, var(--ac) 38%, transparent);outline-offset:-1px}
+.mc-sel-barra{border-radius:20px}
+.mc-soma-cats{border-radius:18px;padding:12px 16px}
+.mc-soma-cats b{font-size:20px}
+
+/* botão rosa de lançar: chapado, sem brilho nem sombra colorida em volta */
+.mc-wrap .mc-btn-rosa{height:44px;padding:0 16px;border-radius:14px;background:var(--o-rosa,#FF7EA6);color:var(--o-rosa-deep,#3A0A1D);font-size:14px;font-weight:800;
+  box-shadow:none;transition:transform .12s var(--ease),filter .12s}
+.mc-btn-rosa:hover{filter:brightness(1.05)}
+.mc-btn-rosa:active{transform:scale(.97);box-shadow:none}
+
+/* ---------- cabeçalho da lista: título · mês · quantos · busca · Lançar ---------- */
+.mc-cab{display:flex;align-items:center;gap:8px;padding:12px 0 10px}
+.mc-cab-tit{margin:0;font-size:20px;font-weight:900;letter-spacing:-.01em;white-space:nowrap}
+.mc-cab-n{color:var(--faint);font-size:13px;font-weight:600;white-space:nowrap}
+.mc-cab-fim{display:flex;align-items:center;gap:8px;min-width:0}
+.mc-periodo{flex:1 1 0;min-width:0;padding:0;gap:8px;overflow:visible;transition:flex-grow .45s cubic-bezier(.66,.01,.24,1.02),opacity .2s}
+.mc-per-centro{min-width:0;align-items:stretch}
+.mc-per-bt{width:100%;justify-content:center;height:44px;padding:0 12px;border-radius:14px;background:var(--sf);font-size:15px;font-weight:800;white-space:nowrap}
+.mc-per-nome{overflow:hidden;text-overflow:ellipsis}
+.mc-per-n{color:var(--faint);font-weight:600;font-size:12.5px}
+.mc-per-bt.on .mc-per-n{color:inherit}
+.mc-menu{top:52px}
+.mc-ib{border:none;background:var(--sf)}
+.mc-fbusca{flex:0 0 44px;height:44px;border-radius:14px;background:var(--sf);transition:flex-grow .45s cubic-bezier(.66,.01,.24,1.02),flex-basis .45s cubic-bezier(.66,.01,.24,1.02)}
+.mc-fbusca-bt{width:44px;height:44px;border-radius:14px}
+.mc-cab.buscando .mc-fbusca input{opacity:1;padding-left:14px}
+/* celular: ao buscar (em todos os meses), o campo toma o lugar do seletor de mês */
+.mc-wrap:not(.mc-larga) .mc-cab-fim{flex:0 0 auto}
+.mc-wrap:not(.mc-larga) .mc-cab.buscando .mc-periodo{flex-grow:0;opacity:0;overflow:hidden;margin-right:-8px;pointer-events:none}
+.mc-wrap:not(.mc-larga) .mc-cab.buscando .mc-cab-fim{flex:1 1 auto}
+.mc-wrap:not(.mc-larga) .mc-cab.buscando .mc-fbusca{flex:1 1 44px}
+
+/* ---------- filtros ---------- */
+.mc-fbar{display:flex;align-items:center;gap:10px;margin:0 -14px 2px}
+.mc-fpill{flex:1 1 auto;height:auto;padding:4px 14px!important;border-radius:0;background:none;gap:6px!important}
+.mc-fpill .mc-chip{height:36px;padding:0 14px;border-radius:12px;background:var(--sf);font-size:13.5px;font-weight:700}
+.mc-fpill .mc-chip.on{font-weight:800}
+/* alvo de toque de 44px sem engordar o chip */
+.mc-fpill .mc-chip::after{content:"";position:absolute;inset:-4px 0}
+.mc-pilula{border-radius:12px}
+.mc-fpill .mc-sel-conta{height:36px}
+
+/* ---------- cartão do saldo ---------- */
+.mc-hero{padding:0;margin:0}
+.mc-hero-topo{display:flex;align-items:center;gap:8px}
+.mc-hero-rot{font-size:13px}
+.mc-hero-num{white-space:nowrap}
+.mc-hero-es{font-weight:800;font-size:13.5px}
+.mc-hero-es small{font-size:12.5px;font-weight:600;color:var(--soft)}
+/* celular: faixa compacta (saldo à esquerda, entrou/saiu à direita) */
+.mc-hero-faixa{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:6px 12px;padding:14px 16px;border-radius:20px;background:var(--sf)}
+.mc-hero-faixa.mc-hero-falta,.mc-hero-faixa.mc-hero-sobra{padding:14px 16px;margin:0;border-radius:20px}
+.mc-hero-faixa .mc-hero-num{font-size:30px;line-height:1;margin-top:6px}
+.mc-hero-faixa.mc-hero-sobra .mc-hero-rot,.mc-hero-faixa.mc-hero-falta .mc-hero-rot{color:var(--soft)}
+.mc-hero-faixa .mc-hero-num small{font-size:.57em}
+.mc-hero-faixa .mc-hero-fim{margin-left:auto}
+.mc-hero-faixa .mc-hero-es{display:flex;flex-direction:column;align-items:flex-end;line-height:1.6}
+.mc-hero-faixa .mc-hero-es span{display:flex;flex-direction:row-reverse;align-items:baseline;gap:6px}
+
+/* ---------- lista ---------- */
+.mc-linha{border-bottom:none}
+.mc-linha-bt{min-height:54px;padding:0;gap:11px}
+.mc-t{font-weight:800}
+.mc-s{font-size:12.5px;font-weight:600;margin-top:1px}
+.mc-val{font-weight:800}
+.mc-moeda-bt{margin-right:-9px}
+.mc-moeda-vazia{width:24px;height:24px;border-width:2px}
+.mc-topo{height:60px;margin:0}
+.mc-wrap:not(.mc-larga) .mc-linha.marcada{margin:0 -8px;padding:0 8px}
+
+/* ====================== Mac / tela larga ====================== */
+.mc-larga.mc-wrap{padding:14px 14px 24px 0}
+.mc-larga .mc-corpo{gap:16px}
+.mc-larga .mc-lista-card{border-radius:20px;padding:0 0 10px;min-height:calc(100vh - 28px)}
+.mc-larga .mc-lado{width:348px;gap:16px;top:14px}
+@media (max-width:1180px){.mc-larga .mc-lado{width:312px}}
+.mc-larga .mc-cab{flex-wrap:wrap;gap:8px 10px;padding:14px 20px 12px}
+.mc-larga .mc-periodo{flex:0 0 auto;gap:4px;margin-left:14px}
+.mc-larga .mc-cab-fim{margin-left:auto}
+.mc-larga .mc-ib{width:34px;height:34px;border-radius:11px;border:1px solid var(--tinta12);background:var(--tinta5)}
+.mc-larga .mc-per-bt{width:auto;min-width:150px;height:34px;border-radius:11px;border:1px solid var(--tinta12);background:var(--tinta5);font-size:13px;gap:5px}
+.mc-larga .mc-per-bt.on{background:var(--ink);border-color:var(--ink)}
+.mc-larga .mc-menu{top:42px}
+.mc-larga .mc-fbusca{flex:0 0 auto;width:34px;height:34px;border-radius:11px;border:1px solid var(--tinta12);background:var(--tinta5);transition:width .45s cubic-bezier(.66,.01,.24,1.02)}
+.mc-larga .mc-cab.buscando .mc-fbusca{width:230px}
+.mc-larga .mc-cab.buscando .mc-cab-n{display:none}
+.mc-larga .mc-fbusca input{font-size:13.5px}
+.mc-larga .mc-fbusca-bt{width:32px;height:32px;border-radius:10px}
+.mc-larga.mc-wrap .mc-btn-rosa{height:34px;border-radius:11px;font-size:13px}
+.mc-larga .mc-fbar{margin:0;padding:0 20px 4px}
+.mc-larga .mc-fpill{flex:0 1 auto;padding:3px!important;border-radius:12px;background:var(--tinta5);gap:2px!important}
+.mc-larga .mc-fpill .mc-chip{height:28px;padding:0 12px;border-radius:9px;background:transparent;font-size:13px}
+.mc-larga .mc-fpill .mc-chip.on:not([data-on]){background:var(--ink)}
+.mc-larga .mc-fpill .mc-chip::after{display:none}
+.mc-larga .mc-pilula{border-radius:9px}
+.mc-larga .mc-fpill .mc-sel-conta{height:28px;font-size:13px;padding:0 10px}
+.mc-larga .mc-chip-cat{padding:0 4px 0 2px!important}
+.mc-sel-bt{margin-left:auto;flex-shrink:0;height:34px;padding:0 10px;border:none;border-radius:11px;background:none;color:var(--soft);font-size:13px;font-weight:800;
+  display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.mc-sel-bt:hover{background:var(--tinta5);color:var(--ink)}
+.mc-sel-bt.on{background:var(--ink);color:var(--bg)}
+/* linhas de ~46px: nome e categoria na mesma linha */
+.mc-larga .mc-dia{padding:14px 20px 6px}
+.mc-larga .mc-linha{padding:0 15px 0 20px;border-radius:0;border-bottom:1px solid var(--line2);gap:10px}
+.mc-larga .mc-linha:hover{background:color-mix(in srgb, var(--ink) 3.5%, transparent)}
+.mc-larga .mc-linha.sel:hover{background:color-mix(in srgb, var(--ac) 10%, transparent)}
+.mc-larga .mc-linha.marcada{border-radius:0}
+.mc-larga .mc-linha:has(> .mc-caixa){padding-right:20px}
+.mc-larga .mc-linha-bt{min-height:45px;gap:12px}
+.mc-larga .mc-nm{flex-direction:row;align-items:baseline;gap:8px}
+.mc-larga .mc-t{font-size:14px;flex:0 1 auto;min-width:0}
+.mc-larga .mc-s{flex:0 1000 auto;min-width:0;margin-top:0}
+.mc-larga .mc-val{font-size:14px}
+.mc-larga .mc-moeda-bt{width:32px;height:32px;margin-right:0}
+.mc-larga .mc-moeda-vazia{width:20px;height:20px}
+.mc-larga .mc-obs{width:28px;height:28px}
+.mc-larga .mc-caixa{width:22px;height:22px;border-radius:7px}
+.mc-larga .mc-lista-anim > .mc-sel-aviso,.mc-larga .mc-lista-anim > .mc-filtro-tot,.mc-larga .mc-lista-card > .mc-sel-aviso{padding-left:20px;padding-right:20px}
+.mc-larga .mc-fora-roda{margin:14px 20px 4px;border-radius:14px}
+.mc-larga .mc-sel-barra{margin:12px 20px 0}
+.mc-larga .mc-sel-barra button{min-height:34px;border-radius:11px}
+/* cartão verde do saldo, mais compacto */
+.mc-hero-card{border-radius:20px;padding:16px 20px 18px}
+.mc-hero-card .mc-hero-topo{min-height:30px}
+.mc-hero-card .mc-hero-rot{font-size:14px}
+.mc-hero-card .mc-olho{margin-left:auto;width:30px;height:30px;border-radius:10px;position:relative;z-index:1}
+.mc-hero-card .mc-hero-num{font-size:40px;line-height:1;margin:8px 0 14px}
+.mc-hero-card .mc-hero-num small{font-size:.55em}
+.mc-hero-fim{display:flex;align-items:flex-end;gap:10px}
+.mc-hero-card .mc-hero-es{flex:1;min-width:0;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;font-size:14px}
+.mc-hero-card .mc-hero-es span{display:flex;flex-direction:column;white-space:nowrap}
+.mc-hero-card .mc-hero-es small{color:color-mix(in srgb, var(--ink) 78%, transparent)}
+.mc-hero-ic{position:static;display:flex;flex-shrink:0}
+/* "Para onde foi": saídas do período por categoria */
+.mc-onde{border-radius:20px;padding:16px 20px 8px;background:var(--sf);border:1px solid var(--line)}
+.mc-onde-topo{display:flex;align-items:baseline;gap:10px;margin-bottom:8px}
+.mc-onde-topo h2{margin:0;font-size:16px;font-weight:900}
+.mc-onde-topo span{margin-left:auto;font-size:12.5px;font-weight:600;color:var(--faint);white-space:nowrap}
+.mc-onde-vazio{padding:10px 0 12px;border-top:1px solid var(--line2);font-size:14px;font-weight:600;color:var(--faint)}
+.mc-onde-cat{display:grid;grid-template-columns:22px minmax(0,1fr) auto;gap:6px 9px;align-items:center;width:100%;padding:9px 0;border:none;border-top:1px solid var(--line2);
+  background:none;text-align:left;font-size:14px;transition:opacity .2s}
+.mc-onde-cat.resto{grid-template-columns:minmax(0,1fr) auto}
+.mc-onde-nome{font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mc-onde-cat.resto .mc-onde-nome{color:var(--soft)}
+.mc-onde-val{font-weight:800;white-space:nowrap}
+.mc-onde-barra{grid-column:1 / -1;height:5px;border-radius:9px;background:color-mix(in srgb, var(--ink) 8%, transparent);overflow:hidden;transition:background .15s}
+.mc-onde-barra i{display:block;height:100%;border-radius:9px;background:var(--o-rosa,#FF7EA6);transition:width .5s var(--ease)}
+.mc-onde-cat.resto .mc-onde-barra i{background:var(--faint)}
+.mc-onde-cat:hover .mc-onde-barra{background:color-mix(in srgb, var(--ink) 16%, transparent)}
+.mc-onde-cat:focus-visible{outline:2px solid var(--ac);outline-offset:2px;border-radius:8px}
+.mc-onde:has(.mc-onde-cat.on) .mc-onde-cat:not(.on){opacity:.55}
+.mc-onde-cat.on .mc-onde-barra{height:7px}
+.mc-lado-dica{border:none;padding:0 12px;font-size:12.5px;font-weight:600}
+.mc-lado .mc-form{border-radius:20px;padding:16px 18px}
+
+/* Mac: botões ~34px, campos e cartões mais baixos (formulário, janelas, menus) */
+html:not([data-plat="celular"]) .mc-wrap .mc-btn-p,html:not([data-plat="celular"]) .mc-wrap .mc-btn-s,html:not([data-plat="celular"]) .mc-wrap .mc-btn-perigo,
+html:not([data-plat="celular"]) .mc-wrap .mc-btn-fraco,html:not([data-plat="celular"]) .mc-wrap .mc-btn-verm{height:36px;border-radius:11px;font-size:13.5px;padding:0 14px}
+html:not([data-plat="celular"]) .mc-wrap .mc-btn-peq{height:32px;border-radius:10px;font-size:13px}
+html:not([data-plat="celular"]) .mc-wrap .mc-cat-acoes .mc-btn-rosa{height:36px;border-radius:11px}
+html:not([data-plat="celular"]) .mc-wrap .mc-inp{min-height:40px;border-radius:11px;font-size:14.5px;padding:0 12px}
+html:not([data-plat="celular"]) .mc-wrap .mc-inp-valor{font-size:16px}
+html:not([data-plat="celular"]) .mc-wrap .mc-valor-wrap .mc-inp{padding-right:44px}
+html:not([data-plat="celular"]) .mc-wrap .mc-area{padding:10px 12px;min-height:60px;font-size:14px}
+html:not([data-plat="celular"]) .mc-wrap .mc-calc-bt{width:30px;height:30px;border-radius:9px;right:5px}
+html:not([data-plat="celular"]) .mc-wrap .mc-form{gap:12px}
+html:not([data-plat="celular"]) .mc-wrap .mc-form-tit{font-size:18px;font-weight:900}
+html:not([data-plat="celular"]) .mc-wrap .mc-seg{border-radius:12px;padding:3px}
+html:not([data-plat="celular"]) .mc-wrap .mc-seg button{height:32px;border-radius:9px;font-size:13.5px}
+html:not([data-plat="celular"]) .mc-wrap .mc-bt-op{height:36px;border-radius:11px}
+html:not([data-plat="celular"]) .mc-wrap .mc-passo{height:40px;border-radius:11px}
+html:not([data-plat="celular"]) .mc-wrap .mc-passo button{width:36px;height:32px;border-radius:9px}
+html:not([data-plat="celular"]) .mc-wrap .mc-parc-nav{border-radius:11px;padding:3px}
+html:not([data-plat="celular"]) .mc-wrap .mc-parc-nav button{width:32px;height:32px;border-radius:9px}
+html:not([data-plat="celular"]) .mc-wrap .mc-rep{border-radius:14px;padding:12px;gap:10px}
+html:not([data-plat="celular"]) .mc-wrap .mc-opt{padding:9px 12px;border-radius:11px}
+html:not([data-plat="celular"]) .mc-wrap .mc-info{border-radius:11px;padding:10px 12px;font-size:13.5px}
+html:not([data-plat="celular"]) .mc-wrap .mc-acoes button span{width:40px;height:40px}
+html:not([data-plat="celular"]) .mc-wrap .mc-chave{font-size:14px;min-height:34px}
+html:not([data-plat="celular"]) .mc-wrap .mc-modal{border-radius:20px;padding:16px 18px;gap:12px}
+html:not([data-plat="celular"]) .mc-wrap .mc-dialogo{padding:20px 18px 16px}
+html:not([data-plat="celular"]) .mc-wrap .mc-menu{border-radius:16px;padding:6px}
+html:not([data-plat="celular"]) .mc-wrap .mc-menu button{height:36px;border-radius:10px;font-size:14px;padding:0 12px}
+html:not([data-plat="celular"]) .mc-wrap .mc-cal{top:46px;border-radius:16px}
+html:not([data-plat="celular"]) .mc-wrap .mc-busca{border-radius:11px}
+html:not([data-plat="celular"]) .mc-wrap .mc-busca input{height:38px;font-size:14.5px}
+html:not([data-plat="celular"]) .mc-wrap .mc-calc-k{height:44px;border-radius:11px}
+html:not([data-plat="celular"]) .mc-wrap .mc-ev{border-radius:16px}
+html:not([data-plat="celular"]) .mc-wrap .mc-toast{border-radius:12px}
+
 @media (prefers-reduced-motion:reduce){.mc-wrap *,.mc-wrap *::before,.mc-wrap *::after{animation-duration:.001ms!important;transition-duration:.001ms!important}}
     `}</style>
   );

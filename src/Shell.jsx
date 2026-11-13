@@ -94,31 +94,32 @@ export default function Shell() {
       <style>{`
         .sh-beta{margin:8px auto 0;max-width:640px;text-align:center;font:900 11px 'Nunito',sans-serif;letter-spacing:.08em;color:#2A1C06;background:#F0C987;border-radius:8px;padding:3px 8px}
         .sh-conteudo{min-height:100vh}
-        .sh-larga .sh-conteudo{margin-left:276px}
-        .sh-lado{position:fixed;left:14px;top:14px;bottom:14px;width:248px;z-index:30;border-radius:24px;padding:20px 14px;
-          display:flex;flex-direction:column;gap:6px;background:var(--o-sf);border:1px solid var(--o-line)}
-        .sh-lado-marca{display:flex;align-items:center;gap:10px;padding:0 6px 18px}
-        .sh-lado-marca .oink-logo{font-size:32px;color:var(--o-ink)}
-        .sh-lado button{display:flex;align-items:center;gap:12px;height:46px;padding:0 14px;border:none;border-radius:14px;background:transparent;
-          color:var(--o-soft);font:700 15px 'Nunito',sans-serif;cursor:pointer;text-align:left;transition:background .2s,color .2s}
+        .sh-larga .sh-conteudo{margin-left:242px}
+        .sh-lado{position:fixed;left:14px;top:14px;bottom:14px;width:212px;z-index:30;border-radius:20px;padding:16px 10px;
+          display:flex;flex-direction:column;gap:3px;background:var(--o-sf);border:1px solid var(--o-line)}
+        .sh-lado-marca{display:flex;align-items:center;gap:9px;padding:2px 8px 16px}
+        .sh-lado-marca .oink-logo{font-size:24px;color:var(--o-ink)}
+        .sh-lado button{display:flex;align-items:center;gap:10px;height:38px;padding:0 12px;border:none;border-radius:12px;background:transparent;
+          color:var(--o-soft);font:700 13.5px 'Nunito',sans-serif;cursor:pointer;text-align:left;transition:background .2s,color .2s}
         .sh-lado button:hover{background:color-mix(in srgb, var(--o-ink) 8%, transparent)}
         .sh-lado button{position:relative;z-index:1}
         .sh-lado button.on{color:var(--o-bg);font-weight:900}
         .sh-lado button.on:hover{background:transparent}
-        .sh-pilula{position:absolute;top:0;left:0;z-index:0;border-radius:14px;background:var(--o-ink);pointer-events:none;will-change:transform,width}
+        .sh-pilula{position:absolute;top:0;left:0;z-index:0;border-radius:12px;background:var(--o-ink);pointer-events:none;will-change:transform,width}
         .sh-lado-fim{margin-top:auto}
         .sh-baixo{position:fixed;left:12px;right:12px;bottom:calc(14px + env(safe-area-inset-bottom));z-index:30;display:flex;gap:10px;align-items:center;
           max-width:640px;margin:0 auto}
-        .sh-baixo-abas{flex-grow:1;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));background:var(--o-sf2);border-radius:30px;padding:6px;
+        .sh-baixo-abas{flex-grow:1;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));background:var(--o-sf2);border-radius:20px;padding:6px;
           box-shadow:0 -6px 30px var(--o-sombra);border:1px solid var(--o-line)}
-        .sh-baixo-abas button{height:46px;border:none;border-radius:24px;background:transparent;color:var(--o-faint);font:800 13px 'Nunito',sans-serif;
+        .sh-baixo-abas button{height:44px;border:none;border-radius:14px;background:transparent;color:var(--o-faint);font:800 13px 'Nunito',sans-serif;
           display:flex;align-items:center;justify-content:center;gap:6px;cursor:pointer;transition:background .25s cubic-bezier(.22,.9,.32,1),color .25s}
         .sh-baixo-abas button.on{background:var(--o-ink);color:var(--o-bg);font-weight:900}
-        .sh-mais{width:60px;height:60px;border-radius:22px;border:none;flex-shrink:0;cursor:pointer;
-          background:linear-gradient(180deg,#FF9DBE,#FF6D9B);color:var(--o-rosa-deep);box-shadow:0 5px 0 var(--o-rosa-sombra),0 14px 26px -10px rgba(255,109,155,.7);
-          display:flex;align-items:center;justify-content:center;transition:transform .12s,box-shadow .12s}
-        .sh-mais:active{transform:translateY(4px);box-shadow:0 1px 0 var(--o-rosa-sombra)}
-        .sh-cfg{width:60px;height:60px;border-radius:22px;border:1px solid var(--o-line);background:var(--o-sf2);color:var(--o-ink);flex-shrink:0;cursor:pointer;
+        /* botão rosa de lançar: chapado, sem brilho nem sombra colorida em volta */
+        .sh-mais{width:56px;height:56px;border-radius:20px;border:none;flex-shrink:0;cursor:pointer;
+          background:var(--o-rosa);color:var(--o-rosa-deep);box-shadow:0 -6px 30px var(--o-sombra);
+          display:flex;align-items:center;justify-content:center;transition:transform .12s cubic-bezier(.22,.9,.32,1)}
+        .sh-mais:active{transform:scale(.94)}
+        .sh-cfg{width:56px;height:56px;border-radius:20px;border:1px solid var(--o-line);background:var(--o-sf2);color:var(--o-ink);flex-shrink:0;cursor:pointer;
           display:flex;align-items:center;justify-content:center;box-shadow:0 -6px 30px var(--o-sombra)}
         .sh-vazio{max-width:520px;margin:60px auto;padding:28px 22px;text-align:center;color:var(--o-soft);font-family:'Nunito',sans-serif;
           border:1px dashed var(--o-line);border-radius:24px;line-height:1.6}
@@ -129,13 +130,13 @@ export default function Shell() {
         {larga && (
           <nav className="sh-lado vidro" aria-label="Abas" ref={ladoRef}>
             <div className="sh-pilula" data-pilula style={pilulaLado} />
-            <div className="sh-lado-marca"><IconeOink size={42} /><span className="oink-logo">oink<i>.</i></span></div>
+            <div className="sh-lado-marca"><IconeOink size={32} /><span className="oink-logo">oink<i>.</i></span></div>
             {ABAS.map(([k, nome, , Icone]) => (
               <button key={k} className={aba === k && !config ? "on" : ""} data-on={aba === k && !config ? "1" : undefined} onClick={() => { setConfig(false); setAba(k); }}>
-                <Icone size={19} /> {nome}
+                <Icone size={17} /> {nome}
               </button>
             ))}
-            <button className={"sh-lado-fim" + (config ? " on" : "")} data-on={config ? "1" : undefined} onClick={() => setConfig(true)}><Settings size={19} /> Configurações</button>
+            <button className={"sh-lado-fim" + (config ? " on" : "")} data-on={config ? "1" : undefined} onClick={() => setConfig(true)}><Settings size={17} /> Configurações</button>
           </nav>
         )}
 
@@ -159,9 +160,9 @@ export default function Shell() {
               ))}
             </nav>
             {aba === "pessoal" || (aba === "invest" && secaoInvest !== "calc") ? (
-              <button className="sh-mais" aria-label={aba === "invest" ? "Novo investimento" : "Novo lançamento"} onClick={novo}><Plus size={28} strokeWidth={2.8} /></button>
+              <button className="sh-mais" aria-label={aba === "invest" ? "Novo investimento" : "Novo lançamento"} onClick={novo}><Plus size={26} strokeWidth={2.8} /></button>
             ) : (
-              <button className="sh-cfg" aria-label="Configurações" onClick={() => setConfig(true)}><Settings size={24} /></button>
+              <button className="sh-cfg" aria-label="Configurações" onClick={() => setConfig(true)}><Settings size={22} /></button>
             )}
           </div>
         )}

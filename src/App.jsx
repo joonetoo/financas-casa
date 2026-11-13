@@ -27,6 +27,7 @@ import {
   Check,
   Eye,
   EyeOff,
+  CalendarPlus,
 } from "lucide-react";
 import { supabase } from "./supa.js";
 
@@ -795,6 +796,19 @@ export default function FinancasCasa({ ativo = true }) {
   useLayoutEffect(() => {
     tabSlider.sync(activeTab);
   }, [activeTab]);
+  // botão "+ Lançar" do cabeçalho: leva pra aba Lançamentos e já deixa o
+  // cursor no campo Descrição (não grava nada; é só um atalho de tela)
+  const lancDescRef = useRef(null);
+  const focarLanc = useRef(false);
+  useEffect(() => {
+    if (activeTab === "lancamentos" && focarLanc.current && lancDescRef.current) lancDescRef.current.focus();
+    focarLanc.current = false;
+  }, [activeTab]);
+  const irLancar = () => {
+    if (activeTab === "lancamentos") { if (lancDescRef.current) lancDescRef.current.focus(); return; }
+    focarLanc.current = true;
+    setActiveTab("lancamentos");
+  };
   useLayoutEffect(() => {
     yearSlider.sync(activeAnoId);
   }, [activeAnoId, data?.anos?.length]);
@@ -835,6 +849,17 @@ export default function FinancasCasa({ ativo = true }) {
     window.addEventListener("resize", aoRedimensionar);
     return () => window.removeEventListener("resize", aoRedimensionar);
   }, []);
+  // as abas agora têm a largura do próprio texto: se a letra chegar atrasada
+  // (ou a janela do app ainda estiver se arrumando), o botão muda de tamanho
+  // e a pílula precisa medir de novo — sem animar, pra nunca cortar um deslize
+  const tabsRef = useRef(null);
+  useEffect(() => {
+    const nav = tabsRef.current;
+    if (!loaded || !nav || typeof ResizeObserver === "undefined") return undefined;
+    const ro = new ResizeObserver(() => resyncRef.current(false));
+    Array.from(nav.children).forEach((f) => { if (!f.classList.contains("fc-slide-pill")) ro.observe(f); });
+    return () => ro.disconnect();
+  }, [loaded]);
 
   // a fonte (Sora/Manrope) carrega de forma assíncrona; se o indicador for
   // posicionado antes dela terminar, o texto muda de largura e o indicador
@@ -1686,166 +1711,166 @@ export default function FinancasCasa({ ativo = true }) {
     <div className="fc-wrap">
       <FcStyles />
 
+      {/* cabeçalho numa linha só: título · abas · mês · Lançar · olho */}
       <header className="fc-header">
         <div className="fc-brand">
-          <span className="fc-brand-badge">
-            <HomeIcon size={17} strokeWidth={2} />
-          </span>
-          <div>
-            <div className="fc-brand-name">Contas da casa</div>
-            <div className="fc-subtitle">Joel &amp; Antonio</div>
-          </div>
+          <div className="fc-brand-name">Contas da casa</div>
+          <div className="fc-subtitle">Joel &amp; Antonio</div>
         </div>
+
+        <nav className="fc-tabs" ref={tabsRef}>
+          <div className="fc-slide-pill fc-slide-pill-tab" style={tabSlider.style} />
+          <TabButton
+            innerRef={tabSlider.registerItem("resumo")}
+            active={activeTab === "resumo"}
+            onClick={() => setActiveTab("resumo")}
+          >
+            <span className="fc-tab-long">Resumo</span>
+            <span className="fc-tab-short">Resumo</span>
+          </TabButton>
+          <TabButton
+            innerRef={tabSlider.registerItem("lancamentos")}
+            active={activeTab === "lancamentos"}
+            onClick={() => setActiveTab("lancamentos")}
+          >
+            <span className="fc-tab-long">Lançamentos</span>
+            <span className="fc-tab-short">Lançar</span>
+          </TabButton>
+          <TabButton
+            innerRef={tabSlider.registerItem("fixas")}
+            active={activeTab === "fixas"}
+            onClick={() => setActiveTab("fixas")}
+          >
+            <span className="fc-tab-long">Fixas &amp; assinaturas</span>
+            <span className="fc-tab-short">Fixas</span>
+          </TabButton>
+        </nav>
+
+        <nav className="fc-period">
+          <button
+            className="fc-period-arrow"
+            title="Mês anterior"
+            aria-label="Mês anterior"
+            disabled={!canStepMonth(-1)}
+            onClick={() => stepMonth(-1)}
+          >
+            <ChevronLeft size={17} />
+          </button>
+          <button
+            className={"fc-period-label" + (periodOpen ? " fc-period-label-open" : "")}
+            aria-expanded={periodOpen}
+            onClick={() => {
+              if (!periodOpen) { setMenuAnoId(activeAnoId); setConfirmDeleteMonthId(null); setAddingMonth(false); }
+              setPeriodOpen((v) => !v);
+            }}
+          >
+            <span className="fc-mes-longo">{month.label}</span>
+            <span className="fc-mes-curto">{mesCurto(month.label)}</span> {activeAno.label}
+            <ChevronDown size={14} className="fc-period-caret" />
+          </button>
+          <button
+            className="fc-period-arrow"
+            title="Próximo mês"
+            aria-label="Próximo mês"
+            disabled={!canStepMonth(1)}
+            onClick={() => stepMonth(1)}
+          >
+            <ChevronRight size={17} />
+          </button>
+          {(() => {
+            const prox = proximoMes();
+            const nome = prox ? prox.nome + (String(prox.anoLabel) !== String(activeAno.label) ? " " + prox.anoLabel : "") : "o próximo mês";
+            return (
+              <button className="fc-period-arrow fc-period-add" title={`Adicionar ${nome}`} aria-label={`Adicionar ${nome}`} onClick={adicionarProximoMes}>
+                <CalendarPlus size={16} />
+              </button>
+            );
+          })()}
+
+          {periodOpen && (() => {
+            const anoIdx = Math.max(0, data.anos.findIndex((a) => a.id === (menuAnoId || activeAnoId)));
+            const menuAno = data.anos[anoIdx];
+            const hoje = new Date();
+            const ehHoje = (m) => String(menuAno.label).trim() === String(hoje.getFullYear()) && indiceMes(m.label) === hoje.getMonth();
+            const qtdLanc = (m) => Object.values(m.lancamentos || {}).reduce((t, arr) => t + (Array.isArray(arr) ? arr.length : 0), 0);
+            const prox = proximoMes();
+            return (
+              <>
+                <div className="fc-mes-fundo" onClick={() => setPeriodOpen(false)} />
+                <div className="fc-mes-menu vidro" role="menu" aria-label="Escolher mês">
+                  <div className="fc-mes-ano">
+                    <button aria-label="Ano anterior" disabled={anoIdx === 0} onClick={() => { setMenuAnoId(data.anos[anoIdx - 1].id); setConfirmDeleteMonthId(null); }}><ChevronLeft size={18} /></button>
+                    <b>{menuAno.label}</b>
+                    <button aria-label="Próximo ano" disabled={anoIdx >= data.anos.length - 1} onClick={() => { setMenuAnoId(data.anos[anoIdx + 1].id); setConfirmDeleteMonthId(null); }}><ChevronRight size={18} /></button>
+                  </div>
+                  {menuAno.months.length === 0 && <div className="fc-mes-vazio">Nenhum mês em {menuAno.label} ainda.</div>}
+                  {menuAno.months.map((m) =>
+                    confirmDeleteMonthId === m.id ? (
+                      <div key={m.id} className="fc-mes-item fc-mes-confirma">
+                        <span>Apagar {m.label}?</span>
+                        <span className="fc-mes-acoes">
+                          <button className="fc-mes-sim" onClick={() => deleteMonth(m.id, menuAno.id)}><Check size={15} /> Apagar</button>
+                          <button className="fc-mes-nao" aria-label="Cancelar" onClick={() => setConfirmDeleteMonthId(null)}><X size={15} /></button>
+                        </span>
+                      </div>
+                    ) : (
+                      <div key={m.id} className={"fc-mes-item" + (m.id === activeMonthId ? " on" : "")}>
+                        <button
+                          role="menuitem"
+                          className="fc-mes-abrir"
+                          onClick={() => { setActiveAnoId(menuAno.id); setActiveMonthId(m.id); setPeriodOpen(false); }}
+                        >
+                          <span>{m.label}</span>
+                          <small>{ehHoje(m) ? "hoje · " : ""}{qtdLanc(m)} {qtdLanc(m) === 1 ? "lançamento" : "lançamentos"}</small>
+                        </button>
+                        <button className="fc-mes-lixo" title={`Apagar ${m.label}`} aria-label={`Apagar ${m.label}`} onClick={() => setConfirmDeleteMonthId(m.id)}>
+                          <Trash2 size={15} />
+                        </button>
+                      </div>
+                    )
+                  )}
+                  {addingMonth ? (
+                    <span className="fc-add-month-form fc-mes-form">
+                      <input
+                        autoFocus
+                        className="fc-input"
+                        placeholder="Nome do mês"
+                        value={newMonthLabel}
+                        onChange={(e) => setNewMonthLabel(e.target.value)}
+                        onKeyDown={(e) => e.key === "Enter" && confirmAddMonth()}
+                      />
+                      <button className="fc-icon-btn" onClick={confirmAddMonth} title="Adicionar"><Check size={15} /></button>
+                      <button className="fc-icon-btn" onClick={() => setAddingMonth(false)} title="Cancelar"><X size={15} /></button>
+                    </span>
+                  ) : (
+                    <button className="fc-mes-add" onClick={adicionarProximoMes}>
+                      <Plus size={18} strokeWidth={2.8} />
+                      <span>
+                        {prox ? `Adicionar ${prox.nome}${String(prox.anoLabel) !== String(menuAno.label) ? " " + prox.anoLabel : ""}` : "Adicionar mês"}
+                        {prox && <small>Já vem com as fixas e orçamentos de {prox.source.label}</small>}
+                      </span>
+                    </button>
+                  )}
+                </div>
+              </>
+            );
+          })()}
+        </nav>
+
+        <button className="fc-lancar" onClick={irLancar}>
+          <Plus size={16} strokeWidth={2.8} /> Lançar
+        </button>
         <button
           className="fc-icon-btn fc-hide-btn"
           title={hideValues ? "Mostrar valores" : "Esconder valores"}
+          aria-label="Esconder valores"
           onClick={() => setHideValues((v) => !v)}
         >
           {hideValues ? <EyeOff size={16} /> : <Eye size={16} />}
         </button>
       </header>
 
-      <nav className="fc-period">
-        <button
-          className="fc-period-arrow"
-          title="Mês anterior"
-          aria-label="Mês anterior"
-          disabled={!canStepMonth(-1)}
-          onClick={() => stepMonth(-1)}
-        >
-          <ChevronLeft size={17} />
-        </button>
-        <button
-          className={"fc-period-label" + (periodOpen ? " fc-period-label-open" : "")}
-          aria-expanded={periodOpen}
-          onClick={() => {
-            if (!periodOpen) { setMenuAnoId(activeAnoId); setConfirmDeleteMonthId(null); setAddingMonth(false); }
-            setPeriodOpen((v) => !v);
-          }}
-        >
-          <span className="fc-mes-longo">{month.label}</span>
-          <span className="fc-mes-curto">{mesCurto(month.label)}</span> {activeAno.label}
-          <ChevronDown size={14} className="fc-period-caret" />
-        </button>
-        <button
-          className="fc-period-arrow"
-          title="Próximo mês"
-          aria-label="Próximo mês"
-          disabled={!canStepMonth(1)}
-          onClick={() => stepMonth(1)}
-        >
-          <ChevronRight size={17} />
-        </button>
-        {(() => {
-          const prox = proximoMes();
-          const nome = prox ? prox.nome + (String(prox.anoLabel) !== String(activeAno.label) ? " " + prox.anoLabel : "") : "o próximo mês";
-          return (
-            <button className="fc-period-arrow fc-period-add" title={`Adicionar ${nome}`} aria-label={`Adicionar ${nome}`} onClick={adicionarProximoMes}>
-              <Plus size={19} strokeWidth={2.8} />
-            </button>
-          );
-        })()}
-
-        {periodOpen && (() => {
-          const anoIdx = Math.max(0, data.anos.findIndex((a) => a.id === (menuAnoId || activeAnoId)));
-          const menuAno = data.anos[anoIdx];
-          const hoje = new Date();
-          const ehHoje = (m) => String(menuAno.label).trim() === String(hoje.getFullYear()) && indiceMes(m.label) === hoje.getMonth();
-          const qtdLanc = (m) => Object.values(m.lancamentos || {}).reduce((t, arr) => t + (Array.isArray(arr) ? arr.length : 0), 0);
-          const prox = proximoMes();
-          return (
-            <>
-              <div className="fc-mes-fundo" onClick={() => setPeriodOpen(false)} />
-              <div className="fc-mes-menu vidro" role="menu" aria-label="Escolher mês">
-                <div className="fc-mes-ano">
-                  <button aria-label="Ano anterior" disabled={anoIdx === 0} onClick={() => { setMenuAnoId(data.anos[anoIdx - 1].id); setConfirmDeleteMonthId(null); }}><ChevronLeft size={18} /></button>
-                  <b>{menuAno.label}</b>
-                  <button aria-label="Próximo ano" disabled={anoIdx >= data.anos.length - 1} onClick={() => { setMenuAnoId(data.anos[anoIdx + 1].id); setConfirmDeleteMonthId(null); }}><ChevronRight size={18} /></button>
-                </div>
-                {menuAno.months.length === 0 && <div className="fc-mes-vazio">Nenhum mês em {menuAno.label} ainda.</div>}
-                {menuAno.months.map((m) =>
-                  confirmDeleteMonthId === m.id ? (
-                    <div key={m.id} className="fc-mes-item fc-mes-confirma">
-                      <span>Apagar {m.label}?</span>
-                      <span className="fc-mes-acoes">
-                        <button className="fc-mes-sim" onClick={() => deleteMonth(m.id, menuAno.id)}><Check size={15} /> Apagar</button>
-                        <button className="fc-mes-nao" aria-label="Cancelar" onClick={() => setConfirmDeleteMonthId(null)}><X size={15} /></button>
-                      </span>
-                    </div>
-                  ) : (
-                    <div key={m.id} className={"fc-mes-item" + (m.id === activeMonthId ? " on" : "")}>
-                      <button
-                        role="menuitem"
-                        className="fc-mes-abrir"
-                        onClick={() => { setActiveAnoId(menuAno.id); setActiveMonthId(m.id); setPeriodOpen(false); }}
-                      >
-                        <span>{m.label}</span>
-                        <small>{ehHoje(m) ? "hoje · " : ""}{qtdLanc(m)} {qtdLanc(m) === 1 ? "lançamento" : "lançamentos"}</small>
-                      </button>
-                      <button className="fc-mes-lixo" title={`Apagar ${m.label}`} aria-label={`Apagar ${m.label}`} onClick={() => setConfirmDeleteMonthId(m.id)}>
-                        <Trash2 size={15} />
-                      </button>
-                    </div>
-                  )
-                )}
-                {addingMonth ? (
-                  <span className="fc-add-month-form fc-mes-form">
-                    <input
-                      autoFocus
-                      className="fc-input"
-                      placeholder="Nome do mês"
-                      value={newMonthLabel}
-                      onChange={(e) => setNewMonthLabel(e.target.value)}
-                      onKeyDown={(e) => e.key === "Enter" && confirmAddMonth()}
-                    />
-                    <button className="fc-icon-btn" onClick={confirmAddMonth} title="Adicionar"><Check size={15} /></button>
-                    <button className="fc-icon-btn" onClick={() => setAddingMonth(false)} title="Cancelar"><X size={15} /></button>
-                  </span>
-                ) : (
-                  <button className="fc-mes-add" onClick={adicionarProximoMes}>
-                    <Plus size={18} strokeWidth={2.8} />
-                    <span>
-                      {prox ? `Adicionar ${prox.nome}${String(prox.anoLabel) !== String(menuAno.label) ? " " + prox.anoLabel : ""}` : "Adicionar mês"}
-                      {prox && <small>Já vem com as fixas e orçamentos de {prox.source.label}</small>}
-                    </span>
-                  </button>
-                )}
-              </div>
-            </>
-          );
-        })()}
-      </nav>
-
-      {/* quadro de vidro (visual Oink): sub-abas + conteúdo num cartão só, pra dar leitura */}
-      <div className="fc-quadro vidro">
-      <nav className="fc-tabs">
-        <div className="fc-slide-pill fc-slide-pill-tab" style={tabSlider.style} />
-        <TabButton
-          innerRef={tabSlider.registerItem("resumo")}
-          active={activeTab === "resumo"}
-          onClick={() => setActiveTab("resumo")}
-        >
-          <span className="fc-tab-long">Resumo</span>
-          <span className="fc-tab-short">Resumo</span>
-        </TabButton>
-        <TabButton
-          innerRef={tabSlider.registerItem("lancamentos")}
-          active={activeTab === "lancamentos"}
-          onClick={() => setActiveTab("lancamentos")}
-        >
-          <span className="fc-tab-long">Lançamentos</span>
-          <span className="fc-tab-short">Lançar</span>
-        </TabButton>
-        <TabButton
-          innerRef={tabSlider.registerItem("fixas")}
-          active={activeTab === "fixas"}
-          onClick={() => setActiveTab("fixas")}
-        >
-          <span className="fc-tab-long">Fixas &amp; assinaturas</span>
-          <span className="fc-tab-short">Fixas</span>
-        </TabButton>
-      </nav>
-
+      <div className="fc-quadro">
       <main className="fc-main">
         {activeTab === "resumo" && (
           <div className="fc-hero-resumo fc-tab-content">
@@ -1880,7 +1905,18 @@ export default function FinancasCasa({ ativo = true }) {
                 </span>
               </div>
             </section>
-            <div className="fc-env-grid">
+            <section className="fc-orc vidro" aria-label="Orçamentos do mês">
+              <div className="fc-orc-topo">
+                <h2>Orçamentos do mês</h2>
+                <span>toque numa categoria pra ver os lançamentos</span>
+              </div>
+              <div className="fc-orc-cab" aria-hidden="true">
+                <span />
+                <span>Categoria</span>
+                <span>Quanto já foi</span>
+                <span>Já usou</span>
+                <span>Ainda tem</span>
+              </div>
               {CATS.map((c) => ({
                 c,
                 gasto: categoryTotal(month, c.key),
@@ -1899,27 +1935,27 @@ export default function FinancasCasa({ ativo = true }) {
                         setActiveTab("lancamentos");
                       }}
                     >
-                      <div className="fc-env-top">
-                        <span className="fc-env-icon">
-                          <CatIcon name={c.icon} />
-                        </span>
+                      <span className="fc-env-icon">
+                        <CatIcon name={c.icon} />
+                      </span>
+                      <span className="fc-env-txt">
                         <span className="fc-env-name">{c.label}</span>
-                        <span className="fc-env-left fc-tabular fc-env-left-num" style={{ color: est.color }}>
-                          {est.word ? est.word : est.over ? `−${money(-est.resta)}` : money(est.resta)}
-                        </span>
-                      </div>
-                      <div className="fc-env-gauge">
-                        <div
+                        <span className="fc-env-budget fc-tabular">orçamento {money(orcamento)}</span>
+                      </span>
+                      <span className="fc-env-gauge">
+                        <span
                           className="fc-env-gauge-fill"
                           style={{ width: est.barPct + "%", background: est.color }}
                         />
-                      </div>
-                      <div className="fc-env-nums">
-                        <span className="fc-env-budget fc-tabular">orçamento {money(orcamento)}</span>
-                        <span className="fc-env-usou fc-tabular">
-                          −{money(gasto)} <small>{c.key === "contasCasa" ? "já pago" : "já usou"}</small>
+                      </span>
+                      <span className={"fc-env-usou fc-tabular" + (c.key === "contasCasa" ? " fc-env-pago" : "")}>
+                        −{money(gasto)} <small>{c.key === "contasCasa" ? "já pago" : "já usou"}</small>
+                      </span>
+                      <span className="fc-env-resta">
+                        <span className="fc-env-left fc-tabular fc-env-left-num" style={{ color: est.color, "--tag": est.color }}>
+                          {est.word ? est.word : est.over ? `−${money(-est.resta)}` : money(est.resta)}
                         </span>
-                      </div>
+                      </span>
                     </button>
                   );
                 })}
@@ -1931,7 +1967,7 @@ export default function FinancasCasa({ ativo = true }) {
                   <ChevronRight size={14} />
                 </button>
               )}
-            </div>
+            </section>
           </div>
         )}
 
@@ -1974,7 +2010,7 @@ export default function FinancasCasa({ ativo = true }) {
                       <b>{catAtiva?.label}</b>
                       <small>orçamento vem de Fixas</small>
                     </span>
-                    <span className="fc-env-left" style={{ color: est.color }}>
+                    <span className="fc-env-left" style={{ color: est.color, "--tag": est.color }}>
                       {est.word ? est.word : est.over ? `${money(-est.resta)} acima` : `sobra ${money(est.resta)}`}
                     </span>
                   </div>
@@ -2041,6 +2077,7 @@ export default function FinancasCasa({ ativo = true }) {
 
             <div className="fc-add-row">
               <input
+                ref={lancDescRef}
                 className="fc-input fc-input-grow"
                 placeholder="Descrição"
                 value={lancDesc}
@@ -2654,31 +2691,51 @@ function FcStyles() {
       @media (min-width: 1150px) { .fc-hero-resumo { grid-template-columns: 420px minmax(0, 1fr); gap: 20px; } }
       .fc-hero-resumo-total { grid-column: 1 / -1; }
 
-      /* auto-fill em vez de um numero fixo de colunas: o cartao poe nome e
-         valor lado a lado, e abaixo de ~260px o nome era espremido a poucos
-         pixels e o texto vazava por cima do valor. Assim a grade se ajusta a
-         largura que tiver, sem nunca criar cartao estreito demais. */
-      .fc-env-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px; }
-      @media (max-width: 400px) { .fc-env-grid { grid-template-columns: minmax(0, 1fr); } }
-      .fc-env-card {
-        background: var(--surface); border-radius: 26px; padding: 16px;
-        box-shadow: var(--shadow-sm); border: 1px solid var(--line);
-        display: flex; flex-direction: column; gap: 9px; min-height: 128px;
-        transition: transform .22s var(--ease), box-shadow .22s var(--ease), border-color .22s var(--ease);
-        opacity: 0; animation: fcFadeUp .65s var(--ease) forwards;
-        width: 100%; text-align: left; font: inherit; color: inherit; cursor: pointer;
+      /* Orçamentos do mês: UM cartão com uma linha por categoria e colunas
+         alinhadas (ícone, nome + orçamento, barra, já usou, ainda tem). Cada
+         linha é um botão que leva pra Lançamentos já na categoria. */
+      .fc-orc { background: var(--surface); border: 1px solid var(--line); border-radius: 20px; padding: 18px 0 4px; min-width: 0; }
+      .fc-orc-topo { display: flex; align-items: baseline; gap: 12px; padding: 0 20px 14px; }
+      .fc-orc-topo h2 { margin: 0; font-size: 16px; font-weight: 900; }
+      .fc-orc-topo span { margin-left: auto; font-size: 12.5px; font-weight: 600; color: var(--ink-faint); text-align: right; }
+      .fc-orc-cab, .fc-env-card {
+        display: grid; grid-template-columns: 34px minmax(0, 1.5fr) minmax(0, 1.3fr) 124px 124px; column-gap: 16px; align-items: center;
       }
-      .fc-env-card:hover { transform: translateY(-7px) scale(1.015); box-shadow: var(--shadow-md); border-color: transparent; }
-      .fc-env-card:active { transform: translateY(-3px) scale(1.005); }
-      .fc-env-card:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-      .fc-env-card:nth-child(1) { animation-delay: .03s; } .fc-env-card:nth-child(2) { animation-delay: .09s; }
-      .fc-env-card:nth-child(3) { animation-delay: .15s; } .fc-env-card:nth-child(4) { animation-delay: .21s; }
-      .fc-env-card:nth-child(5) { animation-delay: .27s; } .fc-env-card:nth-child(6) { animation-delay: .33s; }
-      .fc-env-card:nth-child(7) { animation-delay: .39s; } .fc-env-card:nth-child(8) { animation-delay: .45s; }
+      .fc-orc-cab { padding: 0 20px 8px; font-size: 12.5px; font-weight: 700; color: var(--ink-faint); }
+      .fc-orc-cab span:nth-child(n+4) { text-align: right; }
+      .fc-env-card {
+        width: 100%; padding: 13px 20px; border: none; border-top: 1px solid var(--line); background: none;
+        text-align: left; font: inherit; color: inherit; cursor: pointer;
+        transition: background-color .18s var(--ease);
+        opacity: 0; animation: fcLinhaSobe .4s var(--ease) forwards;
+      }
+      .fc-env-card:hover { background: color-mix(in srgb, var(--ink) 4%, transparent); }
+      .fc-env-card:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+      .fc-env-card:nth-of-type(1) { animation-delay: .02s; } .fc-env-card:nth-of-type(2) { animation-delay: .05s; }
+      .fc-env-card:nth-of-type(3) { animation-delay: .08s; } .fc-env-card:nth-of-type(4) { animation-delay: .11s; }
+      .fc-env-card:nth-of-type(5) { animation-delay: .14s; } .fc-env-card:nth-of-type(6) { animation-delay: .17s; }
+      .fc-env-card:nth-of-type(7) { animation-delay: .2s; } .fc-env-card:nth-of-type(8) { animation-delay: .23s; }
+      @keyframes fcLinhaSobe { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
       @keyframes fcFadeUp { from { opacity: 0; transform: translateY(22px) scale(.96); } to { opacity: 1; transform: translateY(0) scale(1); } }
       @media (prefers-reduced-motion: reduce) { .fc-env-card { opacity: 1; animation: none; } }
-      .fc-env-top { display: flex; align-items: center; gap: 8px; }
-      .fc-env-top .fc-env-name { flex: 1; min-width: 0; }
+      .fc-env-txt { min-width: 0; display: flex; flex-direction: column; }
+      .fc-env-usou { text-align: right; font-weight: 800; white-space: nowrap; }
+      .fc-env-usou small { display: none; font-size: 12.5px; font-weight: 600; color: var(--ink-faint); }
+      .fc-env-usou.fc-env-pago small { display: block; }
+      .fc-env-resta { display: flex; justify-content: flex-end; min-width: 0; }
+      /* celular (e janela estreita): linha mais baixa em dois andares */
+      @media (max-width: 820px) {
+        .fc-orc { padding: 14px 0 2px; }
+        .fc-orc-topo { padding: 0 14px 10px; }
+        .fc-orc-topo span, .fc-orc-cab { display: none; }
+        .fc-env-card {
+          grid-template-columns: 34px minmax(0, 1fr) auto; grid-template-areas: "ic txt resta" "bar bar usou";
+          column-gap: 10px; row-gap: 8px; padding: 10px 14px;
+        }
+        .fc-env-card .fc-env-icon { grid-area: ic; } .fc-env-txt { grid-area: txt; } .fc-env-resta { grid-area: resta; }
+        .fc-env-card .fc-env-gauge { grid-area: bar; } .fc-env-usou { grid-area: usou; font-size: 13px; }
+        .fc-env-usou small, .fc-env-usou.fc-env-pago small { display: inline; font-size: 12px; }
+      }
       .fc-env-icon {
         --cat-on: color-mix(in srgb, var(--cat, var(--accent)), var(--ink) 42%);
         width: 28px; height: 28px; border-radius: 10px; flex-shrink: 0;
@@ -2688,24 +2745,23 @@ function FcStyles() {
       }
       .fc-env-icon-sm { width: 24px; height: 24px; border-radius: 8px; }
       .fc-env-name { font-weight: 700; font-size: 12.5px; line-height: 1.25; overflow-wrap: anywhere; }
-      .fc-env-gauge { height: 6px; border-radius: 999px; background: var(--surface-2); overflow: hidden; }
+      .fc-env-gauge { display: block; height: 8px; border-radius: 999px; background: var(--surface-2); overflow: hidden; }
       .fc-env-gauge-fill {
         --cat-on: color-mix(in srgb, var(--cat, var(--accent)), var(--ink) 42%);
-        height: 100%; border-radius: 999px; background: var(--cat-on); transition: width 0.5s var(--ease);
+        display: block; height: 100%; border-radius: 999px; background: var(--cat-on); transition: width 0.5s var(--ease);
       }
-      .fc-env-nums { display: flex; justify-content: space-between; align-items: baseline; margin-top: auto; }
       .fc-env-budget { font-size: 11px; color: var(--ink-faint); font-weight: 600; display: block; }
       /* o que sobrou e o numero de destaque: e a mesma pergunta que o herói
          faz la em cima ("ainda da pra gastar"), respondida por categoria. */
       .fc-env-left { font-size: 13px; font-weight: 700; flex-shrink: 0; white-space: nowrap; }
       .fc-env-left-num { font-family: 'Sora', sans-serif; font-size: 16px; font-weight: 800; }
       .fc-env-empty {
-        grid-column: 1 / -1; display: flex; align-items: center; justify-content: center; gap: 7px;
-        min-height: 48px; border-radius: 20px; border: 1px dashed var(--line); background: transparent;
-        color: var(--ink-faint); font-family: inherit; font-size: 12.5px; font-weight: 600; cursor: pointer;
-        transition: border-color .15s ease, color .15s ease;
+        display: flex; align-items: center; gap: 6px; width: 100%; min-height: 44px; padding: 0 20px;
+        border: none; border-top: 1px solid var(--line); background: transparent;
+        color: var(--ink-faint); font-family: inherit; font-size: 13px; font-weight: 600; cursor: pointer; text-align: left;
+        transition: color .15s ease;
       }
-      .fc-env-empty:hover { border-color: var(--accent); color: var(--accent); }
+      .fc-env-empty:hover { color: var(--ink); }
 
       .fc-chart-tip {
         background: var(--surface-2); border: 1px solid var(--line); border-radius: 14px;

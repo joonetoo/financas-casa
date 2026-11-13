@@ -10,7 +10,7 @@ import { ICONES, CORES, CATEGORIAS_PADRAO } from "./categorias.js";
 import {
   uid, hojeISO, ymHoje, somaYm, criarLancamentos, doMes, totais, aplicarNasProximas,
   proximasDaSerie, foraSomaNasProximas, proxMes, normalizar, nomeMes, nomeDia, fmtValor, fmtReais, lerValor, MESES, p2,
-  periodoCom, andarPeriodo, nomePeriodo, dentroDo, doPeriodo, semAcento,
+  periodoCom, andarPeriodo, nomePeriodo, dentroDo, doPeriodo, semAcento, saidasPorCategoria, maioresEOutras,
 } from "./logica.js";
 import { MCStyles } from "./estilo.jsx";
 import { usePrefs, IconeOink, Carregando, SemInternet, usePilula } from "../tema.jsx";
@@ -86,7 +86,7 @@ function BalaoObs({ texto, aberto, onAlternar }) {
           onClick={(e) => e.stopPropagation()}
           style={pos ? { left: pos.left, top: pos.top, "--seta": pos.seta + "px", ...pos.cores } : { left: 0, top: 0 }}
         >
-          <small>OBSERVAÇÃO</small>{texto}
+          <small>Observação</small>{texto}
         </span>,
         document.body
       )}
@@ -178,7 +178,7 @@ export default function MinhasContas({ chave, ativo = true, larga: largaProp }) 
   );
   const filtrando = estado !== "todas" || catsFiltro.size > 0;
   const totFiltro = useMemo(() => totais(visiveis), [visiveis]);
-  const catsEscolhidas = [...catsFiltro].map((id) => catPorId[id]).filter(Boolean);
+  const catsEscolhidas = [...catsFiltro].map((id) => catPorId[id] || { id, nome: "Sem categoria" });
   // soma das categorias escolhidas no filtro (com o quanto já foi pago e o que falta)
   const somaCats = useMemo(() => {
     if (!catsFiltro.size) return null;
@@ -190,6 +190,12 @@ export default function MinhasContas({ chave, ativo = true, larga: largaProp }) 
   }, [catsFiltro, visiveis, totFiltro]);
   const rotSoma = catsEscolhidas.length === 1 ? `Soma de ${catsEscolhidas[0].nome}` : `Soma das ${catsFiltro.size} categorias`;
   const abrirFiltroCat = () => { setBusca(null); setEscolhendoFiltro(true); };
+  // "Para onde foi" (só no Mac): as saídas do período por categoria. Mesma base
+  // do cartão do saldo (o período inteiro, sem os filtros da lista). Só lê.
+  const ondeFoi = useMemo(() => maioresEOutras(saidasPorCategoria(doMesTodos)), [doMesTodos]);
+  const filtroEh = (ids) => catsFiltro.size === ids.length && ids.every((id) => catsFiltro.has(id));
+  // tocar numa categoria liga o MESMO filtro de categorias da lista; tocar de novo tira
+  const filtrarPorCats = (ids) => { setBusca(null); setCatsFiltro(filtroEh(ids) ? new Set() : new Set(ids)); };
 
   const grupos = useMemo(() => {
     const g = [];
@@ -454,26 +460,67 @@ export default function MinhasContas({ chave, ativo = true, larga: largaProp }) 
   const [inteiro, centavos] = fmtValor(Math.abs(res)).split(",");
   const comSinal = (n) => (n < 0 ? "−" : n > 0 ? "+" : "") + v(Math.abs(n));
   const [sInteiro, sCentavos] = fmtValor(Math.abs(somaCats ? somaCats.total : 0)).split(",");
+  const olho = (
+    <button className="mc-ib mc-olho" title={oculto ? "Mostrar valores" : "Esconder valores"} aria-label="Esconder valores" onClick={() => setOculto((o) => !o)}>
+      {oculto ? <EyeOff size={larga ? 16 : 19} /> : <Eye size={larga ? 16 : 19} />}
+    </button>
+  );
+  const porquinho = larga && <span className="mc-hero-ic"><IconeOink size={46} moedaCaindo={moedaCaindo > 0} key={moedaCaindo} /></span>;
   const hero = larga && somaCats ? (
     <div className="mc-hero mc-hero-card vidro">
-      <span className="mc-hero-ic"><IconeOink size={70} moedaCaindo={moedaCaindo > 0} key={moedaCaindo} /></span>
-      <div className="mc-hero-rot">{rotSoma}</div>
-      <div className="mc-hero-num">{oculto ? "R$ ••••" : <>R$ {somaCats.total < 0 ? "−" : ""}{sInteiro}<small>,{sCentavos}</small></>}</div>
-      <div className="mc-hero-pills">
-        <span className="mc-pill-e">Pago {comSinal(somaCats.pago)}</span>
-        <span className="mc-pill-s">A pagar {comSinal(somaCats.apagar)}</span>
+      <div className="mc-hero-esq">
+        <div className="mc-hero-topo"><span className="mc-hero-rot">{rotSoma}</span>{olho}</div>
+        <div className="mc-hero-num">{oculto ? "R$ ••••" : <>R$ {somaCats.total < 0 ? "−" : ""}{sInteiro}<small>,{sCentavos}</small></>}</div>
+      </div>
+      <div className="mc-hero-fim">
+        <div className="mc-hero-es">
+          <span><b>{comSinal(somaCats.pago)}</b><small>pago</small></span>
+          <span><b>{comSinal(somaCats.apagar)}</b><small>a pagar</small></span>
+        </div>
+        {porquinho}
       </div>
     </div>
   ) : (
-    <div className={"mc-hero" + (larga ? " mc-hero-card vidro" : "") + (res < 0 ? " mc-hero-falta" : res > 0 ? " mc-hero-sobra" : "")}>
-      {larga && <span className="mc-hero-ic"><IconeOink size={70} moedaCaindo={moedaCaindo > 0} key={moedaCaindo} /></span>}
-      <div className="mc-hero-rot">{rotHero}</div>
-      <div className="mc-hero-num">{oculto ? "R$ ••••" : <>{res < 0 ? "−" : res > 0 ? "+" : ""}R$ {inteiro}<small>,{centavos}</small></>}</div>
-      <div className="mc-hero-pills">
-        <span className="mc-pill-e">+{v(tot.entradas)} entrou</span>
-        <span className="mc-pill-s">−{v(tot.saidas)} saiu</span>
+    <div className={"mc-hero" + (larga ? " mc-hero-card vidro" : " mc-hero-faixa") + (res < 0 ? " mc-hero-falta" : res > 0 ? " mc-hero-sobra" : "")}>
+      <div className="mc-hero-esq">
+        <div className="mc-hero-topo"><span className="mc-hero-rot">{rotHero}</span>{larga && olho}</div>
+        <div className="mc-hero-num">{oculto ? "R$ ••••" : <>{res < 0 ? "−" : res > 0 ? "+" : ""}R$ {inteiro}<small>,{centavos}</small></>}</div>
+      </div>
+      <div className="mc-hero-fim">
+        <div className="mc-hero-es">
+          <span><b>+{v(tot.entradas)}</b><small>entrou</small></span>
+          <span><b>−{v(tot.saidas)}</b><small>saiu</small></span>
+        </div>
+        {porquinho}
       </div>
     </div>
+  );
+
+  // cartão "Para onde foi" (coluna da direita, só no Mac)
+  const nomeCat = (id) => catPorId[id]?.nome || "Sem categoria";
+  const maiorSaida = ondeFoi.maiores.length ? ondeFoi.maiores[0].total : 0;
+  const linhaOnde = (chave, ids, rotulo, total, icone, resto) => {
+    const on = filtroEh(ids);
+    return (
+      <button key={chave} className={"mc-onde-cat" + (on ? " on" : "") + (resto ? " resto" : "")} aria-pressed={on}
+        title={on ? "Tirar o filtro" : `Mostrar só ${rotulo} na lista`} onClick={() => filtrarPorCats(ids)}>
+        {icone}
+        <span className="mc-onde-nome">{rotulo}</span>
+        <span className="mc-onde-val">{v(total)}</span>
+        <span className="mc-onde-barra" aria-hidden="true"><i style={{ width: Math.max(2, Math.min(100, maiorSaida ? (total / maiorSaida) * 100 : 0)) + "%" }} /></span>
+      </button>
+    );
+  };
+  const paraOndeFoi = larga && (
+    <section className="mc-onde vidro" aria-label="Para onde foi">
+      <div className="mc-onde-topo">
+        <h2>Para onde foi</h2>
+        {ondeFoi.maiores.length > 0 && <span>toque pra filtrar a lista</span>}
+      </div>
+      {ondeFoi.maiores.length === 0 && <div className="mc-onde-vazio">Nada saiu neste período</div>}
+      {ondeFoi.maiores.map((x) => linhaOnde(String(x.catId), [x.catId], nomeCat(x.catId), x.total, <CatIcone cat={catPorId[x.catId]} size={22} />))}
+      {ondeFoi.outras && linhaOnde("outras", ondeFoi.outras.catIds, `Outras ${ondeFoi.outras.catIds.length} categorias`, ondeFoi.outras.total, null, true)}
+    </section>
   );
 
   const idsVisiveis = visiveis.map((l) => l.id);
@@ -520,24 +567,25 @@ export default function MinhasContas({ chave, ativo = true, larga: largaProp }) 
           </button>
         )}
         <button className="mc-linha-bt" onClick={aoTocar}>
-          <CatIcone cat={c} />
+          <CatIcone cat={c} size={larga ? 30 : 34} />
           <span className="mc-nm">
-            <span className="mc-t">{l.desc}{l.serie?.tipo === "parcela" && <span className="mc-pc">{l.serie.n}/{l.serie.total}</span>}</span>
+            <span className="mc-t">{l.desc}</span>
             <span className="mc-s">
-              <span className="mc-s-txt">{comData ? `${l.data.split("-").reverse().join("/")} · ` : ""}{c ? c.nome : "Sem categoria"}</span>
+              <span className="mc-s-txt">
+                {comData ? `${l.data.split("-").reverse().join("/")} · ` : ""}{c ? c.nome : "Sem categoria"}
+                {l.serie?.tipo === "fixo" && " · todo mês"}
+                {l.serie?.tipo === "parcela" && ` · ${l.serie.n} de ${l.serie.total}`}
+              </span>
               {l.foraSoma && <span className="mc-fora-tag"><EyeOff size={11} /> fora da soma</span>}
             </span>
           </span>
-          {(l.obs || l.serie?.tipo === "fixo") && (
+          {l.obs && (
             <span className="mc-icones">
-              {l.obs && (
-                <BalaoObs
-                  texto={l.obs}
-                  aberto={obsAberta === l.id}
-                  onAlternar={() => setObsAberta((o) => (o === l.id ? null : l.id))}
-                />
-              )}
-              {l.serie?.tipo === "fixo" && <Repeat size={16} aria-label="repete todo mês" />}
+              <BalaoObs
+                texto={l.obs}
+                aberto={obsAberta === l.id}
+                onAlternar={() => setObsAberta((o) => (o === l.id ? null : l.id))}
+              />
             </span>
           )}
           <span className={"mc-val" + (l.tipo === "receita" ? " mc-pos" : "")}>
@@ -552,7 +600,7 @@ export default function MinhasContas({ chave, ativo = true, larga: largaProp }) 
             aria-pressed={l.pago}
             onClick={() => alternarPago(l)}
           >
-            {l.pago ? <MoedaOk /> : <span className="mc-moeda-vazia" />}
+            {l.pago ? <MoedaOk size={larga ? 22 : 26} /> : <span className="mc-moeda-vazia" />}
           </button>
         )}
       </div>
@@ -570,36 +618,32 @@ export default function MinhasContas({ chave, ativo = true, larga: largaProp }) 
     <div className={"mc-wrap" + (larga ? " mc-larga" : "")}>
       <MCStyles />
 
-      {(
+      {!larga && (
         <header className="mc-topo">
-          {larga ? (
-            <div className="mc-titulo-aba">Minhas contas</div>
-          ) : (
-            <div className="mc-marca"><IconeOink size={36} moedaCaindo={moedaCaindo > 0} key={moedaCaindo} /><span className="oink-logo">oink<i>.</i></span></div>
-          )}
+          <div className="mc-marca"><IconeOink size={36} moedaCaindo={moedaCaindo > 0} key={moedaCaindo} /><span className="oink-logo">oink<i>.</i></span></div>
           <div className="mc-topo-bts">
-            <button className="mc-ib" title={oculto ? "Mostrar valores" : "Esconder valores"} aria-label="Esconder valores" onClick={() => setOculto((o) => !o)}>
-              {oculto ? <EyeOff size={19} /> : <Eye size={19} />}
-            </button>
-            {!larga && <button className="mc-ib" title="Configurações" aria-label="Configurações" onClick={() => window.dispatchEvent(new Event("oink-config"))}><Settings size={19} /></button>}
+            {olho}
+            <button className="mc-ib" title="Configurações" aria-label="Configurações" onClick={() => window.dispatchEvent(new Event("oink-config"))}><Settings size={19} /></button>
           </div>
         </header>
       )}
-
-
 
       {!larga && hero}
 
       <div className="mc-corpo">
         <section className={"mc-lista-card" + (larga ? " vidro" : "")}>
-          {(
+          {/* cabeçalho numa linha só: título, mês, quantos, busca e Lançar */}
+          <div className={"mc-cab" + (busca !== null ? " buscando" : "")}>
+            {larga && <h1 className="mc-cab-tit">Minhas contas</h1>}
             <div className="mc-periodo">
-              <button className="mc-ib" aria-label="Período anterior" onClick={() => setPeriodo(andarPeriodo(periodo, -1))}><ChevronLeft size={20} /></button>
+              <button className="mc-ib" aria-label="Período anterior" onClick={() => setPeriodo(andarPeriodo(periodo, -1))}><ChevronLeft size={larga ? 17 : 20} /></button>
               <div className="mc-per-centro">
-                <button className={"mc-per-bt" + (menuPeriodo ? " on" : "")} aria-expanded={menuPeriodo} onClick={() => setMenuPeriodo((o) => !o)}>
-                  {nomePeriodo(periodo)} <ChevronDown size={16} />
+                <button className={"mc-per-bt" + (menuPeriodo ? " on" : "")} aria-expanded={menuPeriodo} onClick={() => setMenuPeriodo((o) => !o)}
+                  aria-label={`${nomePeriodo(periodo)}, ${doMesTodos.length} ${doMesTodos.length === 1 ? "lançamento" : "lançamentos"}`}>
+                  <span className="mc-per-nome">{nomePeriodo(periodo)}</span>
+                  {!larga && <span className="mc-per-n">· {doMesTodos.length}</span>}
+                  <ChevronDown size={larga ? 14 : 16} />
                 </button>
-                <small>{doMesTodos.length} {doMesTodos.length === 1 ? "lançamento" : "lançamentos"}</small>
                 {menuPeriodo && (
                   <>
                     <div className="mc-menu-fundo" onClick={() => setMenuPeriodo(false)} />
@@ -617,21 +661,43 @@ export default function MinhasContas({ chave, ativo = true, larga: largaProp }) 
                   </>
                 )}
               </div>
-              <button className="mc-ib" aria-label="Próximo período" onClick={() => setPeriodo(andarPeriodo(periodo, 1))}><ChevronRight size={20} /></button>
+              <button className="mc-ib" aria-label="Próximo período" onClick={() => setPeriodo(andarPeriodo(periodo, 1))}><ChevronRight size={larga ? 17 : 20} /></button>
+            </div>
+            {larga && <span className="mc-cab-n">{doMesTodos.length} {doMesTodos.length === 1 ? "lançamento" : "lançamentos"}</span>}
+            <div className="mc-cab-fim">
+              {!selecionando && (
+                <div className="mc-fbusca">
+                  <input
+                    ref={buscaRef}
+                    value={busca ?? ""}
+                    tabIndex={busca === null ? -1 : 0}
+                    placeholder="Buscar por descrição"
+                    aria-label="Buscar em todos os meses"
+                    onChange={(e) => setBusca(e.target.value)}
+                    onKeyDown={(e) => e.key === "Escape" && setBusca(null)}
+                    onBlur={() => { if (!(busca || "").trim()) setBusca(null); }}
+                  />
+                  {busca === null ? (
+                    <button className="mc-fbusca-bt" aria-label="Buscar" title="Buscar" onClick={abrirBusca}><Search size={larga ? 16 : 19} /></button>
+                  ) : (
+                    <button className="mc-fbusca-bt" aria-label="Fechar busca" title="Fechar busca" onMouseDown={(e) => e.preventDefault()} onClick={() => setBusca(null)}><X size={larga ? 16 : 19} /></button>
+                  )}
+                </div>
+              )}
               {larga && (
-                <button className="mc-btn-rosa" onClick={() => setPainel({ modo: "novo", n: Date.now() })}><Plus size={18} strokeWidth={2.8} /> Lançar</button>
+                <button className="mc-btn-rosa" onClick={() => setPainel({ modo: "novo", n: Date.now() })}><Plus size={16} strokeWidth={2.8} /> Lançar</button>
               )}
             </div>
-          )}
+          </div>
 
-          <div className={"mc-fbar" + (busca !== null ? " aberta" : "")}>
+          <div className="mc-fbar">
             {selecionando ? (
               <div className="mc-chips mc-fpill">
                 <span className="mc-sel-conta">{sel.size} {sel.size === 1 ? "selecionado" : "selecionados"}</span>
                 <button className="mc-chip" onClick={() => setSel(sel.size === idsVisiveis.length && sel.size ? new Set() : new Set(idsVisiveis))}>
                   {sel.size === idsVisiveis.length && sel.size ? "Nenhum" : "Todos"}
                 </button>
-                <button className="mc-chip mc-chip-sel on" onClick={sairSelecao}><X size={14} /> Cancelar</button>
+                {!larga && <button className="mc-chip mc-chip-sel on" onClick={sairSelecao}><X size={14} /> Cancelar</button>}
               </div>
             ) : (
               <div className="mc-chips mc-fpill" ref={filtrosRef}>
@@ -640,7 +706,7 @@ export default function MinhasContas({ chave, ativo = true, larga: largaProp }) 
                   <button key={k} className={"mc-chip" + (estado === k && busca === null ? " on" : "")} data-on={estado === k && busca === null ? "1" : undefined} onClick={() => { setBusca(null); setEstado(k); }}>{t}</button>
                 ))}
                 {catsEscolhidas.length === 0 ? (
-                  <button className="mc-chip" onClick={abrirFiltroCat}><Filter size={14} /> Categoria</button>
+                  <button className="mc-chip" onClick={abrirFiltroCat}><Filter size={13} /> Categoria</button>
                 ) : catsEscolhidas.length === 1 ? (
                   <span className="mc-chip on mc-chip-cat">
                     <button className="mc-chip-cat-nome" title="Mudar as categorias do filtro" onClick={abrirFiltroCat}><CatIcone cat={catsEscolhidas[0]} size={18} /> {catsEscolhidas[0].nome}</button>
@@ -649,34 +715,18 @@ export default function MinhasContas({ chave, ativo = true, larga: largaProp }) 
                 ) : (
                   <span className="mc-chip on mc-chip-cat">
                     <button className="mc-chip-cat-nome" title="Mudar as categorias do filtro" onClick={abrirFiltroCat}>
-                      <span className="mc-pilhas">{catsEscolhidas.slice(0, 3).map((c) => <CatIcone key={c.id} cat={c} size={18} />)}</span>
+                      <span className="mc-pilhas">{catsEscolhidas.slice(0, 3).map((c) => <CatIcone key={String(c.id)} cat={c} size={18} />)}</span>
                       {catsEscolhidas.length} categorias
                     </button>
                     <button className="mc-chip-cat-x" aria-label="Limpar o filtro de categorias" onClick={() => setCatsFiltro(new Set())}><X size={14} /></button>
                   </span>
                 )}
-                <button className="mc-chip mc-chip-sel" onClick={() => { setBusca(null); setSelecionando(true); }}><CheckSquare size={14} /> Selecionar</button>
+                {!larga && <button className="mc-chip mc-chip-sel" onClick={() => { setBusca(null); setSelecionando(true); }}><CheckSquare size={14} /> Selecionar</button>}
               </div>
             )}
-            {!selecionando && (
-              <div className="mc-fbusca">
-                <input
-                  ref={buscaRef}
-                  value={busca ?? ""}
-                  tabIndex={busca === null ? -1 : 0}
-                  placeholder="Buscar por descrição"
-                  aria-label="Buscar em todos os meses"
-                  onChange={(e) => setBusca(e.target.value)}
-                  onKeyDown={(e) => e.key === "Escape" && setBusca(null)}
-                  onBlur={() => { if (!(busca || "").trim()) setBusca(null); }}
-                />
-                {busca === null ? (
-                  <button className="mc-fbusca-bt" aria-label="Buscar" title="Buscar" onClick={abrirBusca}><Search size={20} /></button>
-                ) : (
-                  <button className="mc-fbusca-bt" aria-label="Fechar busca" title="Fechar busca" onMouseDown={(e) => e.preventDefault()} onClick={() => setBusca(null)}><X size={20} /></button>
-                )}
-              </div>
-            )}
+            {larga && (selecionando
+              ? <button className="mc-sel-bt on" onClick={sairSelecao}><X size={14} /> Cancelar</button>
+              : <button className="mc-sel-bt" onClick={() => { setBusca(null); setSelecionando(true); }}><CheckSquare size={14} /> Selecionar</button>)}
           </div>
 
           {selecionando && <div className="mc-sel-aviso">Só no período que está na tela: nada muda nos outros meses.</div>}
@@ -756,7 +806,13 @@ export default function MinhasContas({ chave, ativo = true, larga: largaProp }) 
         {larga && (
           <aside className="mc-lado">
             {hero}
-            {form || <div className="mc-lado-dica vidro">Toque num lançamento pra ver, mudar ou apagar.</div>}
+            {/* com um lançamento aberto, o painel dele fica no lugar do "Para onde foi" */}
+            {form || (
+              <>
+                {paraOndeFoi}
+                <div className="mc-lado-dica">Toque num lançamento pra ver, mudar ou apagar.</div>
+              </>
+            )}
           </aside>
         )}
       </div>
